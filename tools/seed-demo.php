@@ -14,6 +14,7 @@ use Ideia\Closing;
 use Ideia\Companies;
 use Ideia\Config;
 use Ideia\Efatura;
+use Ideia\Inventory;
 use Ideia\Ledger;
 use Ideia\Purchases;
 use Ideia\Sales;
@@ -226,6 +227,8 @@ $fc(3, 'FT 2025/951', '2025-11-04', '2025-12-04', [
     ['item_id' => $it[2], 'description' => 'Manual de procedimentos impresso', 'qty' => '30', 'price' => '1.100,00', 'account' => '311'],
     ['item_id' => $it[3], 'description' => 'Licença de software anual', 'qty' => '5', 'price' => '24.500,00', 'account' => '311'],
 ]);
+// contagem do inventário no fim de novembro: as compras de artigos passam a custo das mercadorias vendidas (CMVMC)
+Inventory::post($db, 2025, ['date' => '2025-11-30', 'final_mercadorias' => '61.000,00']);
 $f4 = $fc(4, 'AP-2025-301', '2025-11-18', '2026-01-17', [['description' => 'Seguro multirriscos (anual)', 'price' => '42.000,00', 'account' => '6263', 'vat_code' => 'ISE']]);
 Purchases::pay($db, ['invoices' => [$f2['id']], 'date' => '2025-11-20', 'payment_method' => 'TB']);
 Purchases::pay($db, ['invoices' => [$f3['id']], 'amount' => '30.000,00', 'date' => '2025-11-10', 'payment_method' => 'TB']);

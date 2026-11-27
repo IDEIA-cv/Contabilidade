@@ -28,6 +28,13 @@ final class Closing
             if ($drafts > 0) {
                 throw new UserError("Há {$drafts} lançamento(s) em rascunho no exercício {$year}. Valide-os ou apague-os antes de fechar.");
             }
+            $pending = (int) $db->value(
+                "SELECT COALESCE(SUM(debit_cents - credit_cents), 0) FROM v_movements WHERE fiscal_year = ? AND account LIKE '31%' AND journal_kind <> 'apuramento'",
+                [$year]
+            );
+            if ($pending !== 0) {
+                throw new UserError('Há ' . Money::format($pending) . " de compras na conta 31 que ainda não passaram para o inventário. Faça primeiro o apuramento do custo das mercadorias vendidas (Exercícios e fecho → Inventário e CMVMC), com o inventário final de {$year}.");
+            }
             foreach (['811', '812', '818'] as $acc) {
                 if (!Ledger::isMovementAccount($db, $acc)) {
                     throw new UserError("A conta {$acc} tem de existir e ser de movimento para fechar o exercício.");

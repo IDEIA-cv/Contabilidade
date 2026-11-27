@@ -100,6 +100,7 @@ final class Stats
             'margin_pct' => $vn ? round(($vn - $cmv) / $vn * 100, 1) : null,
             'net_margin_pct' => $vn ? round($is['resultado_liquido'] / $vn * 100, 1) : null,
             'assets' => BusinessStats::assets($db, $year),
+            'inventory_pending' => (int) $db->value("SELECT COALESCE(SUM(debit_cents - credit_cents), 0) FROM v_movements WHERE fiscal_year = ? AND account LIKE '31%' AND journal_kind <> 'apuramento'", [$year]),
         ];
     }
 
@@ -494,6 +495,17 @@ final class Stats
                 }
                 if (!$lastBackup || strtotime((string) $lastBackup) < strtotime('-7 days')) {
                     $alerts[] = 'Sem cópia de segurança nos últimos 7 dias';
+                }
+                $overdue = array_sum(array_map(static fn($r) => $r['days_overdue'] > 0 ? (int) $r['open_cents'] : 0, Sales::openDocs($db)));
+                if ($overdue > 0) {
+                    $alerts[] = 'Faturas vencidas por receber: ' . Money::format($overdue);
+                }
+                $efPending = (int) $db->value("SELECT COUNT(*) FROM sales_docs WHERE status = 'emitido' AND efatura_status IN ('pendente','erro','rejeitado')");
+                if ($efPending) {
+                    $alerts[] = "{$efPending} documento(s) por comunicar à e-Fatura";
+                }
+                if ((int) $db->value("SELECT COUNT(*) FROM fixed_assets WHERE status = 'ativo'") && Assets::list($db, ['year' => $year, 'status' => 'ativo'])['pending']) {
+                    $alerts[] = "Depreciações de {$year} por lançar";
                 }
                 $chain = Ledger::chainStatus($db);
                 if (!$chain['ok']) {

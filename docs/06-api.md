@@ -199,6 +199,9 @@ Com acessos ativos, qualquer outra ação sem sessão responde HTTP 401 `{ok:fal
 | `stats.budget_save` | POST | `year`, `account`, `months[12]` |
 | `stats.custom` | GET | `year`, `to?` |
 | `stats.custom_save` | POST | `items[]` = `{name, formula, unit}` |
+| `inventory.status` | GET | `year`, `date?` — compras por passar ao inventário, inventário contabilístico, apuramentos do ano |
+| `inventory.preview` | GET | `year`, `date?`, `final_mercadorias?`, `final_materias?` |
+| `inventory.post` / `inventory.unpost` | POST | `year`, `date?`, `final_*` / `year`, `entry` (contabilista) |
 | `stats.sales` | GET | `year`, `from?`, `to?`, `family?` (id, 0 = sem família), `party?` — vendas por artigo, família, cliente e mês, com margem |
 | `stats.purchases` | GET | `year`, `from?`, `to?` — compras por fornecedor, conta e mês |
 | `stats.terms` | GET | `year`, `from?`, `to?` — prazos reais de recebimento e pagamento |

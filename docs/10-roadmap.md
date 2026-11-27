@@ -38,6 +38,7 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 - Exportação em ZIP de documentos de venda e de compra, tema claro/escuro/automático, notas de crédito e recibos a partir da lista, associar e duplicar documentos, "Emitir recibo".
 
 - **Estatísticas a partir dos documentos**: vendas por artigo, família e cliente com margem, compras por fornecedor e conta, prazos reais de recebimento e pagamento (também nos rácios PMR/PMP), imobilizado no painel.
+- **Inventário periódico**: apuramento do custo das mercadorias vendidas (31 → 32/33 → 611/612) com o inventário contado; o fecho exige-o. Relatório de gestão e carteira usam os dados da faturação.
 
 ## Próximo — validação (antes de qualquer cliente real)
 

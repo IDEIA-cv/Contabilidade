@@ -97,8 +97,8 @@ O avaliador (`Stats::evaluate`) é um analisador descendente recursivo próprio:
 
 ## Relatório de gestão
 
-Página imprimível que junta KPIs, gráfico mensal, DR resumida, rácios principais, principais gastos e clientes, e uma frase com a previsão do fecho. Pensada para o contabilista entregar mensalmente ao cliente.
+Página imprimível que junta KPIs, gráfico mensal, DR resumida, rácios principais, principais gastos e clientes, artigos mais vendidos (com margem) e prazos de pagamento, e uma frase com a previsão do fecho. Pensada para o contabilista entregar mensalmente ao cliente.
 
 ## Carteira (`portfolio`)
 
-No ecrã inicial, para gabinetes com várias empresas: para cada empresa, volume de negócios e resultado do ano, último lançamento, última cópia e **alertas** (rascunhos por validar, sem cópia de segurança há mais de 7 dias, cadeia de integridade quebrada, ficheiro ilegível).
+No ecrã inicial, para gabinetes com várias empresas: para cada empresa, volume de negócios e resultado do ano, último lançamento, última cópia e **alertas** (rascunhos por validar, faturas vencidas por receber, documentos por comunicar à e-Fatura, depreciações do ano por lançar, sem cópia de segurança há mais de 7 dias, cadeia de integridade quebrada, ficheiro ilegível).

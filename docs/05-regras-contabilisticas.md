@@ -94,6 +94,19 @@ Rendimentos com sinal positivo e gastos com sinal negativo (`Reports::incomeFrom
 - `Vat::postSettlement` cria e valida no diário `DIV`, no último dia do período, o lançamento que salda 2432/2433/2434 contra 2436 ou 2437. Um período (ou parte dele) já apurado e não estornado não pode ser apurado outra vez: `settlement` devolve `posted` com os períodos já apurados e o ecrã mostra a ligação ao lançamento.
 - Taxa normal de Cabo Verde: 15 %. Outras taxas configuram-se como novos códigos de IVA.
 
+## Inventário e custo das mercadorias vendidas (CMVMC)
+
+Sistema de inventário periódico (`Ideia\Inventory`, ecrã **Exercícios e fecho → Inventário e custo das mercadorias vendidas**):
+
+- As faturas de fornecedor de mercadorias e matérias são lançadas em **311/312 (Compras)**.
+- No apuramento, a uma data dentro do exercício, o utilizador indica o **inventário final contado** de cada natureza. É criado um lançamento validado (diário `DIV`, `source = cmvmc`, documento `CMVMC aaaa-mm-dd`):
+  1. compras para o inventário: débito **32/33**, crédito **311/312** (saldo da 31 até à data);
+  2. custo: débito **611/612**, crédito **32/33** = inventário inicial + compras − inventário final.
+- Pode repetir-se (por exemplo todos os meses); cada apuramento tem de ter data posterior ao anterior e só o mais recente se anula (estorno).
+- Recusado: inventário final negativo ou maior do que inventário inicial + compras; data fora do exercício; contas inexistentes ou com subcontas.
+- O **fecho do exercício exige** a conta 31 saldada (todas as compras passadas ao inventário). O inventário final passa para o exercício seguinte no lançamento de abertura.
+- O painel avisa quando há compras por passar ao inventário (a margem bruta ainda não desconta o custo do que foi vendido).
+
 ## Fecho do exercício
 
 `Closing::closeYear(ano)`:

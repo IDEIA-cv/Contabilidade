@@ -21,7 +21,7 @@ final class Api
     /** Ações só para o perfil administrador (contabilista), quando há utilizadores. */
     private const ADMIN = ['auth.users', 'auth.user_save', 'auth.user_delete', 'auth.disable', 'company.update', 'company.logo', 'accounts.save',
         'years.create', 'years.lock', 'years.close', 'years.open_next', 'vat.post', 'efatura.save', 'saft.import', 'csv.import', 'companies.create', 'companies.restore',
-        'assets.post', 'assets.unpost', 'assets.dispose'];
+        'assets.post', 'assets.unpost', 'assets.dispose', 'inventory.post', 'inventory.unpost'];
 
     /** Ações permitidas ao perfil só leitura além das de leitura (GET). */
     private const READONLY_EXTRA = ['auth.logout', 'auth.password', 'auth.login'];
@@ -35,7 +35,7 @@ final class Api
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
         'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.export_zip', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
         'purchases.meta', 'purchases.list', 'purchases.export_zip', 'purchases.get', 'purchases.creditors', 'purchases.schedule', 'purchases.supplier', 'purchases.summary', 'purchases.last_account',
-        'assets.meta', 'assets.list', 'assets.get', 'assets.preview',
+        'assets.meta', 'assets.list', 'assets.get', 'assets.preview', 'inventory.status', 'inventory.preview',
         'efatura.overview', 'efatura.documents', 'efatura.xml', 'efatura.check', 'efatura.doc', 'efatura.codes', 'efatura.conference',
     ];
 
@@ -269,6 +269,14 @@ final class Api
                 return Sales::saveItem($db, $in);
             case 'items.delete':
                 return ['result' => Sales::deleteItem($db, self::int($in, 'id', 0))];
+            case 'inventory.status':
+                return Inventory::status($db, $year(), ($in['date'] ?? '') ?: null);
+            case 'inventory.preview':
+                return Inventory::preview($db, $year(), $in);
+            case 'inventory.post':
+                return Inventory::post($db, $year(), $in);
+            case 'inventory.unpost':
+                return Inventory::unpost($db, $year(), self::int($in, 'entry', 0));
             case 'assets.meta':
                 return Assets::meta($db);
             case 'assets.list':

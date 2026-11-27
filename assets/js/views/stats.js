@@ -140,9 +140,10 @@ async function indicadores(el) {
 
 async function relatorio(el) {
   const y = state.year;
-  const [d, r, inc, costs, top, f] = await Promise.all([
+  const [d, r, inc, costs, top, f, sv, tm] = await Promise.all([
     api.get('stats.dashboard', { year: y }), api.get('stats.ratios', { year: y }), api.get('reports.income', { year: y, from: 1 }),
     api.get('stats.costs', { year: y }), api.get('stats.top', { year: y, kind: 'C', limit: 5 }), api.get('stats.forecast', { year: y }),
+    api.get('stats.sales', { year: y }), api.get('stats.terms', { year: y }),
   ]);
   const to = d.to;
   const cut = (arr) => arr.map((v, i) => (i < to ? v : null));
@@ -158,6 +159,11 @@ async function relatorio(el) {
         <div><h3>Rácios principais</h3><table><tbody>${r.ratios.filter((x) => ['liq_geral', 'autonomia', 'endividamento', 'ros', 'pmr', 'pmp'].includes(x.key)).map((x) => `<tr><td>${esc(x.label)}</td><td class="num">${fmtRatio(x)}</td></tr>`).join('')}</tbody></table></div>
         <div><h3>Principais gastos</h3><table><tbody>${costs.groups.slice(0, 5).map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${money(g.value)}</td><td class="num muted">${pct(g.pct)}</td></tr>`).join('') || '<tr><td>Sem gastos</td></tr>'}</tbody></table></div>
         <div><h3>Principais clientes</h3><table><tbody>${top.rows.map((t) => `<tr><td>${esc(t.name)}</td><td class="num">${money(t.value)}</td><td class="num muted">${pct(t.pct)}</td></tr>`).join('') || '<tr><td>Sem dados</td></tr>'}</tbody></table></div>
+        ${sv.items.length ? `<div><h3>Artigos mais vendidos</h3><table><tbody>${sv.items.filter((i) => i.item_id).slice(0, 5).map((i) => `<tr><td>${esc(i.name)}</td><td class="num">${money(i.net)}</td><td class="num muted">${i.margin_pct !== null ? 'margem ' + pct(i.margin_pct) : pct(i.pct)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+        ${tm.receivable.count || tm.payable.count ? `<div><h3>Prazos de pagamento</h3><table><tbody>
+          <tr><td>Clientes pagam em média em</td><td class="num">${tm.receivable.avg_days ?? '—'} dias</td><td class="num muted">${tm.receivable.on_time_pct !== null ? pct(tm.receivable.on_time_pct) + ' a tempo' : ''}</td></tr>
+          <tr><td>A empresa paga em média em</td><td class="num">${tm.payable.avg_days ?? '—'} dias</td><td class="num muted">${tm.payable.on_time_pct !== null ? pct(tm.payable.on_time_pct) + ' a tempo' : ''}</td></tr>
+          <tr><td>Vencido por receber</td><td class="num ${tm.receivable.overdue ? 'neg' : ''}">${money(tm.receivable.overdue)}</td><td></td></tr></tbody></table></div>` : ''}
       </div>
       <h3 style="margin-top:16px">Previsão do fecho</h3>
       <p>Mantendo o ritmo atual (${f.method}), o volume de negócios de ${y} deverá rondar <b>${money(f.items.vendas.projection)}</b> e o resultado <b class="${signClass(f.items.resultado.projection)}">${money(f.items.resultado.projection)}</b>.</p>

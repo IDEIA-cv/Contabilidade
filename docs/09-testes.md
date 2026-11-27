@@ -27,11 +27,12 @@ php tests/run.php
 | `ApiAuthTest.php` | Regras da API (POST, cabeçalho, rede local), acessos (ativar, entrada, bloqueio por tentativas, desligar), perfis (colaborador e só leitura travados, contabilista obrigatório), autor no registo de auditoria, ficheiro antigo só com palavra-passe, diagnóstico |
 | `AssetsTest.php` | Plano de depreciações (meses do primeiro ano, residual, última quota, depreciações anteriores), lançamento e anulação por exercício e por ordem, abate com venda (ganho/perda, depreciação até ao mês), migração v10→v11 |
 | `BusinessStatsTest.php` | Estatísticas a partir dos documentos: vendas por artigo/família/cliente com notas de crédito e margem pelo custo médio, filtros, compras por conta e fornecedor, prazos reais (e nos rácios), imobilizado no painel |
+| `InventoryTest.php` | Apuramento do CMVMC: compras → inventário → custo, validações, apuramentos sucessivos, anular o último, fecho exige o apuramento, inventário passa para o ano seguinte |
 | `RulesTest.php` | Regras da revisão por módulo: IVA não apurado duas vezes, código de conta, datas de recibos, notas e pagamentos, proteções do imobilizado, regras dos utilizadores |
 | `PagingTest.php` | Extrato e diário paginados iguais à versão completa |
 | `ImportStatsTest.php` | SAF-T (pré-visualização, conflitos, importação com abertura), CSV (erros e tudo-ou-nada), exportação SAF-T, painel, rácios, orçamento, fórmulas |
 
-Estado atual: **69 testes, todos a passar**.
+Estado atual: **70 testes, todos a passar**.
 
 ## Teste no browser (Playwright)
 

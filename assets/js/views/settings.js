@@ -1,7 +1,7 @@
 // Exercícios (criar, bloquear, fechar, abrir seguinte) e Empresa (dados, cópias de segurança, integridade, auditoria).
 import { api } from '../api.js';
-import { state, setCrumbs, refreshInfo, rerender } from '../main.js';
-import { esc, toast, confirmDialog, formData, fmtDate, modal } from '../util.js';
+import { state, setCrumbs, refreshInfo, rerender, cpath } from '../main.js';
+import { esc, toast, confirmDialog, formData, fmtDate, modal, money, toCents } from '../util.js';
 import { accessCard } from './users.js';
 
 export async function render(ctx) {
@@ -14,12 +14,14 @@ async function years({ view }) {
   view.innerHTML = `
     <div class="page-head"><div><h1>Exercícios e fecho</h1><p class="muted">O fecho gera o apuramento de resultados (classes 6 e 7 → 811 → 818) e bloqueia o exercício. A abertura do seguinte transporta os saldos do balanço e passa o resultado para 56.</p></div>
       <div class="toolbar"><button id="new" data-admin>Novo exercício</button></div></div>
-    <div class="card"><table><thead><tr><th>Exercício</th><th>Período</th><th>Estado</th><th>Bloqueado até</th><th class="num">Lançamentos</th><th></th></tr></thead><tbody>
+    <div class="card"><div class="table-wrap" tabindex="0" role="region" aria-label="Exercícios"><table><thead><tr><th>Exercício</th><th>Período</th><th>Estado</th><th>Bloqueado até</th><th class="num">Lançamentos</th><th></th></tr></thead><tbody>
       ${info.years.map((y) => `<tr><td><b>${y.year}</b></td><td>${fmtDate(y.start_date)} a ${fmtDate(y.end_date)}</td>
         <td>${y.status === 'aberto' ? '<span class="badge good">Aberto</span>' : '<span class="badge">Fechado</span>'}</td>
         <td>${y.locked_until ? fmtDate(y.locked_until) : '—'}</td><td class="num">${y.entries}</td>
         <td class="num">${y.status === 'aberto' ? `<button data-admin data-lock="${y.year}">Bloquear período</button> <button data-admin data-close="${y.year}" class="primary">Fechar exercício</button>` : `<button data-admin data-open="${y.year}">Abrir ${Number(y.year) + 1}</button>`}</td></tr>`).join('')}
-    </tbody></table></div>`;
+    </tbody></table></div></div>
+    <div class="card" id="inv"><div class="loading">A carregar…</div></div>`;
+  inventoryCard(view.querySelector('#inv'), info.years.find((y) => Number(y.year) === Number(state.year)));
   const act = (sel, fn) => view.querySelectorAll(sel).forEach((b) => { b.onclick = async () => { try { await fn(b); } catch (err) { toast(err.message, 'bad'); } }; });
   view.querySelector('#new').onclick = () => modal({
     title: 'Novo exercício', body: '<div class="form"><label>Ano<input name="year" type="number" value="' + (Math.max(...info.years.map((y) => Number(y.year))) + 1) + '"></label></div>',
@@ -100,3 +102,54 @@ async function company({ view }) {
     try { const r = await api.post('backup.create'); toast('Cópia guardada em ' + r.file, 'good'); } catch (err) { toast(err.message, 'bad'); }
   };
 }
+
+/** Inventário periódico: compras (31) → inventário (32/33) → custo das mercadorias vendidas (611/612). */
+async function inventoryCard(box, fy, date = '') {
+  if (!fy) { box.remove(); return; }
+  const y = Number(fy.year);
+  let st;
+  try { st = await api.get('inventory.status', { year: y, date }); } catch (err) { box.innerHTML = `<div class="alert bad">${esc(err.message)}</div>`; return; }
+  const kinds = Object.values(st.kinds).filter((k) => k.purchases || k.stock || k.cost_ytd);
+  const open = fy.status === 'aberto';
+  const last = st.postings[st.postings.length - 1];
+  box.innerHTML = `<h2>Inventário e custo das mercadorias vendidas · ${y}</h2>
+    <p class="muted">As faturas de fornecedor de mercadorias e matérias ficam na conta 31 (Compras). Para a margem bruta e a demonstração de resultados ficarem certas, conte o inventário e lance o apuramento: as compras passam para o inventário (32/33) e o que foi vendido ou consumido passa para gasto (611/612), com a fórmula <b>inventário inicial + compras − inventário final</b>. Pode fazê-lo todos os meses ou só no fim do ano; é obrigatório antes de fechar o exercício.</p>
+    ${kinds.length ? `${open ? `<div class="form" style="max-width:320px"><label>Data da contagem<input type="date" name="date" value="${esc(st.date)}" min="${esc(fy.start_date)}" max="${esc(fy.end_date)}"></label></div>` : ''}
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Apuramento do CMVMC"><table><thead><tr><th>Natureza</th><th class="num">Inventário na contabilidade</th><th class="num">Compras por passar ao inventário</th>${open ? '<th class="num">Inventário final contado</th><th class="num">Custo a lançar</th>' : ''}<th class="num">Custo já lançado no ano</th></tr></thead><tbody>
+      ${kinds.map((k) => `<tr data-k="${k.key}" data-stock="${k.stock}" data-purchases="${k.purchases}"><td>${esc(k.label)}<div class="small muted mono">${k.accounts.purchases} → ${k.accounts.stock} → ${k.accounts.cost}</div></td>
+        <td class="num">${money(k.stock)}</td><td class="num">${money(k.purchases)}</td>
+        ${open ? `<td class="num"><input name="final_${k.key}" class="num" inputmode="decimal" aria-label="Inventário final de ${esc(k.label)}" placeholder="0,00" style="max-width:140px"></td><td class="num cost"><span class="muted">—</span></td>` : ''}
+        <td class="num">${money(k.cost_ytd)}</td></tr>`).join('')}</tbody></table></div>
+      ${open ? `<div class="toolbar" style="margin-top:10px"><button class="primary" id="inv-post" data-admin>Lançar apuramento</button><span class="small muted">Indique o valor contado de cada natureza (vazio = nada em armazém). Lançamento validado no diário de operações diversas, com a data da contagem.</span></div>` : ''}`
+      : '<p class="empty">Sem compras de mercadorias ou matérias (contas 311 e 312) neste exercício. Se só presta serviços, não precisa de fazer nada aqui.</p>'}
+    ${st.postings.length ? `<h3 style="margin-top:14px">Apuramentos de ${y}</h3><table><tbody>${st.postings.map((p) => `<tr><td>${fmtDate(p.date)}</td><td><a href="#/${cpath('lancamento/' + p.id)}">${esc(p.journal)} / ${p.number}</a></td><td class="num">custo ${money(p.cost_cents)}</td>
+      <td class="num">${open && p === last ? `<button data-admin data-inv-undo="${p.id}">Anular</button>` : ''}</td></tr>`).join('')}</tbody></table>` : ''}`;
+  box.querySelector('[name=date]')?.addEventListener('change', (e) => inventoryCard(box, fy, e.target.value));
+  const recalc = () => box.querySelectorAll('tr[data-k]').forEach((tr) => {
+    const v = tr.querySelector('input')?.value || '';
+    const c = v ? toCents(v) : 0;
+    const cell = tr.querySelector('.cost');
+    if (!cell) return;
+    if (!v) { cell.innerHTML = '<span class="muted">—</span>'; return; }
+    const cost = Number(tr.dataset.stock) + Number(tr.dataset.purchases) - c;
+    cell.innerHTML = Number.isNaN(c) ? '<span class="neg">valor inválido</span>' : `<span class="${cost < 0 ? 'neg' : ''}">${money(cost)}</span>`;
+  });
+  box.querySelectorAll('tr[data-k] input').forEach((i) => i.addEventListener('input', recalc));
+  box.querySelector('#inv-post')?.addEventListener('click', async () => {
+    const body = { year: y, date: box.querySelector('[name=date]').value };
+    box.querySelectorAll('tr[data-k] input').forEach((i) => { body[i.name] = i.value; });
+    try {
+      const p = await api.get('inventory.preview', body);
+      if (!(await confirmDialog('Lançar apuramento do CMVMC', `Em ${fmtDate(p.date)}: ${p.rows.map((r) => `${r.label.toLowerCase()} — custo ${money(r.cost)} (inventário final ${money(r.final)})`).join('; ')}.`, 'Lançar'))) return;
+      await api.post('inventory.post', body);
+      toast('Apuramento lançado.', 'good');
+      await refreshInfo();
+      inventoryCard(box, fy);
+    } catch (err) { toast(err.message, 'bad'); }
+  });
+  box.querySelector('[data-inv-undo]')?.addEventListener('click', async (e) => {
+    if (!(await confirmDialog('Anular o apuramento?', 'O lançamento é estornado e as compras voltam a ficar por passar ao inventário.', 'Anular'))) return;
+    try { await api.post('inventory.unpost', { year: y, entry: e.target.dataset.invUndo }); toast('Apuramento anulado.'); inventoryCard(box, fy); } catch (err) { toast(err.message, 'bad'); }
+  });
+}
+
