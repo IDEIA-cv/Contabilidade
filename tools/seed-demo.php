@@ -172,6 +172,39 @@ Sales::save($db, ['type' => 'GT', 'date' => '2025-11-21', 'third_party' => $clie
     'lines' => [['item_id' => $it[2], 'qty' => '10']]]);
 Sales::save($db, ['type' => 'PF', 'date' => '2025-11-25', 'third_party' => $clients[3], 'lines' => [['item_id' => $it[0], 'qty' => '8']]]);
 
+// mais documentos de exemplo (26/11 a 15/12/2025): faturas pagas, parcialmente pagas e vencidas, recibos, notas de débito
+// e de crédito, pró-forma convertida, orçamentos em aberto, guia associada à fatura, cópia associada e uma fatura anulada
+$doc = static fn(string $type, string $date, ?int $party, array $lines, array $extra = []) => Sales::save($db, ['type' => $type, 'date' => $date, 'third_party' => $party, 'issue' => true, 'lines' => $lines] + $extra);
+$emit = static function (array $draft, string $date, array $extra = []) use ($db): array {
+    return Sales::save($db, ['id' => $draft['id'], 'date' => $date, 'issue' => true] + $extra + ['lines' => $draft['lines']]);
+};
+$pf = $doc('PF', '2025-11-26', $clients[4], [['item_id' => $it[1], 'qty' => '2'], ['item_id' => $it[4]]], ['reference' => 'Formação da equipa administrativa']);
+$ftPf = $emit(Sales::derive($db, (int) $pf['id'], 'FT'), '2025-11-28', ['due_date' => '2025-12-28']);
+$ft4 = $doc('FT', '2025-11-28', $clients[2], [['item_id' => $it[0], 'qty' => '12'], ['item_id' => $it[2], 'qty' => '3']], ['due_date' => '2025-11-30', 'reference' => 'Requisição 2025/118']);
+$ge = $doc('GE', '2025-11-28', $clients[2], [['item_id' => $it[2], 'qty' => '3']], ['delivery_place' => 'Paços do Concelho, Mindelo']);
+Sales::link($db, (int) $ge['id'], (int) $ft4['id']); // guia associada à fatura
+$nd = $emit(Sales::derive($db, (int) $ft4['id'], 'ND'), '2025-12-03', ['issue_reason' => 'DD', 'notes' => 'Despesas de deslocação ao Mindelo',
+    'lines' => [['item_id' => $it[4], 'qty' => '1']]]);
+$ft5 = $doc('FT', '2025-12-01', $clients[0], [['item_id' => $it[3], 'qty' => '2'], ['item_id' => $it[0], 'qty' => '6']], ['due_date' => '2025-12-10']);
+$ft6 = $doc('FT', '2025-12-02', $clients[3], [['item_id' => $it[0], 'qty' => '4']]);
+Sales::cancel($db, (int) $ft6['id'], 'Emitida com o cliente errado');
+$ft7 = $doc('FT', '2025-12-02', $clients[1], [['item_id' => $it[0], 'qty' => '4']], ['due_date' => '2025-12-15']); // vencida, por receber
+$nc2 = $emit(Sales::derive($db, (int) $ft5['id'], 'NC', 'credit'), '2025-12-10', ['issue_reason' => '2', 'notes' => 'Desconto comercial acordado',
+    'lines' => [['description' => 'Desconto comercial sobre a fatura', 'qty' => '1', 'price' => '10.000,00', 'vat_code' => 'NOR']]]);
+$doc('FR', '2025-12-04', $clients[4], [['item_id' => $it[2], 'qty' => '6']], ['payment_method' => 'CC']);
+$doc('TV', '2025-12-05', null, [['item_id' => $it[2], 'qty' => '1']], ['payment_method' => 'NU']);
+$doc('TV', '2025-12-11', null, [['item_id' => $it[2], 'qty' => '3']], ['payment_method' => 'CC']);
+$orOpen = $doc('OR', '2025-12-08', $clients[1], [['item_id' => $it[3], 'qty' => '10', 'discount' => '5'], ['item_id' => $it[1]]], ['due_date' => '2026-12-31', 'reference' => 'Renovação das licenças 2026']);
+$copy = Sales::derive($db, (int) $orOpen['id'], 'OR', 'copy', true); // cópia para outro cliente, associada ao original
+$emit($copy, '2025-12-09', ['third_party' => $clients[4], 'due_date' => '2026-12-31', 'reference' => 'Proposta equivalente']);
+$doc('GT', '2025-12-12', $clients[0], [['item_id' => $it[2], 'qty' => '20']], ['delivery_place' => 'Hotel Atlântico, Santa Maria, Sal']);
+// recibos por ordem de data (a numeração segue as datas): parcial com cheque, total, total, segunda parte
+Sales::pay($db, (int) $ft4['id'], ['date' => '2025-12-02', 'amount' => '40.000,00', 'payment_method' => 'CH']);
+Sales::pay($db, (int) $ftPf['id'], ['date' => '2025-12-05', 'payment_method' => 'TB']);
+Sales::pay($db, (int) $ft5['id'], ['date' => '2025-12-09', 'payment_method' => 'NU']);
+Sales::pay($db, (int) $ft4['id'], ['date' => '2025-12-12', 'amount' => '25.000,00', 'payment_method' => 'TB']);
+$ft8 = $doc('FT', '2025-12-15', $clients[4], [['item_id' => $it[1], 'qty' => '1'], ['item_id' => $it[0], 'qty' => '3']], ['due_date' => '2026-01-14']);
+
 // compras de novembro: faturas de fornecedores, pagamento parcial, despesa paga e nota de crédito
 $fc = static fn(int $s, string $no, string $date, string $due, array $lines) => Purchases::save($db, ['type' => 'FC', 'date' => $date, 'due_date' => $due,
     'third_party' => $suppliers[$s]['id'], 'supplier_doc' => $no, 'register' => true, 'lines' => $lines]);
