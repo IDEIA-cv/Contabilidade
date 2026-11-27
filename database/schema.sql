@@ -109,7 +109,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     ts      TEXT NOT NULL DEFAULT (datetime('now')),
     action  TEXT NOT NULL,
-    details TEXT
+    details TEXT,
+    user    TEXT                                 -- v11: utilizador que fez a operação (vazio sem acessos configurados)
 );
 CREATE INDEX IF NOT EXISTS ix_audit_action ON audit_log(action, ts);              -- v4
 
@@ -293,6 +294,39 @@ CREATE TABLE IF NOT EXISTS sales_doc_links (
     CHECK (a_id < b_id)
 );
 CREATE INDEX IF NOT EXISTS ix_links_b ON sales_doc_links(b_id);
+
+-- Imobilizado (v11): fichas dos bens e depreciações/amortizações lançadas por exercício ------------------------
+CREATE TABLE IF NOT EXISTS fixed_assets (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    code                 TEXT NOT NULL UNIQUE,                 -- IM0001…
+    description          TEXT NOT NULL,
+    category             TEXT NOT NULL,                        -- chave de Assets::CATEGORIES
+    account              TEXT NOT NULL REFERENCES accounts(code), -- 43x (tangível) ou 44x (intangível)
+    acquisition_date     TEXT NOT NULL,
+    start_date           TEXT NOT NULL,                        -- entrada em funcionamento: início das depreciações
+    cost_cents           INTEGER NOT NULL CHECK (cost_cents > 0),
+    residual_cents       INTEGER NOT NULL DEFAULT 0,
+    rate_bp              INTEGER NOT NULL CHECK (rate_bp > 0 AND rate_bp <= 10000), -- taxa anual (quotas constantes)
+    prior_cents          INTEGER NOT NULL DEFAULT 0,           -- depreciações acumuladas antes de usar a aplicação
+    prior_year           INTEGER,                              -- último exercício incluído em prior_cents
+    third_party          INTEGER REFERENCES third_parties(id),
+    supplier_doc         TEXT,
+    location             TEXT,
+    notes                TEXT,
+    status               TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','abatido')),
+    disposal_date        TEXT,
+    disposal_value_cents INTEGER,
+    disposal_reason      TEXT,
+    disposal_entry_id    INTEGER REFERENCES entries(id),
+    created_at           TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE TABLE IF NOT EXISTS fixed_asset_depreciations (
+    asset_id     INTEGER NOT NULL REFERENCES fixed_assets(id) ON DELETE CASCADE,
+    year         INTEGER NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    entry_id     INTEGER REFERENCES entries(id),
+    PRIMARY KEY (asset_id, year)
+);
 
 -- Compras (esquema v7) -------------------------------------------------------------------------------------
 -- Faturas de fornecedores (FC), faturas-recibo / despesas pagas no ato (FP), notas de crédito de fornecedores (NF) e

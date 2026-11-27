@@ -20,6 +20,8 @@ Esta pasta reúne toda a documentação técnica. Leia pela ordem abaixo se est�
 | 12 | [Vendas e documentos comerciais](12-vendas.md) | Faturas, orçamentos, guias, recibos, numeração, dívidas de clientes |
 | 14 | [Compras e dívidas a fornecedores](14-compras.md) | Faturas de fornecedores, pagamentos, dívidas a fornecedores, mapa de pagamentos |
 | 15 | [Fatura eletrónica](15-efatura.md) | Regras da e-Fatura (DNRE), IUD, XML, contingência, Middleware e menu e-Fatura |
+| 16 | [Imobilizado](16-imobilizado.md) | Fichas dos bens, depreciações, abate e venda, mapa |
+| 17 | [Utilizadores e perfis](17-utilizadores.md) | Acessos, perfis contabilista/colaborador/só leitura, autor na auditoria |
 | 13 | [Avaliação de qualidade](13-avaliacao-qualidade.md) | Notas por categoria (software e UI/UX) e próximos passos |
 | — | [Decisões de arquitetura (ADR)](adr/) | Porque se escolheu cada solução |
 

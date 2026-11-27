@@ -15,6 +15,7 @@ import * as bank from './views/bank.js';
 import * as sales from './views/sales.js';
 import * as purchases from './views/purchases.js';
 import * as efatura from './views/efatura.js';
+import * as imobilizado from './views/assets.js';
 
 export const state = { company: null, info: null, year: null, companies: [] };
 
@@ -23,7 +24,7 @@ const NAV = [
   { group: 'Vendas', items: [['vendas', 'Documentos de venda'], ['dividas', 'Dívidas de clientes'], ['artigos', 'Artigos'], ['artigos?tipos=1', 'Tipos de artigo']] },
   { group: 'Compras', items: [['compras', 'Faturas de fornecedores'], ['dividas-fornecedores', 'Dívidas a fornecedores'], ['pagamentos', 'Mapa de pagamentos']] },
   { group: 'Fatura eletrónica', items: [['efatura', 'e-Fatura: estado e envio'], ['efatura/recebidos', 'Documentos recebidos'], ['efatura/conferencia', 'Conferência do IVA'], ['efatura/configurar', 'Configuração e-Fatura'], ['efatura/documentacao', 'Documentação oficial']] },
-  { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária']] },
+  { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária'], ['imobilizado', 'Imobilizado']] },
   { group: 'Relatórios', items: [['relatorios/balancete', 'Balancete'], ['relatorios/razao', 'Extrato de conta'], ['relatorios/diario', 'Diário'], ['relatorios/balanco', 'Balanço'], ['relatorios/dr', 'Demonstração de resultados'], ['iva', 'Apuramento do IVA']] },
   { group: 'Estatísticas', items: [['estatisticas/racios', 'Rácios financeiros'], ['estatisticas/gastos', 'Estrutura de gastos'], ['estatisticas/terceiros', 'Clientes e fornecedores'], ['estatisticas/orcamento', 'Orçamento'], ['estatisticas/previsao', 'Previsão'], ['estatisticas/indicadores', 'Indicadores próprios'], ['estatisticas/relatorio', 'Relatório de gestão']] },
   { group: 'Dados', items: [['importar', 'Importar e exportar'], ['exercicios', 'Exercícios e fecho'], ['empresa', 'Empresa e cópias']] },
@@ -31,7 +32,7 @@ const NAV = [
 
 const ROUTES = {
   painel: dashboard, lancamentos: entries, lancamento: entries, contas: accounts, terceiros: parties,
-  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales, terceiro: sales, compras: purchases, 'dividas-fornecedores': purchases, pagamentos: purchases, efatura,
+  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales, terceiro: sales, compras: purchases, 'dividas-fornecedores': purchases, pagamentos: purchases, efatura, imobilizado,
 };
 
 export function go(path) {
@@ -138,24 +139,30 @@ function showLogin() {
   box.innerHTML = `<form class="card login-card" aria-label="Entrar">
       <img src="assets/img/icon.svg" alt="" width="40" height="40">
       <h1>IDEIA Contabilidade</h1>
-      <p class="muted">Introduza a palavra-passe de acesso.</p>
+      <p class="muted">Entre com o seu utilizador e palavra-passe.</p>
+      <label class="sr-only" for="login-user">Utilizador</label>
+      <input id="login-user" autocomplete="username" placeholder="Utilizador" autocapitalize="none">
       <label class="sr-only" for="login-pw">Palavra-passe</label>
       <input type="password" id="login-pw" autocomplete="current-password" placeholder="Palavra-passe" required>
       <p class="neg small" id="login-err" role="alert"></p>
       <button class="primary" type="submit">Entrar</button>
-      <p class="small muted">Esqueceu-se? Quem instalou a aplicação pode apagar o ficheiro <span class="mono">acesso.json</span> na pasta de dados.</p></form>`;
+      <p class="small muted">Esqueceu-se? Peça ao administrador para lhe definir uma nova. Se ninguém se lembrar, quem instalou a aplicação pode apagar o ficheiro <span class="mono">acesso.json</span> na pasta de dados.</p></form>`;
   document.body.appendChild(box);
   const pw = box.querySelector('#login-pw');
-  pw.focus();
+  const user = box.querySelector('#login-user');
+  try { user.value = localStorage.getItem('ideia.user') || ''; } catch { /* sem armazenamento */ }
+  (user.value ? pw : user).focus();
   box.querySelector('form').onsubmit = async (e) => {
     e.preventDefault();
     const btn = box.querySelector('button');
     btn.disabled = true;
     try {
-      await api.post('auth.login', { password: pw.value });
+      await api.post('auth.login', { username: user.value, password: pw.value });
+      try { localStorage.setItem('ideia.user', user.value); } catch { /* sem armazenamento */ }
       box.remove();
       loginShown = false;
       document.body.classList.remove('locked');
+      await applyAuth(false);
       route_();
     } catch (err) {
       box.querySelector('#login-err').textContent = err.message;
@@ -172,9 +179,17 @@ document.addEventListener('click', (e) => { if (e.target.closest('[data-print]')
 window.addEventListener('hashchange', route_);
 document.getElementById('menu-btn').onclick = () => document.getElementById('sidebar').classList.toggle('open');
 window.addEventListener('unhandledrejection', (e) => { if (!e.reason?.auth) toast(e.reason?.message || String(e.reason), 'bad'); });
-api.get('auth.status').then((a) => {
+/** Mostra quem está ligado (rodapé do menu) e o perfil (atributo data-role no <body>). Devolve o estado. */
+export async function applyAuth(rerouteIfLocked = true) {
+  const a = await api.get('auth.status');
+  state.auth = a;
   const btn = document.getElementById('logout');
   btn.hidden = !a.enabled;
   btn.onclick = logout;
-  if (a.enabled && !a.logged) showLogin(); else route_();
-}).catch(() => route_());
+  const who = document.getElementById('who');
+  if (who) who.innerHTML = a.user ? `<b>${esc(a.user.name)}</b> · ${esc(a.user.role_name)}` : '';
+  document.body.dataset.role = a.role || 'admin';
+  if (rerouteIfLocked && a.enabled && !a.logged) showLogin();
+  return a;
+}
+applyAuth().then((a) => { if (!(a.enabled && !a.logged)) route_(); }).catch(() => route_());

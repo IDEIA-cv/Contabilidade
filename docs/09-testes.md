@@ -24,11 +24,12 @@ php tests/run.php
 | `DocExportTest.php` | ZIP de vendas (filtro, seleção, HTML, XML da e-Fatura, CSV, limites) e de compras (anexos) |
 | `SalesLinksTest.php` | Associar documentos (regras, nos dois sentidos, remover, orçamento faturado no SAF-T), duplicar para outro tipo com associação, apagar rascunho, migração v9→v10 |
 | `SaftTest.php` | SAF-T CV C e F validados com o XSD oficial 1.01_01 (orçamento faturado, pró-forma, recibo, pagamento a fornecedor, linha sem artigo, isenção) |
-| `ApiAuthTest.php` | Regras da API (POST, cabeçalho, rede local), palavra-passe (bloqueio da API, entrada, bloqueio por tentativas, retirar), diagnóstico |
+| `ApiAuthTest.php` | Regras da API (POST, cabeçalho, rede local), acessos (ativar, entrada, bloqueio por tentativas, desligar), perfis (colaborador e só leitura travados, contabilista obrigatório), autor no registo de auditoria, ficheiro antigo só com palavra-passe, diagnóstico |
+| `AssetsTest.php` | Plano de depreciações (meses do primeiro ano, residual, última quota, depreciações anteriores), lançamento e anulação por exercício e por ordem, abate com venda (ganho/perda, depreciação até ao mês), migração v10→v11 |
 | `PagingTest.php` | Extrato e diário paginados iguais à versão completa |
 | `ImportStatsTest.php` | SAF-T (pré-visualização, conflitos, importação com abertura), CSV (erros e tudo-ou-nada), exportação SAF-T, painel, rácios, orçamento, fórmulas |
 
-Estado atual: **57 testes, todos a passar**.
+Estado atual: **61 testes, todos a passar**.
 
 ## Teste no browser (Playwright)
 

@@ -13,20 +13,29 @@ use Ideia\Saft\Importer;
 final class Api
 {
     /** Ações que não precisam de empresa aberta. */
-    private const GLOBAL = ['ping', 'auth.status', 'auth.login', 'auth.logout', 'auth.set', 'system.check', 'companies.list', 'companies.create', 'companies.restore', 'portfolio'];
+    private const GLOBAL = ['ping', 'auth.status', 'auth.login', 'auth.logout', 'auth.setup', 'auth.users', 'auth.user_save', 'auth.user_delete', 'auth.disable', 'auth.password', 'system.check', 'companies.list', 'companies.create', 'companies.restore', 'portfolio'];
 
     /** Ações disponíveis sem sessão iniciada (quando há palavra-passe). */
     private const PUBLIC = ['ping', 'auth.status', 'auth.login'];
 
+    /** Ações só para o perfil administrador (contabilista), quando há utilizadores. */
+    private const ADMIN = ['auth.users', 'auth.user_save', 'auth.user_delete', 'auth.disable', 'company.update', 'company.logo', 'accounts.save',
+        'years.create', 'years.lock', 'years.close', 'years.open_next', 'vat.post', 'efatura.save', 'saft.import', 'csv.import', 'companies.create', 'companies.restore',
+        'assets.post', 'assets.unpost', 'assets.dispose'];
+
+    /** Ações permitidas ao perfil só leitura além das de leitura (GET). */
+    private const READONLY_EXTRA = ['auth.logout', 'auth.password', 'auth.login'];
+
     /** Ações de leitura (GET). As restantes exigem POST. */
     private const READ = [
-        'ping', 'auth.status', 'system.check', 'companies.list', 'portfolio', 'company.info', 'accounts.list', 'thirdparties.list', 'entries.list', 'entries.get',
+        'ping', 'auth.status', 'auth.users', 'system.check', 'companies.list', 'portfolio', 'company.info', 'accounts.list', 'thirdparties.list', 'entries.list', 'entries.get',
         'reports.trial', 'reports.ledger', 'reports.journal', 'reports.balance', 'reports.income', 'vat.settlement',
         'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
         'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'saft.validate', 'import.template', 'attachments.list', 'attachments.download',
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
         'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.export_zip', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
         'purchases.meta', 'purchases.list', 'purchases.export_zip', 'purchases.get', 'purchases.creditors', 'purchases.schedule', 'purchases.supplier', 'purchases.summary', 'purchases.last_account',
+        'assets.meta', 'assets.list', 'assets.get', 'assets.preview',
         'efatura.overview', 'efatura.documents', 'efatura.xml', 'efatura.check', 'efatura.doc', 'efatura.codes', 'efatura.conference',
     ];
 
@@ -64,6 +73,7 @@ final class Api
                 self::json(['ok' => false, 'auth' => true, 'error' => 'A sessão terminou. Introduza a palavra-passe.'], 401);
                 return;
             }
+            self::authorize($action);
             $db = null;
             if (!in_array($action, self::GLOBAL, true)) {
                 $db = Companies::open((string) ($in['c'] ?? ''));
@@ -109,6 +119,21 @@ final class Api
         echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    /** Permissões por perfil (só quando há utilizadores configurados). */
+    private static function authorize(string $action): void
+    {
+        if (in_array($action, self::PUBLIC, true) || !Auth::enabled()) {
+            return;
+        }
+        $role = Auth::role();
+        if ($role === 'leitura' && !in_array($action, self::READ, true) && !in_array($action, self::READONLY_EXTRA, true)) {
+            throw new UserError('O seu perfil é "Só leitura": pode consultar, imprimir e exportar, mas não alterar dados.');
+        }
+        if ($role !== 'admin' && in_array($action, self::ADMIN, true)) {
+            throw new UserError('Esta operação é reservada ao contabilista (administrador). O seu perfil é "' . (Auth::ROLES[$role]['name'] ?? $role) . '".');
+        }
+    }
+
     private static function int(array $in, string $k, int $default): int
     {
         return isset($in[$k]) && $in[$k] !== '' ? (int) $in[$k] : $default;
@@ -138,12 +163,24 @@ final class Api
             case 'auth.status':
                 return Auth::status();
             case 'auth.login':
-                return Auth::login((string) ($in['password'] ?? ''));
+                return Auth::login((string) ($in['username'] ?? ''), (string) ($in['password'] ?? ''));
             case 'auth.logout':
                 Auth::logout();
                 return true;
-            case 'auth.set':
-                return Auth::set((string) ($in['current'] ?? ''), (string) ($in['password'] ?? ''));
+            case 'auth.setup':
+                return Auth::setup((string) ($in['username'] ?? ''), (string) ($in['name'] ?? ''), (string) ($in['password'] ?? ''));
+            case 'auth.users':
+                return ['users' => Auth::users(), 'roles' => Auth::ROLES];
+            case 'auth.user_save':
+                return Auth::saveUser($in);
+            case 'auth.user_delete':
+                Auth::deleteUser((string) ($in['username'] ?? ''));
+                return true;
+            case 'auth.disable':
+                return Auth::disable((string) ($in['password'] ?? ''));
+            case 'auth.password':
+                Auth::changePassword((string) ($in['current'] ?? ''), (string) ($in['password'] ?? ''));
+                return true;
             case 'system.check':
                 return System::check();
 
@@ -231,6 +268,25 @@ final class Api
                 return Sales::saveItem($db, $in);
             case 'items.delete':
                 return ['result' => Sales::deleteItem($db, self::int($in, 'id', 0))];
+            case 'assets.meta':
+                return Assets::meta($db);
+            case 'assets.list':
+                return Assets::list($db, ['year' => $year()] + $in);
+            case 'assets.get':
+                return Assets::get($db, self::int($in, 'id', 0));
+            case 'assets.save':
+                return Assets::save($db, $in);
+            case 'assets.delete':
+                Assets::delete($db, self::int($in, 'id', 0));
+                return true;
+            case 'assets.preview':
+                return Assets::preview($db, $year());
+            case 'assets.post':
+                return Assets::post($db, $year());
+            case 'assets.unpost':
+                return Assets::unpost($db, $year());
+            case 'assets.dispose':
+                return Assets::dispose($db, self::int($in, 'id', 0), $in);
             case 'sales.list':
                 return Sales::list($db, $in);
             case 'sales.export_zip':

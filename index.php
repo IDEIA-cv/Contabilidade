@@ -26,7 +26,7 @@ header('Referrer-Policy: no-referrer');
       <div class="company-switch" id="company-switch"></div>
       <nav id="nav"></nav>
       <div class="sidebar-foot"><label class="theme-pick">Tema <select id="theme-select"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
-        v<?= $v ?> · dados guardados neste computador <button id="logout" class="link-btn" hidden>Sair</button></div>
+        v<?= $v ?> · dados guardados neste computador <span id="who"></span> <button id="logout" class="link-btn" hidden>Sair</button></div>
     </aside>
     <main class="main">
       <header class="topbar">

@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/bootstrap.php';
 
+use Ideia\Assets;
 use Ideia\Bank;
 use Ideia\Closing;
 use Ideia\Companies;
@@ -96,6 +97,15 @@ $run = static function (int $year, float $growth) use ($entry, $clients, $suppli
 };
 
 $run(2024, 1.0);
+
+// imobilizado: bens comprados em 2024 (depreciações de 2024 lançadas; as de 2025 ficam por lançar, para experimentar)
+$entry('2024-02-12', 'DIV', 'Compra de computadores e impressora', [['account' => '435', 'debit' => '285000'], ['account' => '121', 'credit' => '285000']], 'FT 2024/118');
+$entry('2024-04-02', 'DIV', 'Compra de viatura ligeira', [['account' => '434', 'debit' => '1850000'], ['account' => '121', 'credit' => '1850000']], 'FT A/2024/45');
+$entry('2024-06-20', 'DIV', 'Mobiliário de escritório', [['account' => '435', 'debit' => '96000'], ['account' => '121', 'credit' => '96000']], 'FT 2024/377');
+Assets::save($db, ['category' => 'informatica', 'description' => 'Computadores portáteis (3) e impressora', 'acquisition_date' => '2024-02-12', 'cost' => '285.000,00', 'third_party' => $suppliers[3]['id'], 'supplier_doc' => 'FT 2024/118', 'location' => 'Escritório da Praia']);
+Assets::save($db, ['category' => 'viaturas', 'description' => 'Viatura ligeira de passageiros', 'acquisition_date' => '2024-04-02', 'cost' => '1.850.000,00', 'residual' => '150.000,00', 'supplier_doc' => 'FT A/2024/45', 'notes' => 'Matrícula ST-00-AA']);
+Assets::save($db, ['category' => 'mobiliario', 'description' => 'Secretárias e cadeiras', 'acquisition_date' => '2024-06-20', 'start_date' => '2024-07-01', 'cost' => '96.000,00', 'location' => 'Escritório da Praia']);
+Assets::post($db, 2024);
 Closing::closeYear($db, 2024);
 Closing::openNextYear($db, 2024);
 $run(2025, 1.12);

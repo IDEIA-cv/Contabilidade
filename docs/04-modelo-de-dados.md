@@ -56,7 +56,7 @@ Orçamento mensal por conta (qualquer nível: `62` orçamenta todos os FSE). Val
 Documentos anexos aos lançamentos (PDF, imagens, XML, Excel, Word; até 10 MB cada). O conteúdo fica **dentro do ficheiro `.ideia`** (BLOB), por isso viaja com as cópias. Guarda nome, tipo, tamanho e SHA-256 (impede anexar o mesmo ficheiro duas vezes). Num lançamento validado podem acrescentar-se anexos mas não retirá-los; os anexos não entram no hash do lançamento.
 
 ### `audit_log`
-Registo de operações (`empresa.criada`, `conta.criada`, `lancamento.validado`, `lancamento.apagado`, `exercicio.fechado`, `periodo.bloqueado`, `importacao.saft`, `importacao.csv`, `saft.exportado`, `copia.seguranca`…), com detalhes em JSON.
+Registo de operações (`empresa.criada`, `conta.criada`, `lancamento.validado`, `lancamento.apagado`, `exercicio.fechado`, `periodo.bloqueado`, `importacao.saft`, `importacao.csv`, `saft.exportado`, `copia.seguranca`…), com detalhes em JSON e o autor em `user` (utilizador com sessão; vazio sem acessos ativos).
 
 ### `import_log`
 Histórico de importações com o ficheiro original comprimido (gzip) em `content`, para auditoria.
@@ -89,3 +89,4 @@ Junta linhas, cabeçalho e tipo de diário **só dos lançamentos validados**. T
 | 8 | e-Fatura: colunas `sales_docs.iud` (índice único), `efatura_message`, `efatura_at`, `efatura_mode`, `issue_reason`; chaves `efatura_*` em `meta` (ver [e-Fatura](15-efatura.md)) |
 | 9 | Documentos recebidos da e-Fatura: coluna `purchase_docs.iud` (índice único `ux_purchase_iud`) |
 | 10 | Associações entre documentos de venda: `sales_doc_links` (ver [vendas](12-vendas.md#documentos-relacionados-associar-e-duplicar)) |
+| 11 | Imobilizado: `fixed_assets`, `fixed_asset_depreciations` (ver [imobilizado](16-imobilizado.md#dados-esquema-v11)); coluna `audit_log.user` com o autor (ver [utilizadores](17-utilizadores.md)) |

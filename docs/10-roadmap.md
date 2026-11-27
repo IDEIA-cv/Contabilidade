@@ -31,6 +31,12 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 - **Documentos recebidos da e-Fatura**: importação dos XML ou ZIP descarregados da Plataforma Eletrónica para as compras (esquema v9).
 - **Conferência do IVA**: e-Fatura contra contabilidade, por mês. Ver [15-efatura](15-efatura.md).
 
+## Feito — versão 0.7
+
+- **Utilizadores com perfis** (contabilista, colaborador, só leitura) e autor no registo de auditoria. Ver [17-utilizadores](17-utilizadores.md).
+- **Imobilizado**: fichas dos bens, depreciações por quotas constantes lançadas por exercício, abate e venda, mapa de depreciações (esquema v11). Ver [16-imobilizado](16-imobilizado.md).
+- Exportação em ZIP de documentos de venda e de compra, tema claro/escuro/automático, notas de crédito e recibos a partir da lista, associar e duplicar documentos, "Emitir recibo".
+
 ## Próximo — validação (antes de qualquer cliente real)
 
 | Tarefa | Porquê |
@@ -53,10 +59,9 @@ A geração dos DFE e o envio pelo Middleware existem desde a v0.5. Falta a homo
 ## Fase 3 — produto
 
 - Empacotamento como aplicação de ambiente de trabalho (Tauri ou PHP embebido) com instalador para Windows e macOS, sem precisar de XAMPP. Ver [ADR 0001](adr/0001-php-sqlite-htdocs.md).
-- Multiutilizador com perfis (contabilista, colaborador, só leitura) e registo de autor no audit log.
 - Encriptação opcional do ficheiro `.ideia`.
 - Migrações de esquema automáticas e testadas.
-- Módulos: imobilizado com mapas de depreciação, centros de custo (campo `cost_center` já existe), declarações (Modelo 1B, IUR/IRPC) com exportação.
+- Módulos: centros de custo (campo `cost_center` já existe), declarações (Modelo 1B, IUR/IRPC) com exportação.
 - Sincronização opcional de cópias para uma pasta na cloud escolhida pelo utilizador.
 
 ## Melhorias técnicas conhecidas

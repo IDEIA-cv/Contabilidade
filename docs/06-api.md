@@ -160,13 +160,18 @@ Linhas: `item_id?`, `description`, `qty` (texto, ex. `"1,5"`) ou `qty_milli`, `p
 
 | Ação | Método | Parâmetros |
 |------|--------|-----------|
-| `auth.status` | GET | — `{enabled, logged}` (disponível sem sessão) |
-| `auth.login` | POST | `password` (disponível sem sessão) |
+| `auth.status` | GET | — `{enabled, logged, user, role, roles}` (disponível sem sessão) |
+| `auth.login` | POST | `username`, `password` (disponível sem sessão) |
 | `auth.logout` | POST | — |
-| `auth.set` | POST | `current` (se já houver palavra-passe), `password` (vazio retira) |
+| `auth.setup` | POST | `username`, `name`, `password` — ativa os acessos com o primeiro contabilista |
+| `auth.password` | POST | `current`, `password` — muda a palavra-passe do próprio |
+| `auth.users` | GET | — lista de utilizadores (contabilista) |
+| `auth.user_save` | POST | `username`, `name`, `role`, `password?`, `active?`, `existing?` (contabilista) |
+| `auth.user_delete` | POST | `username` (contabilista) |
+| `auth.disable` | POST | `password` — apaga os utilizadores e desliga os acessos (contabilista) |
 | `system.check` | GET | — verificações da instalação, com instruções de correção |
 
-Com palavra-passe ativa, qualquer outra ação sem sessão responde HTTP 401 `{ok:false, auth:true}` e o browser mostra o ecrã de entrada.
+Com acessos ativos, qualquer outra ação sem sessão responde HTTP 401 `{ok:false, auth:true}` e o browser mostra o ecrã de entrada. Uma ação fora do perfil (ver [utilizadores](17-utilizadores.md)) responde com erro: "Só leitura…" ou "…reservada ao contabilista". As ações do imobilizado (`assets.*`) estão em [16-imobilizado](16-imobilizado.md#api).
 
 ## Relatórios e IVA
 

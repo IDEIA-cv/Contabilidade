@@ -12,7 +12,8 @@ mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
 const errors = [];
-page.on('console', (m) => { if (m.type() === 'error') errors.push(`[console] ${m.text()}`); });
+let expect400 = false; // recusas esperadas (teste de perfis)
+page.on('console', (m) => { if (m.type() === 'error' && !(expect400 && m.text().includes('status of 400'))) errors.push(`[console] ${m.text()}`); });
 page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 page.on('response', (r) => { if (r.url().includes('api.php') && r.status() >= 500) errors.push(`[http ${r.status()}] ${r.url()}`); });
 
@@ -277,6 +278,79 @@ console.log('ok', '23-impressao');
   await page.waitForSelector('.modal [name=amount], .modal [name=date]');
   await page.screenshot({ path: `${OUT}26-recibo-pagamento.png`, fullPage: false });
   console.log('ok', '26-recibo-da-lista');
+}
+
+// imobilizado: criar um bem, ver a ficha, lançar e anular as depreciações do exercício
+{
+  await visit(`${c}/imobilizado`, '27-imobilizado', '#new');
+  await page.click('#new');
+  await page.waitForSelector('#f [name=description]');
+  await page.fill('#f [name=description]', 'Portátil de teste E2E ' + Date.now());
+  await page.selectOption('#f [name=category]', 'informatica');
+  await page.fill('#f [name=acquisition_date]', `${await page.evaluate(() => document.querySelector('#year-select')?.value || new Date().getFullYear())}-03-15`);
+  await page.fill('#f [name=cost]', '120.000,00');
+  await page.screenshot({ path: `${OUT}27-imobilizado-novo.png`, fullPage: true });
+  await page.click('#save');
+  await page.waitForSelector('#dispose');
+  await page.screenshot({ path: `${OUT}27-imobilizado-ficha.png`, fullPage: true });
+  console.log('ok', '27-imobilizado-ficha');
+  await visit(`${c}/imobilizado`, '27-imobilizado', '#post, #unpost');
+  if (await page.$('#post')) {
+    await page.click('#post');
+    await page.waitForSelector('.modal button.primary');
+    await page.click('.modal button.primary');
+    await page.waitForSelector('#unpost');
+    await page.screenshot({ path: `${OUT}27-imobilizado-lancado.png`, fullPage: true });
+    console.log('ok', '27-imobilizado-lancado');
+  }
+  await page.click('#unpost');
+  await page.waitForSelector('.modal button.primary');
+  await page.click('.modal button.primary');
+  await page.waitForSelector('#post');
+  console.log('ok', '27-imobilizado-anulado');
+}
+
+// utilizadores: ativar acessos, criar um colaborador, entrar como colaborador (sem acesso a ações do contabilista), desligar no fim
+{
+  const st = await page.evaluate(async () => (await fetch('api.php?action=auth.status')).json());
+  if (!(st.data ?? st).enabled) {
+    await visit(`${c}/empresa`, '28-acessos', '#setup-go');
+    await page.fill('#access [name=username]', 'admin');
+    await page.fill('#access [name=name]', 'Contabilista E2E');
+    await page.fill('#access [name=password]', 'segredo1');
+    await page.fill('#access [name=password2]', 'segredo1');
+    await page.click('#setup-go');
+    await page.waitForSelector('#u-new');
+    await page.click('#u-new');
+    await page.fill('.modal [name=username]', 'rui');
+    await page.fill('.modal [name=name]', 'Rui Colaborador');
+    await page.selectOption('.modal [name=role]', 'colaborador');
+    await page.fill('.modal [name=password]', 'segredo2');
+    await page.click('.modal button.primary');
+    await page.waitForSelector('[data-edit=rui]');
+    await page.screenshot({ path: `${OUT}28-utilizadores.png`, fullPage: true });
+    console.log('ok', '28-utilizadores');
+    // colaborador não pode lançar depreciações (reservado ao contabilista)
+    expect400 = true;
+    const denied = await page.evaluate(async (co) => {
+      await fetch('api.php?action=auth.logout', { method: 'POST', headers: { 'X-Requested-With': 'IDEIA' } });
+      await fetch('api.php?action=auth.login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'IDEIA' }, body: JSON.stringify({ username: 'rui', password: 'segredo2' }) });
+      const r = await fetch(`api.php?action=accounts.save&c=${co}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'IDEIA' }, body: JSON.stringify({ code: '9999', name: 'x' }) });
+      return (await r.json()).error || 'sem erro';
+    }, COMPANY);
+    expect400 = false;
+    if (!/contabilista/.test(denied)) errors.push(`[utilizadores] colaborador não foi travado numa ação de contabilista: ${denied}`);
+    await page.evaluate(async () => {
+      await fetch('api.php?action=auth.logout', { method: 'POST', headers: { 'X-Requested-With': 'IDEIA' } });
+      await fetch('api.php?action=auth.login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'IDEIA' }, body: JSON.stringify({ username: 'admin', password: 'segredo1' }) });
+    });
+    await visit(`${c}/empresa`, '28-acessos', '#acc-off');
+    await page.click('#acc-off');
+    await page.fill('.modal [name=password]', 'segredo1');
+    await page.click('.modal button.danger');
+    await page.waitForSelector('#setup-go');
+    console.log('ok', '28-acessos-desligados');
+  }
 }
 
 await browser.close();

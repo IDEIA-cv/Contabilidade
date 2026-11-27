@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { state, setCrumbs, refreshInfo, rerender } from '../main.js';
 import { esc, toast, confirmDialog, formData, fmtDate, modal } from '../util.js';
+import { accessCard } from './users.js';
 
 export async function render(ctx) {
   return ctx.section === 'exercicios' ? years(ctx) : company(ctx);
@@ -49,7 +50,6 @@ async function company({ view }) {
   setCrumbs('Empresa e cópias');
   const info = await refreshInfo();
   const [chain, audit, series, salesChain] = await Promise.all([api.get('chain.verify'), api.get('audit.list'), api.get('sales.series'), api.get('sales.verify')]);
-  const auth = await api.get('auth.status');
   view.innerHTML = `
     <div class="page-head"><div><h1>Empresa e cópias</h1><p class="muted">Ficheiro: <span class="mono">${esc(info.path)}</span></p></div></div>
     <div class="grid cols-2">
@@ -76,15 +76,7 @@ async function company({ view }) {
         ${chain.ok ? `<div class="alert good">Cadeia de integridade válida: ${chain.count} lançamento(s) validados verificados.</div>` : `<div class="alert bad">A cadeia de integridade está quebrada no lançamento ${chain.broken_at}. O ficheiro pode ter sido alterado fora da aplicação.</div>`}
       </div>
     </div>
-    <div class="card"><h2>Palavra-passe de acesso</h2>
-      <p class="muted small">Opcional. Protege todas as empresas deste computador: a aplicação pede a palavra-passe ao abrir e fecha a sessão após 4 horas sem uso.</p>
-      <div class="form" id="pw">
-        ${auth.enabled ? '<label>Palavra-passe atual<input type="password" name="current" autocomplete="current-password"></label>' : ''}
-        <label>${auth.enabled ? 'Nova palavra-passe' : 'Palavra-passe'}<input type="password" name="password" autocomplete="new-password" placeholder="pelo menos 6 caracteres"></label>
-        <label>Repetir<input type="password" name="password2" autocomplete="new-password"></label></div>
-      <div class="toolbar" style="margin-top:10px"><button class="primary" id="pw-save">${auth.enabled ? 'Alterar palavra-passe' : 'Ativar palavra-passe'}</button>
-        ${auth.enabled ? '<button id="pw-off" class="danger">Retirar palavra-passe</button>' : ''}</div>
-    </div>
+    <div class="card" id="access"></div>
     <div class="card"><h2>Numeração dos documentos de venda</h2>
       <p class="muted small">Cada tipo de documento tem a sua numeração, que recomeça em cada ano (série). Os números são atribuídos na emissão, por ordem, sem saltos.</p>
       ${series.length ? `<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Série</th><th class="num">Último número</th><th>Última data</th></tr></thead><tbody>
@@ -92,31 +84,12 @@ async function company({ view }) {
       ${salesChain.documents ? (salesChain.ok ? `<div class="alert good small">Numeração e assinaturas dos ${salesChain.documents} documentos emitidos estão corretas.</div>` : `<div class="alert bad small">${salesChain.errors.map(esc).join('<br>')}</div>`) : ''}
     </div>
     <div class="card"><h2>Registo de auditoria <span class="muted small">últimas 300 operações</span></h2><div class="table-wrap" style="max-height:420px;overflow:auto" tabindex="0" role="region" aria-label="Registo de auditoria"><table>
-      <thead><tr><th>Data</th><th>Operação</th><th>Detalhes</th></tr></thead><tbody>
-      ${audit.map((a) => `<tr><td class="small">${esc(a.ts)}</td><td>${esc(a.action)}</td><td class="small mono">${esc(a.details || '')}</td></tr>`).join('')}</tbody></table></div></div>`;
+      <thead><tr><th>Data</th><th>Utilizador</th><th>Operação</th><th>Detalhes</th></tr></thead><tbody>
+      ${audit.map((a) => `<tr><td class="small">${esc(a.ts)}</td><td class="small">${esc(a.user || '—')}</td><td>${esc(a.action)}</td><td class="small mono">${esc(a.details || '')}</td></tr>`).join('')}</tbody></table></div></div>`;
   view.querySelector('#save').onclick = async () => {
     try { await api.post('company.update', formData(view.querySelector('#f'))); toast('Dados guardados.', 'good'); await refreshInfo(); } catch (err) { toast(err.message, 'bad'); }
   };
-  const pwForm = view.querySelector('#pw');
-  view.querySelector('#pw-save').onclick = async () => {
-    const f = formData(pwForm);
-    if (f.password.length < 6) return toast('A palavra-passe deve ter pelo menos 6 caracteres.', 'bad');
-    if (f.password !== f.password2) return toast('As duas palavras-passe não são iguais.', 'bad');
-    try {
-      await api.post('auth.set', { current: f.current || '', password: f.password });
-      document.getElementById('logout').hidden = false;
-      toast('Palavra-passe guardada. Guarde-a num local seguro.', 'good');
-      company({ view });
-    } catch (err) { toast(err.message, 'bad'); }
-  };
-  view.querySelector('#pw-off')?.addEventListener('click', async () => {
-    try {
-      await api.post('auth.set', { current: formData(pwForm).current || '', password: '' });
-      document.getElementById('logout').hidden = true;
-      toast('Palavra-passe retirada.');
-      company({ view });
-    } catch (err) { toast(err.message, 'bad'); }
-  });
+  accessCard(view.querySelector('#access'), () => company({ view }));
   view.querySelector('#logo').onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;

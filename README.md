@@ -2,7 +2,7 @@
 
 Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF), que funciona **no seu computador** (PC ou Mac), sem cloud. Cada empresa é um único ficheiro `.ideia` que se copia para outro computador.
 
-## Funcionalidades (v0.3)
+## Funcionalidades (v0.7)
 
 - **Vendas**: artigos (produtos e serviços), faturas, faturas-recibo, orçamentos, pro-formas, guias de entrega e de transporte, notas de crédito e de débito, recibos — numeração automática por tipo e série, impressão A4/PDF, lançamento contabilístico automático (a comunicação e-Fatura à DNRE será ligada quando houver credenciais)
 - **Documentos relacionados**: nota de crédito e recibo a partir da lista, associar documentos (ex.: orçamento ↔ fatura), duplicar para outro tipo com associação
@@ -18,11 +18,12 @@ Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF
 - Balancete, extrato de conta, diário, balanço e demonstração dos resultados (com ano anterior), em Excel, CSV ou PDF
 - **Reconciliação bancária**: importação de extratos, conciliação automática e manual, mapa de reconciliação
 - Apuramento do IVA com mapas por código e por cliente/fornecedor
+- **Imobilizado**: fichas dos bens, depreciações e amortizações lançadas por exercício, abate e venda, mapa de depreciações
 - Fecho do exercício e abertura do seguinte
 - **Importação** do histórico por SAF-T (Primavera, PHC, Sage…) e por folhas Excel/CSV; **exportação** SAF-T CV 1.01_01 (contabilidade ou completo), validada com o XSD oficial
 - **Estatísticas**: painel, rácios, gastos, antiguidade de saldos, orçamento, previsão, indicadores próprios, relatório de gestão
 - Cópias de segurança verificadas (automáticas todos os dias) e restauro
-- Palavra-passe de acesso opcional e diagnóstico automático da instalação
+- **Utilizadores com perfis** (contabilista, colaborador, só leitura), autor no registo de auditoria, e diagnóstico automático da instalação
 
 ## Começar
 
