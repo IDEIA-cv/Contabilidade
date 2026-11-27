@@ -1,0 +1,74 @@
+# 2. Instalação e configuração
+
+## Requisitos
+
+- PHP **8.0 ou superior** com a extensão **pdo_sqlite** (vem ativa no XAMPP, MAMP e na maioria das instalações).
+- Um browser recente (Chrome, Edge, Firefox ou Safari).
+- Não precisa de MySQL, Node.js nem internet.
+
+## Opção A — XAMPP no Mac
+
+1. Copie a pasta do projeto para `/Applications/XAMPP/xamppfiles/htdocs/contabilidade`.
+2. Dê permissão de escrita ao Apache na pasta de dados (o Apache do XAMPP corre como `daemon`):
+
+   ```bash
+   cd /Applications/XAMPP/xamppfiles/htdocs/contabilidade
+   sudo chown -R daemon data
+   sudo chmod -R u+rwX data
+   ```
+
+3. Inicie o Apache no XAMPP e abra <http://localhost/contabilidade/>.
+
+## Opção B — XAMPP no Windows
+
+1. Copie a pasta para `C:\xampp\htdocs\contabilidade`.
+2. Inicie o Apache no painel do XAMPP e abra <http://localhost/contabilidade/>.
+3. Confirme em `C:\xampp\php\php.ini` que a linha `extension=pdo_sqlite` não está comentada.
+
+## Opção C — servidor embutido do PHP (desenvolvimento)
+
+```bash
+php -S 127.0.0.1:8765
+```
+
+Abra <http://127.0.0.1:8765/>.
+
+## Configuração (`config.php`)
+
+Copie `config.sample.php` para `config.php` (este ficheiro não vai para o Git) e ajuste:
+
+| Chave | Por omissão | Significado |
+|-------|-------------|-------------|
+| `data_dir` | `./data` | Pasta onde ficam os ficheiros `.ideia` das empresas |
+| `backup_dir` | `./data/backups` | Pasta das cópias de segurança |
+| `allow_remote` | `false` | Se `false`, a API só responde a pedidos de `127.0.0.1`/`::1` |
+| `currency` | `CVE` | Moeda (informativa nesta versão) |
+| `country` | `CV` | País |
+
+Sem `config.php`, usam-se os valores por omissão.
+
+## Segurança
+
+- `data/.htaccess` nega o acesso direto aos ficheiros das empresas pelo Apache.
+- A API recusa pedidos que não venham da própria máquina (a não ser com `allow_remote`) e exige o cabeçalho `X-Requested-With: IDEIA` em todos os POST (proteção contra CSRF de outros sites abertos no browser).
+- **Não trabalhe com a pasta `data/` dentro de Google Drive, OneDrive ou Dropbox**: o SQLite pode corromper-se com sincronização a meio de uma escrita. Sincronize apenas as cópias de segurança.
+
+## Empresa de demonstração
+
+```bash
+php tools/seed-demo.php            # usa data_dir do config.php
+php tools/seed-demo.php /outra/pasta
+```
+
+Cria "Empresa Demonstração Lda" com 2024 fechado e 2025 aberto (até outubro), clientes, fornecedores, salários, depreciações, orçamento e indicadores próprios.
+
+## Mudar de computador
+
+1. No computador antigo: Empresa e cópias → **Descarregar cópia (.ideia)**.
+2. No novo: instale a aplicação (passos acima) → Empresas → **Abrir cópia** → escolha o ficheiro.
+
+Em alternativa, copie diretamente os ficheiros `data/*.ideia` com a aplicação parada.
+
+## Atualizar a aplicação
+
+Substitua todos os ficheiros **exceto** `config.php` e a pasta `data/`. O esquema da base de dados tem versão (`meta.schema_version`); migrações futuras serão aplicadas ao abrir cada empresa.

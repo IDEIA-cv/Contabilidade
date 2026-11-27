@@ -1,0 +1,38 @@
+<?php
+declare(strict_types=1);
+require __DIR__ . '/src/bootstrap.php';
+$v = IDEIA_VERSION;
+?><!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IDEIA Contabilidade</title>
+  <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/app.css?v=<?= $v ?>">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#/">
+        <img src="assets/img/icon.svg" alt="" width="28" height="28">
+        <span>IDEIA <b>Contabilidade</b></span>
+      </a>
+      <div class="company-switch" id="company-switch"></div>
+      <nav id="nav"></nav>
+      <div class="sidebar-foot">v<?= $v ?> · dados guardados neste computador</div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menu-btn" aria-label="Menu">☰</button>
+        <div class="crumbs" id="crumbs"></div>
+        <div class="topbar-right" id="topbar-right"></div>
+      </header>
+      <section class="content" id="view" tabindex="-1"></section>
+    </main>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toasts" aria-live="polite"></div>
+  <script type="module" src="assets/js/main.js?v=<?= $v ?>"></script>
+</body>
+</html>
