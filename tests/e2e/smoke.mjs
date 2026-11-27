@@ -137,6 +137,18 @@ await visit(`${c}/efatura?status=`, '20-efatura', '#ef-docs tbody tr[data-id]');
 await page.click('[data-check]');
 await page.waitForSelector('#out .alert');
 if (!(await page.innerText('#out')).includes('cumpre o XSD')) errors.push('[efatura] XML não cumpre o XSD: ' + (await page.innerText('#out')));
+// documentos recebidos: ZIP com uma FT de um fornecedor conhecido e uma FR de um fornecedor novo
+await visit(`${c}/efatura/recebidos`, '20-efatura-recebidos', '#rec-file');
+await page.setInputFiles('#rec-file', new URL('./fixtures/efatura-recebidos.zip', import.meta.url).pathname);
+await page.check('#rec-register');
+await page.click('#rec-preview');
+await page.waitForSelector('#rec-import');
+if (!(await page.innerText('#rec-out')).includes('2 a importar')) errors.push('[recebidos] pré-visualização: ' + (await page.innerText('#rec-out')));
+await page.click('#rec-import');
+await page.waitForSelector('#rec-out .alert.good');
+await page.screenshot({ path: `${OUT}20-efatura-recebidos-importados.png`, fullPage: true });
+console.log('ok', '20-efatura-recebidos-importados');
+await visit(`${c}/efatura/conferencia`, '20-efatura-conferencia', '#conf tbody tr');
 await visit(`${c}/efatura/configurar`, '20-efatura-config', '#cfg [name=led]');
 await visit(`${c}/efatura/documentacao`, '20-efatura-docs', '.steps');
 {

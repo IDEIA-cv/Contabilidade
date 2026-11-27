@@ -307,6 +307,7 @@ CREATE TABLE IF NOT EXISTS purchase_docs (
     cancel_reason  TEXT,
     created_at     TEXT NOT NULL DEFAULT (datetime('now')),
     registered_at  TEXT,
+    iud            TEXT,                                 -- v9: IUD do DFE quando importado da e-Fatura
     UNIQUE (type, series, number)
 );
 CREATE INDEX IF NOT EXISTS ix_purchase_party ON purchase_docs(third_party, date);

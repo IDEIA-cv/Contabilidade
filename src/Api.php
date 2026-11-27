@@ -23,11 +23,11 @@ final class Api
         'ping', 'auth.status', 'system.check', 'companies.list', 'portfolio', 'company.info', 'accounts.list', 'thirdparties.list', 'entries.list', 'entries.get',
         'reports.trial', 'reports.ledger', 'reports.journal', 'reports.balance', 'reports.income', 'vat.settlement',
         'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
-        'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'import.template', 'attachments.list', 'attachments.download',
+        'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'saft.validate', 'import.template', 'attachments.list', 'attachments.download',
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
         'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
         'purchases.meta', 'purchases.list', 'purchases.get', 'purchases.creditors', 'purchases.schedule', 'purchases.supplier', 'purchases.summary', 'purchases.last_account',
-        'efatura.overview', 'efatura.documents', 'efatura.xml', 'efatura.check', 'efatura.doc', 'efatura.codes',
+        'efatura.overview', 'efatura.documents', 'efatura.xml', 'efatura.check', 'efatura.doc', 'efatura.codes', 'efatura.conference',
     ];
 
     public static function handle(): void
@@ -312,6 +312,14 @@ final class Api
                 return Efatura::send($db, $ids);
             case 'efatura.exclude':
                 return ['changed' => Efatura::exclude($db, array_map('intval', (array) ($in['ids'] ?? [])), !isset($in['exclude']) || !in_array($in['exclude'], [false, 0, '0', 'false'], true))];
+            case 'efatura.received_preview':
+                [, $name, $content] = self::upload();
+                return EfaturaReceived::preview($db, $name, $content);
+            case 'efatura.received_import':
+                [, $name, $content] = self::upload();
+                return EfaturaReceived::import($db, $name, $content, $in);
+            case 'efatura.conference':
+                return Efatura::conference($db, $year());
             case 'efatura.doc':
                 $key = (string) ($in['id'] ?? '');
                 if (!isset(Efatura::DOCS[$key])) {
@@ -497,7 +505,12 @@ final class Api
             case 'saft.export':
                 $y = $year();
                 $nif = (string) $db->meta('company_nif');
-                return new Download(Exporter::export($db, $y), "SAFT_CV_{$nif}_{$y}_C.xml", 'application/xml');
+                $t = strtoupper((string) ($in['type'] ?? 'C')) === 'F' ? 'F' : 'C';
+                return new Download(Exporter::export($db, $y, $t), "SAFT_CV_{$nif}_{$y}_{$t}.xml", 'application/xml');
+            case 'saft.validate':
+                $xml = Exporter::export($db, $year(), (string) ($in['type'] ?? 'C'));
+                $errors = Exporter::validate($xml);
+                return ['ok' => !$errors, 'errors' => $errors, 'bytes' => strlen($xml)];
             case 'saft.preview':
                 [, $name, $content] = self::upload();
                 return Importer::preview($db, $content) + ['filename' => $name];

@@ -20,11 +20,13 @@ php tests/run.php
 | `SalesTest.php` | Artigos, cálculo de linhas (desconto, IVA, isenção), numeração por tipo/série e ordem das datas, lançamento e IVA, recibos parciais, notas de crédito, anulação, conversão, dívidas por antiguidade, extrato de cliente e de fornecedor (contabilidade), famílias de artigos e migração v5→v6, impressão |
 | `PurchasesTest.php` | Faturas de fornecedor (validações, lançamento, IVA dedutível, conta sugerida), pagamentos parciais e de várias faturas, nota de crédito, anulação, despesa paga, dívidas por antiguidade, mapa de pagamentos, ficha e extrato, migração v6→v7 |
 | `EfaturaTest.php` | IUD e dígito Luhn (exemplo do manual), códigos oficiais de isenção e unidades, configuração, XML de FT, FR, TV, RC, NC, ND, GE e GT validado com o XSD oficial, numeração comum das guias, documentos anteriores à adesão, envio simulado pelo Middleware (autorizado, rejeitado, sem ligação), QR e aviso de contingência na impressão, migração v7→v8 |
+| `EfaturaReceivedTest.php` | Leitura dos DFE recebidos, importação de FT, NC (com a fatura de origem) e FR a partir de XML e ZIP, duplicados, recibos e vendas próprias ignorados, fornecedor novo, registo automático, conferência do IVA (incluindo meses antes da adesão), migração v8→v9 |
+| `SaftTest.php` | SAF-T CV C e F validados com o XSD oficial 1.01_01 (orçamento faturado, pró-forma, recibo, pagamento a fornecedor, linha sem artigo, isenção) |
 | `ApiAuthTest.php` | Regras da API (POST, cabeçalho, rede local), palavra-passe (bloqueio da API, entrada, bloqueio por tentativas, retirar), diagnóstico |
 | `PagingTest.php` | Extrato e diário paginados iguais à versão completa |
 | `ImportStatsTest.php` | SAF-T (pré-visualização, conflitos, importação com abertura), CSV (erros e tudo-ou-nada), exportação SAF-T, painel, rácios, orçamento, fórmulas |
 
-Estado atual: **47 testes, todos a passar**.
+Estado atual: **52 testes, todos a passar**.
 
 ## Teste no browser (Playwright)
 

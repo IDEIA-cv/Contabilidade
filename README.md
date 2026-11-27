@@ -5,7 +5,7 @@ Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF
 ## Funcionalidades (v0.3)
 
 - **Vendas**: artigos (produtos e serviços), faturas, faturas-recibo, orçamentos, pro-formas, guias de entrega e de transporte, notas de crédito e de débito, recibos — numeração automática por tipo e série, impressão A4/PDF, lançamento contabilístico automático (a comunicação e-Fatura à DNRE será ligada quando houver credenciais)
-- **Fatura eletrónica (e-Fatura)**: IUD e código QR, XML validado com o XSD oficial da DNRE, talão de venda, contingência e envio pelo Middleware; documentação oficial incluída
+- **Fatura eletrónica (e-Fatura)**: IUD e código QR, XML validado com o XSD oficial da DNRE, talão de venda, contingência e envio pelo Middleware; importação dos documentos recebidos para as compras; conferência do IVA; documentação oficial incluída
 - **Compras**: faturas de fornecedores, despesas pagas, notas de crédito de fornecedores e pagamentos, com lançamento automático; dívidas a fornecedores por antiguidade e mapa de pagamentos
 - **Artigos** com famílias definidas por si (IVA e conta sugeridos)
 - **Extrato de conta corrente** de clientes e fornecedores (movimentos da contabilidade), em Excel ou PDF
@@ -17,7 +17,7 @@ Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF
 - **Reconciliação bancária**: importação de extratos, conciliação automática e manual, mapa de reconciliação
 - Apuramento do IVA com mapas por código e por cliente/fornecedor
 - Fecho do exercício e abertura do seguinte
-- **Importação** do histórico por SAF-T (Primavera, PHC, Sage…) e por folhas Excel/CSV; **exportação** SAF-T CV
+- **Importação** do histórico por SAF-T (Primavera, PHC, Sage…) e por folhas Excel/CSV; **exportação** SAF-T CV 1.01_01 (contabilidade ou completo), validada com o XSD oficial
 - **Estatísticas**: painel, rácios, gastos, antiguidade de saldos, orçamento, previsão, indicadores próprios, relatório de gestão
 - Cópias de segurança verificadas (automáticas todos os dias) e restauro
 - Palavra-passe de acesso opcional e diagnóstico automático da instalação
@@ -49,7 +49,7 @@ node tests/e2e/smoke.mjs     # teste no browser (Playwright), com o servidor a c
 
 ## Estado
 
-Versão 0.1, em validação. O plano de contas e os mapas devem ser revistos por um contabilista certificado e a exportação SAF-T validada no SAFTPRO antes de uso em produção. A ligação ao e-Fatura é a próxima fase ([roadmap](docs/10-roadmap.md)).
+Versão 0.6, em validação. O plano de contas e os mapas devem ser revistos por um contabilista certificado, a exportação SAF-T (já conforme o XSD 1.01_01) validada no SAFTPRO e a e-Fatura homologada com a DNRE antes de uso em produção ([roadmap](docs/10-roadmap.md)).
 
 ## Ramos
 

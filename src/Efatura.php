@@ -688,6 +688,69 @@ final class Efatura
         return $errors;
     }
 
+    // ================================================================== conferência do IVA
+
+    /**
+     * Conferência mensal do IVA: documentos (e-Fatura) vs contabilidade.
+     * Vendas: IVA dos documentos fiscais emitidos, separado pelo estado na e-Fatura, e IVA liquidado nos lançamentos.
+     * Compras: IVA das faturas de fornecedores registadas, separado entre as que vieram da e-Fatura (com IUD) e as
+     * registadas à mão, e IVA dedutível nos lançamentos. Diferenças apontam lançamentos manuais ou documentos em falta.
+     */
+    public static function conference(Db $db, int $year): array
+    {
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[$m] = ['month' => $m, 'sales_authorized' => 0, 'sales_pending' => 0, 'sales_excluded' => 0, 'sales_ledger' => 0,
+                'purchases_efatura' => 0, 'purchases_manual' => 0, 'purchases_ledger' => 0, 'purchases_manual_docs' => 0];
+        }
+        $y = (string) $year;
+        foreach ($db->all("SELECT CAST(substr(date,6,2) AS INTEGER) AS m, COALESCE(efatura_status,'pendente') AS s,
+                SUM(CASE WHEN type = 'NC' THEN -vat_cents ELSE vat_cents END) AS v
+            FROM sales_docs WHERE status = 'emitido' AND type IN ('FT','FR','TV','ND','NC') AND substr(date,1,4) = ? GROUP BY 1, 2", [$y]) as $r) {
+            $k = $r['s'] === 'autorizado' ? 'sales_authorized' : ($r['s'] === 'excluido' ? 'sales_excluded' : 'sales_pending');
+            $months[(int) $r['m']][$k] += (int) $r['v'];
+        }
+        foreach ($db->all("SELECT CAST(substr(date,6,2) AS INTEGER) AS m, iud IS NOT NULL AS e, COUNT(*) AS n,
+                SUM(CASE WHEN type = 'NF' THEN -vat_cents ELSE vat_cents END) AS v
+            FROM purchase_docs WHERE status = 'registado' AND type IN ('FC','FP','NF') AND substr(date,1,4) = ? GROUP BY 1, 2", [$y]) as $r) {
+            $months[(int) $r['m']][$r['e'] ? 'purchases_efatura' : 'purchases_manual'] += (int) $r['v'];
+            if (!$r['e']) {
+                $months[(int) $r['m']]['purchases_manual_docs'] += (int) $r['n'];
+            }
+        }
+        foreach ($db->all("SELECT m.month AS m, v.kind, SUM(m.credit_cents - m.debit_cents) AS c
+            FROM v_movements m JOIN vat_codes v ON v.code = m.vat_code AND v.account = m.account
+            WHERE m.fiscal_year = ? AND v.kind IN ('liquidado','dedutivel') AND v.rate_bp > 0 AND m.journal_kind <> 'apuramento' GROUP BY 1, 2", [$year]) as $r) {
+            if ($r['kind'] === 'liquidado') {
+                $months[(int) $r['m']]['sales_ledger'] += (int) $r['c'];
+            } else {
+                $months[(int) $r['m']]['purchases_ledger'] -= (int) $r['c'];
+            }
+        }
+        // antes da adesão à e-Fatura não há documentos eletrónicos: as diferenças desses meses não contam
+        $since = (string) $db->meta('efatura_since');
+        $rows = [];
+        $tot = [];
+        foreach ($months as $m => $r) {
+            $r['before_since'] = $since !== '' && sprintf('%04d-%02d-31', $year, $m) < $since;
+            $r['sales_docs'] = $r['sales_authorized'] + $r['sales_pending'] + $r['sales_excluded'];
+            $r['sales_diff'] = $r['before_since'] ? 0 : $r['sales_ledger'] - $r['sales_docs'];
+            $r['purchases_docs'] = $r['purchases_efatura'] + $r['purchases_manual'];
+            $r['purchases_diff'] = $r['before_since'] ? 0 : $r['purchases_ledger'] - $r['purchases_docs'];
+            foreach ($r as $k => $v) {
+                if (is_int($v) && $k !== 'month') {
+                    $tot[$k] = ($tot[$k] ?? 0) + $v;
+                }
+            }
+            $rows[] = $r;
+        }
+        $tot['month'] = null;
+        $tot['before_since'] = false;
+        return ['year' => $year, 'since' => $since, 'rows' => $rows, 'totals' => $tot,
+            'manual_docs' => $db->all("SELECT d.id, d.doc_no, d.supplier_doc, d.date, d.vat_cents, t.name AS supplier, t.nif FROM purchase_docs d LEFT JOIN third_parties t ON t.id = d.third_party
+                WHERE d.status = 'registado' AND d.type IN ('FC','FP') AND d.iud IS NULL AND d.vat_cents > 0 AND substr(d.date,1,4) = ? ORDER BY d.date LIMIT 200", [$y])];
+    }
+
     // ================================================================== fila e envio
 
     /** Documentos fiscais emitidos e o seu estado na e-Fatura. */

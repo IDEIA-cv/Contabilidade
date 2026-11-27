@@ -10,7 +10,7 @@ use PDO;
  */
 final class Db
 {
-    public const SCHEMA_VERSION = 8;
+    public const SCHEMA_VERSION = 9;
 
     public PDO $pdo;
     public string $path;
@@ -44,9 +44,9 @@ final class Db
         if ($v > self::SCHEMA_VERSION) {
             throw new UserError('Este ficheiro foi criado por uma versão mais recente da aplicação. Atualize a aplicação.');
         }
-        if ($v < 8) {
+        if ($v < 9) {
             // v2: anexos; v3: reconciliação bancária; v4: índices; v5: vendas; v6: famílias de artigos; v7: compras;
-            // v8: e-Fatura (IUD, estado da comunicação, motivo das notas).
+            // v8: e-Fatura (IUD, estado da comunicação, motivo das notas); v9: IUD dos documentos de compra recebidos.
             // O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo acrescenta apenas o que falta.
             $this->pdo->exec((string) file_get_contents(IDEIA_ROOT . '/database/schema.sql'));
             // colunas novas em tabelas que já existiam
@@ -60,8 +60,13 @@ final class Db
                     $this->pdo->exec("ALTER TABLE sales_docs ADD COLUMN $c $t");
                 }
             }
+            $cols = array_column($this->all('PRAGMA table_info(purchase_docs)'), 'name');
+            if (!in_array('iud', $cols, true)) {
+                $this->pdo->exec('ALTER TABLE purchase_docs ADD COLUMN iud TEXT');
+            }
             $this->setMeta('schema_version', (string) self::SCHEMA_VERSION);
         }
+        $this->pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_purchase_iud ON purchase_docs(iud) WHERE iud IS NOT NULL');
         // índice criado aqui (e não no schema.sql) porque a coluna iud só existe depois da migração v8
         $this->pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_sales_iud ON sales_docs(iud) WHERE iud IS NOT NULL');
         // Próximas migrações (que alterem tabelas existentes): if ($v < 4) { ...; $this->setMeta('schema_version', '4'); }

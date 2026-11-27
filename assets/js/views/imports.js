@@ -28,13 +28,16 @@ export async function render({ view }) {
         <div id="csv-out" style="margin-top:12px"></div></div>
     </div>
     <div class="grid cols-2">
-      <div class="card"><h2>Exportar SAF-T (CV) de contabilidade</h2>
-        <p class="muted">Gera o ficheiro de contabilidade (C) do exercício. Valide-o no SAFTPRO (saft.efatura.cv) antes de o entregar.</p>
-        <div class="alert warn small">A estrutura segue o modelo OCDE usado pelo SAF-T CV; o namespace oficial ainda tem de ser confirmado com o XSD da DNRE.</div>
+      <div class="card"><h2>Exportar SAF-T (CV)</h2>
+        <p class="muted">Ficheiro do exercício segundo o XSD oficial 1.01_01 da DNRE. Cada exportação é validada com esse XSD; pode também validá-lo no SAFTPRO (saft.efatura.cv) antes de o entregar.</p>
         <div class="toolbar"><label>Exercício<select id="saft-year">${state.info.years.map((y) => `<option ${Number(y.year) === state.year ? 'selected' : ''}>${y.year}</option>`).join('')}</select></label>
-          <a class="btn primary" id="saft-export" href="#">Descarregar SAF-T</a></div></div>
-      <div class="card"><h2>Histórico de importações</h2><div class="table-wrap"><table><thead><tr><th>Data</th><th>Origem</th><th>Ficheiro</th><th>Resumo</th></tr></thead><tbody>
-        ${logs.map((l) => `<tr><td>${esc(l.ts)}</td><td>${esc(l.source)}</td><td>${esc(l.filename || '')}</td><td class="small mono">${esc(l.summary || '')}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Sem importações.</td></tr>'}</tbody></table></div></div>
+          <label>Tipo<select id="saft-type"><option value="C">Contabilidade (C)</option><option value="F">Completo (F)</option></select></label></div>
+        <p class="small muted">O ficheiro completo (F) junta à contabilidade os artigos, orçamentos, pró-formas e pagamentos.</p>
+        <div class="toolbar" style="margin-top:8px"><button id="saft-validate">Verificar com o XSD oficial</button><a class="btn primary" id="saft-export" href="#">Descarregar SAF-T</a></div>
+        <div id="saft-check" style="margin-top:8px"></div>
+        <p class="small muted">As faturas, faturas-recibo, talões, notas e guias são comunicadas à e-Fatura e não entram no SAF-T. Sem código postal em Cabo Verde, o campo obrigatório do XSD leva 0000-000.</p></div>
+      <div class="card"><h2>Histórico de importações</h2><div class="table-wrap" tabindex="0" role="region" aria-label="Histórico de importações"><table><thead><tr><th>Data</th><th>Origem</th><th>Ficheiro</th><th>Resumo</th></tr></thead><tbody>
+        ${logs.map((l) => `<tr><td>${esc(l.ts)}</td><td>${esc(l.source)}</td><td style="overflow-wrap:anywhere">${esc(l.filename || '')}</td><td class="small">${esc(l.summary || '')}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Sem importações.</td></tr>'}</tbody></table></div></div>
     </div>`;
 
   // ---------------- SAF-T
@@ -106,7 +109,18 @@ export async function render({ view }) {
   // ---------------- exportar
   const ey = view.querySelector('#saft-year');
   const exp = view.querySelector('#saft-export');
-  const syncExp = () => { exp.href = api.href('saft.export', { year: ey.value }); };
+  const et = view.querySelector('#saft-type');
+  const check = view.querySelector('#saft-check');
+  const syncExp = () => { exp.href = api.href('saft.export', { year: ey.value, type: et.value }); check.innerHTML = ''; };
   ey.onchange = syncExp;
+  et.onchange = syncExp;
   syncExp();
+  view.querySelector('#saft-validate').onclick = async () => {
+    check.innerHTML = '<div class="loading">A gerar e a validar…</div>';
+    try {
+      const r = await api.get('saft.validate', { year: ey.value, type: et.value });
+      check.innerHTML = r.ok ? `<div class="alert good">O SAF-T ${esc(et.value)} de ${esc(ey.value)} cumpre o XSD oficial (${Math.ceil(r.bytes / 1024)} KB).</div>`
+        : `<div class="alert bad"><b>O ficheiro não cumpre o XSD:</b><ul>${r.errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>`;
+    } catch (e) { check.innerHTML = `<div class="alert bad">${esc(e.message)}</div>`; }
+  };
 }

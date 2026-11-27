@@ -4,27 +4,6 @@ use Ideia\Ledger;
 use Ideia\Sales;
 use Ideia\SalesPrint;
 
-/** Empresa com dados de emitente completos e e-Fatura ativa (repositório de teste). */
-function efaturaSetup(): array
-{
-    [$db, $cli, $prod, $serv] = salesSetup();
-    $db->setMeta('company_address', 'Avenida Cidade de Lisboa');
-    $db->setMeta('company_city', 'Praia');
-    $db->setMeta('company_email', 'geral@teste.cv');
-    $db->setMeta('company_phone', '+238 260 00 00');
-    $db->run("UPDATE third_parties SET address = 'Achada Santo António', city = 'Praia', email = 'compras@cliente.cv' WHERE id = ?", [$cli]);
-    Efatura::saveSettings($db, ['enabled' => '1', 'since' => '2025-01-01', 'repo' => '3', 'led' => '7', 'software_code' => 'IDEIA01', 'mw_url' => 'https://localhost:3443', 'mw_key' => str_repeat('a', 64)]);
-    return [$db, $cli, $prod, $serv];
-}
-
-function assertValid(\Ideia\Db $db, int $id, string $label): string
-{
-    $xml = Efatura::buildXml($db, $id);
-    $errors = Efatura::validate($xml);
-    check(!$errors, "$label não cumpre o XSD: " . implode(' | ', $errors));
-    return $xml;
-}
-
 return [
     'IUD: dígito de controlo (Luhn) do exemplo do manual e composição' => function () {
         $sample = 'CV1200520123456789000112345678901112345678904';
@@ -158,7 +137,7 @@ return [
         }
         $db->setMeta('schema_version', '7');
         $db2 = new \Ideia\Db($db->path);
-        same('8', $db2->meta('schema_version'));
+        same((string) \Ideia\Db::SCHEMA_VERSION, $db2->meta('schema_version'));
         $cols = array_column($db2->all('PRAGMA table_info(sales_docs)'), 'name');
         check(!array_diff(['iud', 'efatura_message', 'efatura_at', 'efatura_mode', 'issue_reason'], $cols), 'colunas criadas');
     },

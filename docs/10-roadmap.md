@@ -25,12 +25,18 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 
 - **Fatura eletrónica** (documentos oficiais recebidos a 27/11/2026): IUD e código QR, XML de todos os tipos validado com o XSD oficial, listas oficiais de isenções e unidades, talão de venda (TVE), NIF obrigatório na fatura-recibo, numeração comum das guias, motivo e origem das notas, impressão com aviso de contingência, menu **Fatura eletrónica** (estado e envio, configuração do Middleware, documentação oficial). Ver [15-efatura](15-efatura.md).
 
+## Feito — versão 0.6
+
+- **SAF-T CV 1.01_01** validado com o XSD oficial, nos tipos C (contabilidade) e F (com artigos, orçamentos, pró-formas e pagamentos). Ver [07](07-importacao-exportacao.md#3-exportação-saf-t-cv-saftexporter).
+- **Documentos recebidos da e-Fatura**: importação dos XML ou ZIP descarregados da Plataforma Eletrónica para as compras (esquema v9).
+- **Conferência do IVA**: e-Fatura contra contabilidade, por mês. Ver [15-efatura](15-efatura.md).
+
 ## Próximo — validação (antes de qualquer cliente real)
 
 | Tarefa | Porquê |
 |--------|--------|
 | Rever plano de contas, balanço e DR com contabilista certificado (OPACC) | Os mapeamentos são uma primeira versão |
-| Obter o XSD oficial do SAF-T CV junto da DNRE e validar a exportação no SAFTPRO | Namespace e campos obrigatórios ainda por confirmar |
+| Validar a exportação SAF-T no SAFTPRO (saft.efatura.cv) | O ficheiro já cumpre o XSD 1.01_01; falta a validação de negócio da DNRE |
 | Recolher SAF-T reais e anonimizados do Primavera, PHC, Sage e exportações do Vendus | Os testes usam um ficheiro sintético |
 | Confirmar a licença open-source (o plano propõe GPL-3.0 para a aplicação e Apache-2.0 para as bibliotecas de e-Fatura e SAF-T) | Necessário antes de divulgar |
 | Piloto com 2 ou 3 gabinetes de contabilidade | Validar fluxos reais |
@@ -41,8 +47,7 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 A geração dos DFE e o envio pelo Middleware existem desde a v0.5. Falta a homologação com credenciais de teste e o resto da fase:
 
 
-- Leitura dos DFE (documentos fiscais eletrónicos) emitidos e recebidos, para conferência com a contabilidade e lançamento automático de compras/vendas.
-- Mapa de conferência IVA: e-Fatura vs contabilidade.
+- Descarga automática dos DFE recebidos (`GET /v1/dfe` pelo Middleware), em vez de importar o ficheiro descarregado à mão.
 - Requer: documentação técnica e credenciais de teste da DNRE; certificado digital.
 
 ## Fase 3 — produto

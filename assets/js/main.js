@@ -22,7 +22,7 @@ const NAV = [
   { group: null, items: [['painel', 'Painel']] },
   { group: 'Vendas', items: [['vendas', 'Documentos de venda'], ['dividas', 'Dívidas de clientes'], ['artigos', 'Artigos'], ['artigos?tipos=1', 'Tipos de artigo']] },
   { group: 'Compras', items: [['compras', 'Faturas de fornecedores'], ['dividas-fornecedores', 'Dívidas a fornecedores'], ['pagamentos', 'Mapa de pagamentos']] },
-  { group: 'Fatura eletrónica', items: [['efatura', 'e-Fatura: estado e envio'], ['efatura/configurar', 'Configuração e-Fatura'], ['efatura/documentacao', 'Documentação oficial']] },
+  { group: 'Fatura eletrónica', items: [['efatura', 'e-Fatura: estado e envio'], ['efatura/recebidos', 'Documentos recebidos'], ['efatura/conferencia', 'Conferência do IVA'], ['efatura/configurar', 'Configuração e-Fatura'], ['efatura/documentacao', 'Documentação oficial']] },
   { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária']] },
   { group: 'Relatórios', items: [['relatorios/balancete', 'Balancete'], ['relatorios/razao', 'Extrato de conta'], ['relatorios/diario', 'Diário'], ['relatorios/balanco', 'Balanço'], ['relatorios/dr', 'Demonstração de resultados'], ['iva', 'Apuramento do IVA']] },
   { group: 'Estatísticas', items: [['estatisticas/racios', 'Rácios financeiros'], ['estatisticas/gastos', 'Estrutura de gastos'], ['estatisticas/terceiros', 'Clientes e fornecedores'], ['estatisticas/orcamento', 'Orçamento'], ['estatisticas/previsao', 'Previsão'], ['estatisticas/indicadores', 'Indicadores próprios'], ['estatisticas/relatorio', 'Relatório de gestão']] },

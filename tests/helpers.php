@@ -43,3 +43,24 @@ function salesSetup(): array
     $serv = \Ideia\Sales::saveItem($db, ['name' => 'Transporte', 'kind' => 'S', 'price' => '2 000,00', 'vat_code' => 'ISE', 'exemption' => '3']);
     return [$db, $cli, $prod, $serv];
 }
+
+/** Empresa com dados de emitente completos e e-Fatura ativa (repositório de teste). */
+function efaturaSetup(): array
+{
+    [$db, $cli, $prod, $serv] = salesSetup();
+    $db->setMeta('company_address', 'Avenida Cidade de Lisboa');
+    $db->setMeta('company_city', 'Praia');
+    $db->setMeta('company_email', 'geral@teste.cv');
+    $db->setMeta('company_phone', '+238 260 00 00');
+    $db->run("UPDATE third_parties SET address = 'Achada Santo António', city = 'Praia', email = 'compras@cliente.cv' WHERE id = ?", [$cli]);
+    \Ideia\Efatura::saveSettings($db, ['enabled' => '1', 'since' => '2025-01-01', 'repo' => '3', 'led' => '7', 'software_code' => 'IDEIA01', 'mw_url' => 'https://localhost:3443', 'mw_key' => str_repeat('a', 64)]);
+    return [$db, $cli, $prod, $serv];
+}
+
+function assertValid(\Ideia\Db $db, int $id, string $label): string
+{
+    $xml = \Ideia\Efatura::buildXml($db, $id);
+    $errors = \Ideia\Efatura::validate($xml);
+    check(!$errors, "$label não cumpre o XSD: " . implode(' | ', $errors));
+    return $xml;
+}

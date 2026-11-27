@@ -1,11 +1,11 @@
 // Fatura eletrónica (e-Fatura, DNRE): estado e fila de comunicação, configuração da ligação ao Middleware,
 // documentação oficial (manual técnico, listas de códigos) e passos de adesão.
 import { api } from '../api.js';
-import { setCrumbs, go, cpath } from '../main.js';
-import { esc, money, fmtDate, toast, confirmDialog, formData } from '../util.js';
+import { setCrumbs, go, cpath, state } from '../main.js';
+import { esc, money, fmtDate, toast, confirmDialog, formData, MONTHS } from '../util.js';
 
 const STATUS = { pendente: ['Por comunicar', 'info'], autorizado: ['Autorizado', 'good'], rejeitado: ['Rejeitado', 'bad'], erro: ['Com erros', 'bad'], excluido: ['Não comunicar', ''] };
-const TABS = [['', 'Estado e envio'], ['configurar', 'Configuração'], ['documentacao', 'Documentação oficial']];
+const TABS = [['', 'Estado e envio'], ['recebidos', 'Documentos recebidos'], ['conferencia', 'Conferência do IVA'], ['configurar', 'Configuração'], ['documentacao', 'Documentação oficial']];
 
 const kb = (n) => (n > 1048576 ? (n / 1048576).toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + ' MB' : Math.ceil(n / 1024) + ' KB');
 
@@ -22,6 +22,8 @@ export async function render(ctx) {
   const box = ctx.view.querySelector('#tab');
   if (tab === 'configurar') return renderSettings(box, ov, ctx);
   if (tab === 'documentacao') return renderDocs(box, ov);
+  if (tab === 'recebidos') return renderReceived(box);
+  if (tab === 'conferencia') return renderConference(box);
   return renderQueue(box, ov, ctx);
 }
 
@@ -193,3 +195,78 @@ function renderDocs(box, ov) {
         <li>Sem ligação, o documento fica por comunicar e é enviado depois em modo de contingência (até 7 dias), com o aviso "Pendente de Autorização" impresso.</li>
       </ul></div>`;
 }
+
+// =========================================================================== documentos recebidos
+
+const RSTATUS = { novo: ['A importar', 'info'], duplicado: ['Já existe', ''], ignorado: ['Ignorado', ''], erro: ['Com erro', 'bad'] };
+
+function receivedTable(rows, done = false) {
+  return `<div class="table-wrap"><table id="rec-rows"><caption class="sr-only">Documentos recebidos</caption>
+    <thead><tr><th>Documento</th><th>Data</th><th>Fornecedor</th><th class="num">IVA</th><th class="num">Total</th><th>Resultado</th></tr></thead>
+    <tbody>${rows.map((r) => {
+      const [l, c] = r.created_id ? [r.created_status === 'registado' ? 'Registado' : 'Rascunho criado', 'good'] : (RSTATUS[r.status] || [r.status, '']);
+      return `<tr><td>${esc(r.type_name)} <b>${esc(r.number)}</b><div class="small muted mono">${esc(r.file)}</div></td><td>${r.date ? fmtDate(r.date) : ''}</td>
+        <td>${esc(r.supplier)} <span class="small mono muted">${esc(r.supplier_nif)}</span>${r.supplier_exists || !r.supplier ? '' : ' <span class="badge info">novo</span>'}</td>
+        <td class="num">${money(r.vat_cents)}</td><td class="num">${money(r.total_cents)}</td>
+        <td><span class="badge ${c}">${esc(l)}</span>${r.created_id ? ` <a href="#/${cpath('compras/' + r.created_id)}">abrir</a>` : ''}<div class="small">${esc(r.message || '')}</div></td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty">Nenhum documento no ficheiro.</td></tr>'}</tbody></table></div>${done ? '' : ''}`;
+}
+
+function renderReceived(box) {
+  box.innerHTML = `
+    <div class="card"><h2>Importar faturas de fornecedores da e-Fatura</h2>
+      <p class="muted">Na <a href="https://pe.efatura.cv" target="_blank" rel="noopener">Plataforma Eletrónica</a>, consulte os documentos em que a empresa é adquirente e descarregue os XML (um a um ou num ZIP).
+        A aplicação cria as faturas de fornecedores, despesas pagas e notas de crédito correspondentes, com o fornecedor (criado se não existir), as linhas e o IVA. Recibos e guias são ignorados.</p>
+      <div class="form">
+        <label class="wide">Ficheiro XML ou ZIP<input type="file" id="rec-file" accept=".xml,.zip"></label>
+        <label class="wide" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="rec-register"> Registar logo na contabilidade quando o fornecedor já tem uma conta de gastos habitual (os restantes ficam em rascunho para escolher a conta)</label>
+      </div>
+      <div class="toolbar" style="margin-top:10px"><button class="primary" id="rec-preview">Analisar ficheiro</button></div>
+      <div id="rec-out" style="margin-top:12px"></div></div>`;
+  const out = box.querySelector('#rec-out');
+  box.querySelector('#rec-preview').onclick = async () => {
+    const f = box.querySelector('#rec-file').files[0];
+    if (!f) return toast('Escolha o ficheiro XML ou ZIP.', 'bad');
+    out.innerHTML = '<div class="loading">A analisar…</div>';
+    try {
+      const p = await api.upload('efatura.received_preview', f);
+      const c = p.counts;
+      out.innerHTML = `<p><b>${c.novo}</b> a importar · ${c.duplicado} já existem · ${c.ignorado} ignorados · ${c.erro} com erro</p>${receivedTable(p.rows)}
+        <div class="toolbar" style="margin-top:10px"><button class="primary" id="rec-import" ${c.novo ? '' : 'disabled'}>Importar ${c.novo} documento(s)</button></div>`;
+      out.querySelector('#rec-import').onclick = async (e) => {
+        e.target.disabled = true;
+        try {
+          const r = await api.upload('efatura.received_import', f, { register: box.querySelector('#rec-register').checked ? '1' : '0' });
+          toast(`${r.created} documento(s) importado(s).`, 'good');
+          out.innerHTML = `<div class="alert good">${r.created} documento(s) importado(s). Os rascunhos estão em <a href="#/${cpath('compras?status=rascunho')}">Faturas de fornecedores</a>: confirme a conta de gastos e registe.</div>${receivedTable(r.rows, true)}`;
+        } catch (err) { toast(err.message, 'bad'); e.target.disabled = false; }
+      };
+    } catch (err) { out.innerHTML = `<div class="alert bad">${esc(err.message)}</div>`; }
+  };
+}
+
+// =========================================================================== conferência do IVA
+
+async function renderConference(box) {
+  const c = await api.get('efatura.conference', { year: state.year });
+  const diff = (v, before) => before ? '<td class="num muted small">antes da adesão</td>' : `<td class="num ${v ? 'neg' : ''}">${v ? money(v) : '—'}</td>`;
+  const row = (r, label) => `<tr${r.month === null ? ' class="total"' : ''}><td>${label}</td>
+    <td class="num">${money(r.sales_authorized)}</td><td class="num">${money(r.sales_pending)}</td><td class="num">${money(r.sales_ledger)}</td>${diff(r.sales_diff, r.before_since)}
+    <td class="num">${money(r.purchases_efatura)}</td><td class="num">${money(r.purchases_manual)}</td><td class="num">${money(r.purchases_ledger)}</td>${diff(r.purchases_diff, r.before_since)}</tr>`;
+  box.innerHTML = `
+    <div class="card"><h2>IVA ${c.year}: e-Fatura e contabilidade</h2>
+      <p class="muted small">Vendas: IVA dos documentos fiscais emitidos (autorizados na e-Fatura ou ainda por comunicar) e IVA liquidado nos lançamentos.
+        Compras: IVA das faturas de fornecedores importadas da e-Fatura (com IUD) ou registadas à mão, e IVA dedutível nos lançamentos. Uma diferença indica lançamentos de IVA feitos à mão ou documentos em falta. ${c.since ? `As diferenças contam a partir da data de início da e-Fatura (${fmtDate(c.since)}).` : ''} Mude o exercício no topo.</p>
+      <div class="table-wrap"><table id="conf"><caption class="sr-only">Conferência mensal do IVA</caption>
+        <thead><tr><th rowspan="2">Mês</th><th colspan="4">IVA liquidado (vendas)</th><th colspan="4">IVA dedutível (compras)</th></tr>
+          <tr><th class="num">Autorizado</th><th class="num">Por comunicar</th><th class="num">Contabilidade</th><th class="num">Diferença</th>
+            <th class="num">Da e-Fatura</th><th class="num">Registado à mão</th><th class="num">Contabilidade</th><th class="num">Diferença</th></tr></thead>
+        <tbody>${c.rows.map((r) => row(r, MONTHS[r.month - 1])).join('')}</tbody><tfoot>${row(c.totals, 'Total')}</tfoot></table></div></div>
+    <div class="card"><h2>Faturas de fornecedores com IVA sem documento da e-Fatura</h2>
+      <p class="muted small">Desde a e-Fatura, o IVA só é dedutível com o documento eletrónico autorizado. Importe os XML destas faturas em "Documentos recebidos" para as confirmar.</p>
+      <div class="table-wrap"><table><thead><tr><th>Registo</th><th>Documento do fornecedor</th><th>Data</th><th>Fornecedor</th><th class="num">IVA</th></tr></thead>
+        <tbody>${c.manual_docs.map((d) => `<tr><td><a href="#/${cpath('compras/' + d.id)}">${esc(d.doc_no)}</a></td><td>${esc(d.supplier_doc || '')}</td><td>${fmtDate(d.date)}</td>
+          <td>${esc(d.supplier || '')} <span class="small mono muted">${esc(d.nif || '')}</span></td><td class="num">${money(d.vat_cents)}</td></tr>`).join('')
+          || '<tr><td colspan="5" class="empty">Todas as faturas com IVA têm documento da e-Fatura.</td></tr>'}</tbody></table></div></div>`;
+}
+

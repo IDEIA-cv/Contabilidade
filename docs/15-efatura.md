@@ -1,6 +1,6 @@
 # 15. Fatura eletrónica (e-Fatura, DNRE)
 
-A aplicação gera os documentos fiscais eletrónicos (DFE) de Cabo Verde e comunica-os à e-Fatura através do **Middleware** oficial da DNRE. Esta página resume as regras retiradas dos documentos oficiais e explica como estão implementadas (versão 0.5, esquema v8).
+A aplicação gera os documentos fiscais eletrónicos (DFE) de Cabo Verde e comunica-os à e-Fatura através do **Middleware** oficial da DNRE. Esta página resume as regras retiradas dos documentos oficiais e explica como estão implementadas (versão 0.6, esquema v9).
 
 ## Fontes
 
@@ -83,8 +83,38 @@ A chave de unicidade da DNRE é (NIF, ano, LED, tipo, número), sem a série. Po
 | `erro` | Não foi possível gerar ou validar o XML (dados em falta) |
 | `excluido` | Não comunicar (anterior à data de início, ou marcado pelo utilizador) |
 
+## Documentos recebidos (compras)
+
+Menu **Fatura eletrónica → Documentos recebidos** (`src/EfaturaReceived.php`). O utilizador descarrega da Plataforma Eletrónica os DFE em que a empresa é adquirente (XML, ou um ZIP com vários, até 500) e envia o ficheiro. Primeiro vê o que vai acontecer a cada documento; depois importa.
+
+| DFE | Nas compras |
+|---|---|
+| FTE fatura, NDE nota de débito | FC fatura de fornecedor |
+| FRE fatura-recibo, TVE talão | FP despesa paga (meio de pagamento do DFE) |
+| NCE nota de crédito | NF ligada à fatura de origem (pelo IUD da referência ou pelo número do fornecedor) |
+| RCE recibo, DTE guia, outros | ignorados |
+
+- Ignora documentos emitidos pela própria empresa e documentos cujo adquirente é outro NIF.
+- Duplicados: pelo IUD (`purchase_docs.iud`, índice único) ou pelo mesmo número do fornecedor já registado à mão.
+- O fornecedor é criado a partir do emitente se não existir (um cliente com o mesmo NIF passa a "ambos").
+- As linhas mantêm quantidade, preço e desconto quando o cálculo dá o mesmo valor líquido; senão entram com quantidade 1 e o valor líquido do DFE. O IVA usa o código dedutível da mesma taxa; isenções usam o código isento.
+- Com **Registar logo**, os documentos de fornecedores com conta de gastos habitual são registados (lançamento incluído); os restantes ficam em rascunho com a conta 6268 para o utilizador confirmar.
+- Erros explicados: nota de crédito sem a fatura de origem, data sem exercício, taxa de IVA sem código dedutível. Retenções na fonte são assinaladas para confirmação.
+- Cada importação fica no histórico de importações e no registo de auditoria.
+
+## Conferência do IVA
+
+Menu **Fatura eletrónica → Conferência do IVA** (`Efatura::conference`). Para cada mês do exercício:
+
+- **Vendas**: IVA dos documentos fiscais emitidos (autorizados, por comunicar, excluídos; notas de crédito a abater) contra o IVA liquidado nos lançamentos.
+- **Compras**: IVA das faturas de fornecedores com IUD (vindas da e-Fatura) e das registadas à mão, contra o IVA dedutível nos lançamentos.
+- A contabilidade conta as linhas com código de IVA liquidado ou dedutível com taxa, fora do diário de apuramento.
+- Os meses antes da data de início da e-Fatura aparecem como "antes da adesão" e não entram nas diferenças.
+- Lista das faturas de fornecedores com IVA sem documento da e-Fatura, para importar o XML e confirmar o direito à dedução.
+
 ## Menu "Fatura eletrónica"
 
+- **Documentos recebidos** e **Conferência do IVA**: ver acima.
 - **Estado e envio**: contagens por estado, lista filtrável, verificação de cada documento com o XSD, descarga do XML, envio dos selecionados ou de todos os pendentes, "Não comunicar" e "Repor na fila".
 - **Configuração**: ativar, data de início, repositório, LED, código do software (até 10 letras ou algarismos, padrão do XSD), NIF do transmissor, motivo de contingência, endereço e chave do Middleware, verificação do certificado HTTPS, "Testar ligação".
 - **Documentação oficial**: ficheiros locais, páginas oficiais, downloads do Middleware e os passos de adesão.
@@ -104,15 +134,17 @@ A chave de unicidade da DNRE é (NIF, ano, LED, tipo, número), sem a série. Po
 | Ficheiro | Papel |
 |---|---|
 | `src/Efatura.php` | Configuração, códigos oficiais, IUD, `buildXml`, `validate`, fila, `send` pelo Middleware, `test` |
+| `src/EfaturaReceived.php` | Leitura dos DFE recebidos (XML/ZIP), pré-visualização e criação das compras |
 | `src/Qr.php` | Código QR (modo byte, ECC M, versões 1–10) em SVG |
 | `src/Sales.php` | Talão de venda, NIF na FR, contador comum das guias, motivo e origem das notas, códigos de isenção e unidades, IUD na emissão |
 | `src/SalesPrint.php` | IUD, QR e avisos de contingência na impressão |
 | `assets/js/views/efatura.js` | Menu e-Fatura |
 | `tests/unit/EfaturaTest.php` | IUD, códigos, configuração, XML de todos os tipos validado com o XSD, envio simulado (autorizado, rejeitado, sem ligação), impressão, migração v7→v8 |
+| `tests/unit/EfaturaReceivedTest.php` | Documentos recebidos, conferência do IVA, migração v8→v9 |
 
 ## Limitações conhecidas
 
 - O formato exato da resposta do Middleware (`succeeded`/`messages`) foi deduzido da documentação da API; a interpretação (`Efatura::parseResponse`) pode precisar de ajuste na homologação.
-- A consulta de DFE recebidos (`GET /v1/dfe`) e a conferência com as compras ainda não existem.
+- Os DFE recebidos são importados a partir do ficheiro descarregado; a consulta automática pelo Middleware (`GET /v1/dfe`) ainda não existe.
 - O modo OFF (sem sistema, com IUC) não se aplica: a aplicação está sempre disponível localmente.
 - Clientes estrangeiros: o NIF é enviado tal como está, com o país da ficha; convém confirmar na homologação.

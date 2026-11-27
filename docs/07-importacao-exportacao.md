@@ -58,15 +58,27 @@ Tolerâncias:
 
 Validações (com nº de linha no relatório de erros): conta inexistente ou que não é de movimento, lançamento desequilibrado, data inválida ou fora de exercício, NIF não encontrado, tipo de terceiro inválido. Os lançamentos podem entrar **validados** ou **como rascunho** (para revisão).
 
-## 3. Exportação SAF-T CV de contabilidade (`Saft\Exporter`)
+## 3. Exportação SAF-T CV (`Saft\Exporter`)
 
-`saft.export&year=2025` gera `SAFT_CV_<NIF>_<ano>_C.xml` com:
+Segue o XSD oficial **SAF-T CV 1.01_01** (`resources/efatura/xsd/saftcv1.01_01.xsd`, namespace `urn:OECD:StandardAuditFile-Tax:CV_1.01_01`). No ecrã Importar escolhe-se o exercício e o tipo, e o botão **Verificar com o XSD oficial** valida o ficheiro antes de o descarregar.
 
-- `Header`: versão, NIF, nome, morada, exercício, datas, moeda CVE, data de criação, produto `IDEIA Contabilidade` e versão;
-- `MasterFiles`: `GeneralLedgerAccounts` (todas as contas, com saldos de abertura e fecho e `GroupingCategory` GR/GA/GM), `Customer`, `Supplier`, `TaxTable`;
-- `GeneralLedgerEntries`: totais e diários com transações e linhas a débito/crédito (só lançamentos validados).
+`saft.export&year=2025&type=C|F` gera `SAFT_CV_<NIF>_<ano>_<tipo>.xml`:
 
-> **Pendente:** confirmar com o XSD oficial da DNRE o namespace (hoje `urn:OECD:StandardAuditFile-Tax:CV_1.0`) e os campos obrigatórios, e validar o ficheiro no SAFTPRO (saft.efatura.cv) antes de qualquer entrega. Ver [roadmap](10-roadmap.md).
+| Tipo | Conteúdo |
+|---|---|
+| **C** Contabilidade | `Header`, `MasterFiles` (contas, clientes, fornecedores, tabela de IVA) e `GeneralLedgerEntries` |
+| **F** Completo | O mesmo e ainda `Product` e `SourceDocuments`: `WorkingDocuments` (orçamentos e pró-formas), `Payments` (recibos RC e pagamentos a fornecedores PF) |
+
+Regras aplicadas para cumprir o XSD:
+
+- `PostalCode` tem o padrão `####-###`; como Cabo Verde não usa código postal, vai `0000-000`. `Region` leva a cidade.
+- As classes do plano (1 dígito) não são exportadas, porque `AccountID` exige pelo menos 2 carateres; as contas de 2 dígitos são `GR`. `TaxonomyReference` = `S` (SNCRF).
+- Período 1–12 pelo mês; o apuramento de dezembro vai no período 13.
+- Em cada transação, as linhas a débito vêm antes das linhas a crédito. `DocArchivalNumber` sem espaços e com até 20 carateres.
+- Linhas sem artigo usam o produto `DIVERSOS`. Isenções com o código oficial (`TaxExemptionCode`) e a menção (`TaxExemptionReason`).
+- **Faturas, faturas-recibo, talões, notas e guias não entram no SAF-T**: são comunicadas à e-Fatura documento a documento.
+
+`saft.validate&year=…&type=…` devolve `{ok, errors[]}`. Antes de entregar à DNRE convém ainda validar o ficheiro no SAFTPRO (saft.efatura.cv).
 
 ## Notas por programa de origem
 

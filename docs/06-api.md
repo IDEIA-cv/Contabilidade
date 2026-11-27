@@ -129,6 +129,9 @@ Linhas: `item_id?`, `description`, `qty` (texto, ex. `"1,5"`) ou `qty_milli`, `p
 | `efatura.send` | POST | `ids[]` ou `pending=1` — resultado por documento (`status`, `message`) |
 | `efatura.exclude` | POST | `ids[]`, `exclude` (true = não comunicar, false = repor na fila) |
 | `efatura.doc` | GET | `id` (manual, certificado, motivos, unidades) — ficheiro oficial |
+| `efatura.received_preview` | POST | ficheiro XML ou ZIP — `rows[]` (`status` novo/duplicado/ignorado/erro, `message`, tipo, número, fornecedor, IVA, total) e `counts` |
+| `efatura.received_import` | POST | ficheiro, `register` (registar quando o fornecedor tem conta habitual) — `rows[]` com `created_id`, `created` |
+| `efatura.conference` | GET | `year` — `rows[]` por mês (IVA das vendas por estado, IVA das compras da e-Fatura e manuais, contabilidade, diferenças, `before_since`), `totals`, `manual_docs[]` |
 
 ## Compras
 
@@ -197,7 +200,8 @@ Com palavra-passe ativa, qualquer outra ação sem sessão responde HTTP 401 `{o
 | `imports.list` | GET | — histórico de importações |
 | `backup.create` | POST | — grava cópia em `backup_dir` |
 | `backup.download` | GET | — descarrega cópia `.ideia` |
-| `saft.export` | GET | `year` — descarrega `SAFT_CV_<NIF>_<ano>_C.xml` |
+| `saft.export` | GET | `year`, `type` (C contabilidade, F completo) — descarrega `SAFT_CV_<NIF>_<ano>_<tipo>.xml` |
+| `saft.validate` | GET | `year`, `type` — `{ok, errors[]}` contra o XSD SAF-T CV 1.01_01 |
 | `saft.preview` | POST | ficheiro XML (ou `.gz`) |
 | `saft.import` | POST | ficheiro, `map` (JSON `{código_origem: conta_destino}`), `create_opening` |
 | `import.template` | GET | `type` = `contas`, `terceiros`, `saldos`, `lancamentos` |
