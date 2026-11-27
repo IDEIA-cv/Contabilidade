@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS entries (
     UNIQUE (fiscal_year, journal, number)
 );
 CREATE INDEX IF NOT EXISTS ix_entries_date ON entries(date);
+CREATE INDEX IF NOT EXISTS ix_entries_seq ON entries(validated_seq);              -- v4: cadeia de hash e numeração
+CREATE INDEX IF NOT EXISTS ix_entries_year ON entries(fiscal_year, status, date);  -- v4: relatórios por exercício
 
 CREATE TABLE IF NOT EXISTS entry_lines (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,6 +111,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     action  TEXT NOT NULL,
     details TEXT
 );
+CREATE INDEX IF NOT EXISTS ix_audit_action ON audit_log(action, ts);              -- v4
 
 CREATE TABLE IF NOT EXISTS import_log (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,

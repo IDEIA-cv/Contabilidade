@@ -10,7 +10,7 @@ use PDO;
  */
 final class Db
 {
-    public const SCHEMA_VERSION = 3;
+    public const SCHEMA_VERSION = 4;
 
     public PDO $pdo;
     public string $path;
@@ -44,8 +44,8 @@ final class Db
         if ($v > self::SCHEMA_VERSION) {
             throw new UserError('Este ficheiro foi criado por uma versão mais recente da aplicação. Atualize a aplicação.');
         }
-        if ($v < 3) {
-            // v2: documentos anexos; v3: reconciliação bancária.
+        if ($v < 4) {
+            // v2: documentos anexos; v3: reconciliação bancária; v4: índices de desempenho.
             // O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo acrescenta apenas o que falta.
             $this->pdo->exec((string) file_get_contents(IDEIA_ROOT . '/database/schema.sql'));
             $this->setMeta('schema_version', (string) self::SCHEMA_VERSION);

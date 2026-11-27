@@ -101,12 +101,12 @@ async function pendentes(el, account, query, link) {
     <div class="grid cols-2">
       <div class="card"><h2>Extrato do banco <span class="muted small">${p.bank.length} por conciliar</span></h2><div class="table-wrap"><table id="tb-bank">
         <thead><tr><th></th><th>Data</th><th>Descritivo</th><th class="num">Montante</th></tr></thead><tbody>
-        ${p.bank.map((b) => `<tr><td><input type="checkbox" data-bank="${b.id}" data-amt="${b.amount_cents}"></td><td>${fmtDate(b.date)}</td>
+        ${p.bank.map((b) => `<tr><td><input type="checkbox" data-bank="${b.id}" data-amt="${b.amount_cents}" aria-label="Selecionar ${esc(b.description)} de ${fmtDate(b.date)}, ${money(b.amount_cents)}"></td><td>${fmtDate(b.date)}</td>
           <td>${esc(b.description)}${b.reference ? ` <span class="muted small">${esc(b.reference)}</span>` : ''}</td><td class="num ${signClass(b.amount_cents)}">${money(b.amount_cents)}</td></tr>`).join('')
           || '<tr><td colspan="4" class="empty">Tudo conciliado.</td></tr>'}</tbody></table></div></div>
       <div class="card"><h2>Contabilidade <span class="muted small">${p.ledger.length} por conciliar</span></h2><div class="table-wrap"><table id="tb-ledger">
         <thead><tr><th></th><th>Data</th><th>Lançamento</th><th class="num">Montante</th></tr></thead><tbody>
-        ${p.ledger.map((l) => `<tr><td><input type="checkbox" data-ledger="${l.id}" data-amt="${l.amount_cents}"></td><td>${fmtDate(l.date)}</td>
+        ${p.ledger.map((l) => `<tr><td><input type="checkbox" data-ledger="${l.id}" data-amt="${l.amount_cents}" aria-label="Selecionar ${esc(l.journal)} ${l.number} de ${fmtDate(l.date)}, ${money(l.amount_cents)}"></td><td>${fmtDate(l.date)}</td>
           <td><a href="#/${cpath('lancamento/' + l.entry_id)}">${esc(l.journal)} ${l.number}</a> ${esc(l.description)}${l.document ? ` <span class="muted small">${esc(l.document)}</span>` : ''}</td>
           <td class="num ${signClass(l.amount_cents)}">${money(l.amount_cents)}</td></tr>`).join('')
           || '<tr><td colspan="4" class="empty">Tudo conciliado.</td></tr>'}</tbody></table></div></div>

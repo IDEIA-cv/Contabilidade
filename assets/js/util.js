@@ -146,3 +146,20 @@ export function debounce(fn, ms = 250) {
 export function monthOptions(selected) {
   return MONTHS_FULL.map((m, i) => `<option value="${i + 1}" ${Number(selected) === i + 1 ? 'selected' : ''}>${m}</option>`).join('');
 }
+
+/** Navegação entre páginas. onGo(novoOffset). Devolve '' quando cabe tudo numa página. */
+export function pager(total, offset, limit, label = 'linhas') {
+  if (!limit || total <= limit) return '';
+  const pages = Math.ceil(total / limit);
+  const page = Math.floor(offset / limit) + 1;
+  return `<nav class="pager no-print" aria-label="Paginação">
+    <button data-off="0" ${page === 1 ? 'disabled' : ''} aria-label="Primeira página">«</button>
+    <button data-off="${Math.max(0, offset - limit)}" ${page === 1 ? 'disabled' : ''}>‹ Anterior</button>
+    <span>Página ${page} de ${pages} · ${offset + 1}–${Math.min(offset + limit, total)} de ${total} ${label}</span>
+    <button data-off="${offset + limit}" ${page === pages ? 'disabled' : ''}>Seguinte ›</button>
+    <button data-off="${(pages - 1) * limit}" ${page === pages ? 'disabled' : ''} aria-label="Última página">»</button></nav>`;
+}
+
+export function bindPager(root, onGo) {
+  root.querySelectorAll('.pager [data-off]').forEach((b) => { b.onclick = () => onGo(Number(b.dataset.off)); });
+}

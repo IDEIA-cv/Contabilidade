@@ -70,6 +70,17 @@ Cria "Empresa Demonstração Lda" com 2024 fechado e 2025 aberto (até outubro),
 
 Em alternativa, copie diretamente os ficheiros `data/*.ideia` com a aplicação parada.
 
+## Problemas frequentes
+
+**"attempt to write a readonly database"** ou **"Sem permissão para escrever na pasta de dados"**: o servidor web não consegue escrever na pasta `data/`. No Mac (XAMPP o Apache corre como `daemon`):
+
+```bash
+sudo chown -R daemon /Applications/XAMPP/xamppfiles/htdocs/contabilidade/data
+sudo chmod -R u+rwX /Applications/XAMPP/xamppfiles/htdocs/contabilidade/data
+```
+
+No Windows, nas propriedades da pasta `data`, dê permissão de escrita ao utilizador que corre o Apache. Depois recarregue a página.
+
 ## Atualizar a aplicação
 
 Substitua todos os ficheiros **exceto** `config.php` e a pasta `data/`. O esquema da base de dados tem versão (`meta.schema_version`); migrações futuras serão aplicadas ao abrir cada empresa.

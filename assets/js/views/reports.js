@@ -1,7 +1,7 @@
 // Relatórios: balancete, extrato de conta (razão), diário, balanço e demonstração dos resultados.
 import { api } from '../api.js';
 import { state, go, cpath, setCrumbs } from '../main.js';
-import { esc, money, fmtDate, monthOptions, tableToCsv, signClass, MONTHS_FULL } from '../util.js';
+import { esc, money, fmtDate, monthOptions, tableToCsv, signClass, MONTHS_FULL, pager, bindPager } from '../util.js';
 import { tableToXlsx } from '../xlsx.js';
 
 const TITLES = { balancete: 'Balancete', razao: 'Extrato de conta', diario: 'Diário', balanco: 'Balanço', dr: 'Demonstração dos resultados por naturezas' };
@@ -31,11 +31,19 @@ export async function render({ view, params, query }) {
       go(cpath(`relatorios/${type}?${p}`));
     };
   });
-  view.querySelector('#csv').onclick = () => { const t = out.querySelector('table'); if (t) tableToCsv(t, `${type}_${state.year}.csv`); };
-  view.querySelector('#xlsx').onclick = () => {
-    const t = out.querySelector('table');
+  // relatórios paginados exportam todas as linhas: pedem o relatório completo e geram a tabela fora do ecrã
+  let fullTable = null;
+  const exportTable = async () => {
+    if (fullTable) { const div = document.createElement('div'); div.innerHTML = await fullTable(); return div.querySelector('table'); }
+    return out.querySelector('table');
+  };
+  view.querySelector('#csv').onclick = async () => { const t = await exportTable(); if (t) tableToCsv(t, `${type}_${state.year}.csv`); };
+  view.querySelector('#xlsx').onclick = async () => {
+    const t = await exportTable();
     if (t) tableToXlsx(t, `${type}_${state.year}.xlsx`, { sheet: TITLES[type], title: `${state.info.name} · NIF ${state.info.nif || ''} · ${TITLES[type]} · ${state.year}` });
   };
+  const offset = Math.max(0, Number(q.offset) || 0);
+  const goOffset = (off) => { const p = new URLSearchParams(query); p.set('offset', off); go(cpath(`relatorios/${type}?${p}`)); };
   const y = state.year;
 
   if (type === 'balancete') {
@@ -56,29 +64,38 @@ export async function render({ view, params, query }) {
     const accs = await api.get('accounts.list');
     view.querySelector('#dl-acc').innerHTML = accs.map((a) => `<option value="${esc(a.code)}">${esc(a.name)}</option>`).join('');
     if (!q.account) { out.innerHTML = '<div class="empty">Indique uma conta (ou o início do código, ex.: 62 para todos os FSE).</div>'; return; }
-    const r = await api.get('reports.ledger', { year: y, account: q.account, from: q.from, to: q.to });
-    out.innerHTML = `<h2>${esc(r.account)} ${esc(r.name || '(todas as subcontas)')}</h2><div class="table-wrap"><table>
+    const LIMIT = 500;
+    const table = (r) => `<div class="table-wrap"><table>
       <thead><tr><th>Data</th><th>Diário / n.º</th><th>Documento</th><th>Descrição</th><th>Conta</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Saldo</th></tr></thead>
-      <tbody><tr class="section"><td colspan="7">Saldo anterior</td><td class="num ${signClass(r.opening)}">${money(r.opening)}</td></tr>
-      ${r.rows.map((x) => `<tr class="clickable" data-id="${x.entry_id}"><td>${fmtDate(x.date)}</td><td class="mono">${esc(x.journal)} / ${x.number}</td><td>${esc(x.document || '')}</td>
+      <tbody><tr class="section"><td colspan="7">${r.offset ? 'Saldo transportado' : 'Saldo anterior'}</td><td class="num ${signClass(r.page_start)}">${money(r.page_start)}</td></tr>
+      ${r.rows.map((x) => `<tr class="clickable" data-id="${x.entry_id}"><td>${fmtDate(x.date)}</td><td class="mono"><a href="#/${cpath('lancamento/' + x.entry_id)}">${esc(x.journal)} / ${x.number}</a></td><td>${esc(x.document || '')}</td>
         <td>${esc(x.description || x.entry_description)}</td><td class="mono">${esc(x.account)}</td><td class="num">${money(x.debit_cents, { blankZero: true })}</td><td class="num">${money(x.credit_cents, { blankZero: true })}</td>
         <td class="num ${signClass(x.balance)}">${money(x.balance)}</td></tr>`).join('')}
-      <tr class="total"><td colspan="5">Totais do período</td><td class="num">${money(r.debit)}</td><td class="num">${money(r.credit)}</td><td class="num ${signClass(r.closing)}">${money(r.closing)}</td></tr></tbody></table></div>
-      <p class="muted small">Saldo positivo = devedor; negativo = credor.</p>`;
+      <tr class="total"><td colspan="5">Totais do período</td><td class="num">${money(r.debit)}</td><td class="num">${money(r.credit)}</td><td class="num ${signClass(r.closing)}">${money(r.closing)}</td></tr></tbody></table></div>`;
+    const r = await api.get('reports.ledger', { year: y, account: q.account, from: q.from, to: q.to, limit: LIMIT, offset });
+    if (r.total_rows > LIMIT) fullTable = async () => table(await api.get('reports.ledger', { year: y, account: q.account, from: q.from, to: q.to }));
+    const nav = pager(r.total_rows, r.offset, LIMIT, 'movimentos');
+    out.innerHTML = `<h2>${esc(r.account)} ${esc(r.name || '(todas as subcontas)')}</h2>${nav}${table(r)}${nav}
+      <p class="muted small">Saldo positivo = devedor; negativo = credor.${r.total_rows > LIMIT ? ' A exportação para Excel e CSV inclui todos os movimentos.' : ''}</p>`;
+    bindPager(out, goOffset);
     out.querySelectorAll('tr[data-id]').forEach((tr) => { tr.onclick = () => go(cpath('lancamento/' + tr.dataset.id)); });
   }
 
   if (type === 'diario') {
-    const r = await api.get('reports.journal', { year: y, from: q.from, to: q.to, journal: q.journal });
-    let last = null;
-    out.innerHTML = r.rows.length ? `<div class="table-wrap"><table>
+    const LIMIT = 200;
+    const table = (r) => { let last = null; return r.rows.length ? `<div class="table-wrap"><table>
       <thead><tr><th>Data</th><th>Diário / n.º</th><th>Descrição</th><th>Conta</th><th>Nome</th><th class="num">Débito</th><th class="num">Crédito</th></tr></thead>
       <tbody>${r.rows.map((x) => { const first = x.entry_id !== last; last = x.entry_id; return `<tr ${first ? 'style="border-top:2px solid var(--border)"' : ''}>
         <td>${first ? fmtDate(x.date) : ''}</td><td class="mono">${first ? `<a href="#/${cpath('lancamento/' + x.entry_id)}">${esc(x.journal)} / ${x.number}</a>` : ''}</td>
         <td>${first ? esc(x.entry_description) : esc(x.description || '')}</td><td class="mono">${esc(x.account)}</td><td>${esc(x.account_name)}</td>
         <td class="num">${money(x.debit_cents, { blankZero: true })}</td><td class="num">${money(x.credit_cents, { blankZero: true })}</td></tr>`; }).join('')}
-      <tr class="total"><td colspan="5">Totais</td><td class="num">${money(r.debit)}</td><td class="num">${money(r.credit)}</td></tr></tbody></table></div>`
-      : '<div class="empty">Sem lançamentos no período.</div>';
+      <tr class="total"><td colspan="5">Totais do período</td><td class="num">${money(r.debit)}</td><td class="num">${money(r.credit)}</td></tr></tbody></table></div>`
+      : '<div class="empty">Sem lançamentos no período.</div>'; };
+    const r = await api.get('reports.journal', { year: y, from: q.from, to: q.to, journal: q.journal, limit: LIMIT, offset });
+    if (r.total_entries > LIMIT) fullTable = async () => table(await api.get('reports.journal', { year: y, from: q.from, to: q.to, journal: q.journal }));
+    const nav = pager(r.total_entries, r.offset, LIMIT, 'lançamentos');
+    out.innerHTML = nav + table(r) + nav;
+    bindPager(out, goOffset);
   }
 
   if (type === 'balanco') {

@@ -306,7 +306,7 @@ final class Ledger
                 $db->insert('entry_lines', ['entry_id' => $id, 'line_no' => $i + 1] + $l);
             }
             if (!empty($data['validate'])) {
-                self::validateEntry($db, $id);
+                return self::validateEntry($db, $id);
             }
             return self::getEntry($db, $id);
         });
@@ -387,15 +387,15 @@ final class Ledger
                 throw new UserError('O lançamento não está equilibrado: débito ' . Money::format($d) . ' e crédito ' . Money::format($c) . '.');
             }
             $number = 1 + (int) $db->value('SELECT COALESCE(MAX(number),0) FROM entries WHERE fiscal_year = ? AND journal = ?', [$e['fiscal_year'], $e['journal']]);
-            $prev = (string) ($db->value("SELECT hash FROM entries WHERE status = 'validado' ORDER BY validated_seq DESC LIMIT 1") ?? '');
+            $prev = (string) ($db->value('SELECT hash FROM entries WHERE validated_seq IS NOT NULL ORDER BY validated_seq DESC LIMIT 1') ?? '');
             $now = date('Y-m-d H:i:s');
             $e['number'] = $number;
             $hash = self::hashEntry($e, $prev);
-            $seq = 1 + (int) $db->value('SELECT COALESCE(MAX(validated_seq),0) FROM entries');
+            $seq = 1 + (int) $db->value('SELECT MAX(validated_seq) FROM entries');
             $db->run("UPDATE entries SET status='validado', number=?, validated_at=?, prev_hash=?, hash=?, total_cents=?, validated_seq=? WHERE id=?",
                 [$number, $now, $prev, $hash, $d, $seq, $id]);
             $db->audit('lancamento.validado', ['id' => $id, 'journal' => $e['journal'], 'number' => $number]);
-            return self::getEntry($db, $id);
+            return array_merge($e, ['status' => 'validado', 'number' => $number, 'validated_at' => $now, 'prev_hash' => $prev, 'hash' => $hash, 'total_cents' => $d, 'validated_seq' => $seq]);
         });
     }
 
@@ -408,20 +408,59 @@ final class Ledger
         return hash('sha256', implode('|', $parts));
     }
 
-    /** Verifica a cadeia de hash de todos os lançamentos validados. */
+    /**
+     * Verifica a cadeia de hash de todos os lançamentos validados, numa só leitura sequencial.
+     * Guarda o resultado em meta.chain_check para a carteira não repetir a verificação sem lançamentos novos.
+     */
     public static function verifyChain(Db $db): array
     {
+        $st = $db->pdo->query("SELECT e.id, e.fiscal_year, e.journal, e.number, e.date, e.description, e.document, e.hash, e.prev_hash, e.validated_seq,
+                                      l.account, l.debit_cents, l.credit_cents, l.third_party
+                               FROM entries e JOIN entry_lines l ON l.entry_id = e.id
+                               WHERE e.status = 'validado' ORDER BY e.validated_seq, l.line_no");
         $prev = '';
         $count = 0;
-        foreach ($db->all("SELECT id FROM entries WHERE status = 'validado' ORDER BY validated_seq") as $r) {
-            $e = self::getEntry($db, (int) $r['id']);
+        $cur = null;
+        $result = null;
+        $check = static function (array $e) use (&$prev, &$count): bool {
             if ((string) $e['prev_hash'] !== $prev || self::hashEntry($e, $prev) !== $e['hash']) {
-                return ['ok' => false, 'count' => $count, 'broken_at' => (int) $e['id']];
+                return false;
             }
             $prev = (string) $e['hash'];
             $count++;
+            return true;
+        };
+        while (($r = $st->fetch(\PDO::FETCH_ASSOC)) !== false) {
+            if ($cur === null || $cur['id'] !== $r['id']) {
+                if ($cur !== null && !$check($cur)) {
+                    $result = ['ok' => false, 'count' => $count, 'broken_at' => (int) $cur['id']];
+                    break;
+                }
+                $cur = $r + ['lines' => []];
+            }
+            $cur['lines'][] = ['account' => $r['account'], 'debit_cents' => $r['debit_cents'], 'credit_cents' => $r['credit_cents'], 'third_party' => $r['third_party']];
         }
-        return ['ok' => true, 'count' => $count];
+        $st->closeCursor();
+        if ($result === null && $cur !== null && !$check($cur)) {
+            $result = ['ok' => false, 'count' => $count, 'broken_at' => (int) $cur['id']];
+        }
+        // lançamentos validados sem linhas também quebram a cadeia
+        if ($result === null && $count !== (int) $db->value("SELECT COUNT(*) FROM entries WHERE status = 'validado'")) {
+            $result = ['ok' => false, 'count' => $count, 'broken_at' => (int) $db->value("SELECT id FROM entries e WHERE status = 'validado' AND NOT EXISTS (SELECT 1 FROM entry_lines l WHERE l.entry_id = e.id) LIMIT 1")];
+        }
+        $result ??= ['ok' => true, 'count' => $count];
+        $db->setMeta('chain_check', json_encode(['seq' => (int) $db->value('SELECT MAX(validated_seq) FROM entries'), 'ok' => $result['ok'], 'at' => date('Y-m-d H:i:s')]));
+        return $result;
+    }
+
+    /** Resultado da última verificação, se ainda válido (sem lançamentos validados depois dela e com menos de 7 dias); senão verifica de novo. */
+    public static function chainStatus(Db $db): array
+    {
+        $c = json_decode((string) $db->meta('chain_check'), true);
+        if (is_array($c) && $c['ok'] && (int) $c['seq'] === (int) $db->value('SELECT MAX(validated_seq) FROM entries') && strtotime((string) $c['at']) > strtotime('-7 days')) {
+            return ['ok' => true, 'cached' => true, 'at' => $c['at']];
+        }
+        return self::verifyChain($db);
     }
 
     public static function deleteDraft(Db $db, int $id): void

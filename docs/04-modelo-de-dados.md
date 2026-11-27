@@ -82,3 +82,4 @@ Junta linhas, cabeçalho e tipo de diário **só dos lançamentos validados**. T
 | 1 | Esquema inicial |
 | 2 | Tabela `entry_attachments` (documentos anexos) |
 | 3 | Reconciliação bancária: `bank_statements`, `bank_lines`, `bank_matches`, `bank_match_ledger` (ver [reconciliação](11-reconciliacao-bancaria.md#dados-esquema-v3)) |
+| 4 | Índices de desempenho: `ix_entries_seq` (`entries.validated_seq`), `ix_entries_year` (`fiscal_year, status, date`), `ix_audit_action` (`audit_log.action, ts`) |

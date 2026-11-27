@@ -102,7 +102,8 @@ final class Reports
     }
 
     /** Extrato / razão de uma conta (ou prefixo) com saldo acumulado. */
-    public static function ledger(Db $db, string $account, int $year, int $from = 1, int $to = 12): array
+    /** Extrato de conta. Com $limit > 0 devolve só uma página, com o saldo acumulado certo desde o início do período. */
+    public static function ledger(Db $db, string $account, int $year, int $from = 1, int $to = 12, int $limit = 0, int $offset = 0): array
     {
         $account = preg_replace('/\D/', '', $account) ?? '';
         if ($account === '') {
@@ -114,40 +115,53 @@ final class Reports
              WHERE fiscal_year = ? AND account LIKE ? AND (journal_kind = 'abertura' OR month < ?)",
             [$year, $account . '%', $from]
         );
+        $where = "fiscal_year = ? AND account LIKE ? AND journal_kind <> 'abertura' AND month BETWEEN ? AND ?";
+        $args = [$year, $account . '%', $from, $to];
+        $order = 'ORDER BY date, journal, number, line_id';
+        $tot = $db->one("SELECT COUNT(*) AS n, COALESCE(SUM(debit_cents), 0) AS d, COALESCE(SUM(credit_cents), 0) AS c FROM v_movements WHERE $where", $args);
+        $offset = max(0, $offset);
+        $page = $limit > 0 ? ' LIMIT ' . (int) $limit . ' OFFSET ' . $offset : '';
         $rows = $db->all(
             "SELECT entry_id, date, journal, number, document, entry_description, description, account, debit_cents, credit_cents, third_party
-             FROM v_movements WHERE fiscal_year = ? AND account LIKE ? AND journal_kind <> 'abertura' AND month BETWEEN ? AND ?
-             ORDER BY date, journal, number, line_id",
-            [$year, $account . '%', $from, $to]
+             FROM v_movements WHERE $where $order$page",
+            $args
         );
+        // saldo antes da página: abertura + movimentos das linhas anteriores
         $bal = $opening;
-        $td = 0;
-        $tc = 0;
+        if ($limit > 0 && $offset > 0) {
+            $bal += (int) $db->value("SELECT COALESCE(SUM(v), 0) FROM (SELECT debit_cents - credit_cents AS v FROM v_movements WHERE $where $order LIMIT $offset)", $args);
+        }
+        $pageStart = $bal;
         foreach ($rows as &$r) {
             $bal += (int) $r['debit_cents'] - (int) $r['credit_cents'];
-            $td += (int) $r['debit_cents'];
-            $tc += (int) $r['credit_cents'];
             $r['balance'] = $bal;
         }
-        return ['account' => $account, 'name' => $name, 'opening' => $opening, 'rows' => $rows, 'debit' => $td, 'credit' => $tc, 'closing' => $bal];
+        unset($r);
+        return ['account' => $account, 'name' => $name, 'opening' => $opening, 'page_start' => $pageStart, 'rows' => $rows,
+            'debit' => (int) $tot['d'], 'credit' => (int) $tot['c'], 'closing' => $opening + (int) $tot['d'] - (int) $tot['c'],
+            'total_rows' => (int) $tot['n'], 'offset' => $offset, 'limit' => $limit];
     }
 
     /** Diário: lançamentos validados com as linhas, por período. */
-    public static function journal(Db $db, int $year, int $from = 1, int $to = 12, ?string $journal = null): array
+    /** Diário. Com $limit > 0 pagina por lançamentos (nunca corta um lançamento entre páginas). */
+    public static function journal(Db $db, int $year, int $from = 1, int $to = 12, ?string $journal = null, int $limit = 0, int $offset = 0): array
     {
+        $where = "e.status = 'validado' AND e.fiscal_year = ? AND CAST(substr(e.date, 6, 2) AS INTEGER) BETWEEN ? AND ?";
         $p = [$year, $from, $to];
-        $jw = '';
         if ($journal) {
-            $jw = ' AND journal = ?';
+            $where .= ' AND e.journal = ?';
             $p[] = $journal;
         }
-        $rows = $db->all(
-            "SELECT m.entry_id, m.date, m.journal, m.number, m.document, m.entry_description, m.account, a.name AS account_name, m.description, m.debit_cents, m.credit_cents
+        $tot = $db->one("SELECT COUNT(*) AS n, COALESCE(SUM(e.total_cents), 0) AS t FROM entries e WHERE $where", $p);
+        $offset = max(0, $offset);
+        $page = $limit > 0 ? ' LIMIT ' . (int) $limit . ' OFFSET ' . $offset : '';
+        $ids = array_map('intval', array_column($db->all("SELECT e.id FROM entries e WHERE $where ORDER BY e.date, e.journal, e.number$page", $p), 'id'));
+        $rows = $ids ? $db->all(
+            'SELECT m.entry_id, m.date, m.journal, m.number, m.document, m.entry_description, m.account, a.name AS account_name, m.description, m.debit_cents, m.credit_cents
              FROM v_movements m JOIN accounts a ON a.code = m.account
-             WHERE m.fiscal_year = ? AND m.month BETWEEN ? AND ? $jw ORDER BY m.date, m.journal, m.number, m.line_id",
-            $p
-        );
-        return ['rows' => $rows, 'debit' => array_sum(array_column($rows, 'debit_cents')), 'credit' => array_sum(array_column($rows, 'credit_cents'))];
+             WHERE m.entry_id IN (' . implode(',', $ids) . ') ORDER BY m.date, m.journal, m.number, m.line_id'
+        ) : [];
+        return ['rows' => $rows, 'debit' => (int) $tot['t'], 'credit' => (int) $tot['t'], 'total_entries' => (int) $tot['n'], 'offset' => $offset, 'limit' => $limit];
     }
 
     // ------------------------------------------------------------------ demonstrações financeiras

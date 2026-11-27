@@ -40,7 +40,7 @@ return [
         $db->pdo->exec('DROP TABLE entry_attachments');
         $db->setMeta('schema_version', '1');
         $db2 = new Db($db->path);
-        same('3', $db2->meta('schema_version'));
+        same((string) Db::SCHEMA_VERSION, $db2->meta('schema_version'));
         same(0, (int) $db2->value('SELECT COUNT(*) FROM entry_attachments'));
         check(Ledger::verifyChain($db2)['ok']);
     },

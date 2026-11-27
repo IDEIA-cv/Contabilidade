@@ -12,7 +12,7 @@ export async function render({ view }) {
     <div class="grid cols-2">
       <div class="card"><h2>1. SAF-T de contabilidade</h2>
         <p class="muted">Ficheiro XML exportado do Primavera, PHC, Sage, Vendus ou outro programa (SAF-T CV ou PT). Importa contas, clientes, fornecedores e todos os lançamentos de um exercício.</p>
-        <input type="file" id="saft-file" accept=".xml,.gz">
+        <label class="sr-only" for="saft-file">Ficheiro SAF-T</label><input type="file" id="saft-file" accept=".xml,.gz">
         <div class="toolbar" style="margin-top:10px"><button class="primary" id="saft-preview">Analisar ficheiro</button></div>
         <div id="saft-out" style="margin-top:12px"></div></div>
       <div class="card"><h2>2. Folhas Excel (CSV)</h2>

@@ -67,7 +67,7 @@ async function company({ view }) {
         ${chain.ok ? `<div class="alert good">Cadeia de integridade válida: ${chain.count} lançamento(s) validados verificados.</div>` : `<div class="alert bad">A cadeia de integridade está quebrada no lançamento ${chain.broken_at}. O ficheiro pode ter sido alterado fora da aplicação.</div>`}
       </div>
     </div>
-    <div class="card"><h2>Registo de auditoria <span class="muted small">últimas 300 operações</span></h2><div class="table-wrap" style="max-height:420px;overflow:auto"><table>
+    <div class="card"><h2>Registo de auditoria <span class="muted small">últimas 300 operações</span></h2><div class="table-wrap" style="max-height:420px;overflow:auto" tabindex="0" role="region" aria-label="Registo de auditoria"><table>
       <thead><tr><th>Data</th><th>Operação</th><th>Detalhes</th></tr></thead><tbody>
       ${audit.map((a) => `<tr><td class="small">${esc(a.ts)}</td><td>${esc(a.action)}</td><td class="small mono">${esc(a.details || '')}</td></tr>`).join('')}</tbody></table></div></div>`;
   view.querySelector('#save').onclick = async () => {

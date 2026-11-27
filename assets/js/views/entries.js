@@ -1,7 +1,7 @@
 // Lançamentos: lista com filtros e editor (rascunho, validação, estorno).
 import { api } from '../api.js';
 import { state, go, cpath, setCrumbs, refreshInfo } from '../main.js';
-import { esc, money, toCents, fmtDate, toast, confirmDialog, debounce, today } from '../util.js';
+import { esc, money, toCents, fmtDate, toast, confirmDialog, debounce, today, pager, bindPager } from '../util.js';
 
 export async function render(ctx) {
   if (ctx.section === 'lancamento') return editor(ctx);
@@ -26,26 +26,38 @@ async function list({ view, query }) {
         <label>De<input type="date" name="from" value="${esc(f.from)}"></label>
         <label>Até<input type="date" name="to" value="${esc(f.to)}"></label>
       </div>
+      <div id="pg-top"></div>
       <div class="table-wrap" style="margin-top:12px"><table>
+        <caption class="sr-only">Lista de lançamentos</caption>
         <thead><tr><th>Data</th><th>Diário / n.º</th><th>Documento</th><th>Descrição</th><th>Origem</th><th>Estado</th><th class="num">Total</th></tr></thead>
         <tbody id="rows"><tr><td colspan="7" class="loading">A carregar…</td></tr></tbody></table></div>
-      <div class="muted small" id="count" style="margin-top:8px"></div>
+      <div id="pg-bottom"></div>
+      <div class="muted small" id="count" style="margin-top:8px" aria-live="polite"></div>
     </div>`;
+  const LIMIT = 100;
+  let offset = 0;
   const load = async () => {
-    const params = { ...f, year: state.year, limit: 500 };
+    const params = { ...f, year: state.year, limit: LIMIT, offset };
     const r = await api.get('entries.list', params);
     const tb = view.querySelector('#rows');
     tb.innerHTML = r.rows.map((e) => `<tr class="clickable" data-id="${e.id}">
-        <td>${fmtDate(e.date)}</td><td class="mono">${esc(e.journal)}${e.number ? ' / ' + e.number : ''}</td>
+        <td>${fmtDate(e.date)}</td><td class="mono"><a href="#/${cpath('lancamento/' + e.id)}">${esc(e.journal)}${e.number ? ' / ' + e.number : ' (rascunho)'}</a></td>
         <td>${esc(e.document || '')}${Number(e.attachments) ? ` <span class="badge" title="${e.attachments} documento(s) anexo(s)">📎 ${e.attachments}</span>` : ''}</td><td>${esc(e.description)}${e.reversed_by ? ' <span class="badge">estornado</span>' : ''}</td>
         <td class="small muted">${esc(e.source)}</td>
         <td>${e.status === 'validado' ? '<span class="badge good">Validado</span>' : '<span class="badge warn">Rascunho</span>'}</td>
         <td class="num">${money(e.total_cents)}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nenhum lançamento encontrado.</td></tr>';
     tb.querySelectorAll('tr[data-id]').forEach((tr) => { tr.onclick = () => go(cpath('lancamento/' + tr.dataset.id)); });
-    view.querySelector('#count').textContent = `${r.rows.length} de ${r.total} lançamento(s)`;
+    view.querySelector('#count').textContent = `${r.total} lançamento(s) encontrados`;
+    const nav = pager(r.total, offset, LIMIT, 'lançamentos');
+    for (const id of ['#pg-top', '#pg-bottom']) {
+      const el = view.querySelector(id);
+      el.innerHTML = nav;
+      bindPager(el, (off) => { offset = off; load(); view.querySelector('#filters').scrollIntoView({ block: 'nearest' }); });
+    }
   };
   const reload = debounce(() => {
     view.querySelectorAll('#filters [name]').forEach((i) => { f[i.name] = i.value; });
+    offset = 0;
     load();
   });
   view.querySelectorAll('#filters [name]').forEach((i) => { i.oninput = reload; });
@@ -114,13 +126,13 @@ async function editor({ view, params, query }) {
   const lineRow = (l = {}) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input name="account" list="dl-accounts" value="${esc(l.account || '')}" class="mono" ${readonly ? 'disabled' : ''}><div class="acc-name"></div></td>
-      <td><input name="description" value="${esc(l.description || '')}" ${readonly ? 'disabled' : ''}></td>
-      <td><input name="party" list="dl-parties" value="${esc(partyLabel(l.third_party))}" ${readonly ? 'disabled' : ''}></td>
-      <td><input name="debit" class="num" inputmode="decimal" value="${l.debit_cents ? money(l.debit_cents) : ''}" ${readonly ? 'disabled' : ''}></td>
-      <td><input name="credit" class="num" inputmode="decimal" value="${l.credit_cents ? money(l.credit_cents) : ''}" ${readonly ? 'disabled' : ''}></td>
-      <td><select name="vat_code" ${readonly ? 'disabled' : ''}>${vatOpts(l.vat_code)}</select></td>
-      <td><input name="vat_base" class="num" value="${l.vat_base_cents ? money(l.vat_base_cents) : ''}" ${readonly ? 'disabled' : ''}></td>
+      <td><input name="account" aria-label="Conta" list="dl-accounts" value="${esc(l.account || '')}" class="mono" ${readonly ? 'disabled' : ''}><div class="acc-name"></div></td>
+      <td><input name="description" aria-label="Descrição da linha" value="${esc(l.description || '')}" ${readonly ? 'disabled' : ''}></td>
+      <td><input name="party" aria-label="Terceiro" list="dl-parties" value="${esc(partyLabel(l.third_party))}" ${readonly ? 'disabled' : ''}></td>
+      <td><input name="debit" aria-label="Débito" class="num" inputmode="decimal" value="${l.debit_cents ? money(l.debit_cents) : ''}" ${readonly ? 'disabled' : ''}></td>
+      <td><input name="credit" aria-label="Crédito" class="num" inputmode="decimal" value="${l.credit_cents ? money(l.credit_cents) : ''}" ${readonly ? 'disabled' : ''}></td>
+      <td><select name="vat_code" aria-label="Código de IVA" ${readonly ? 'disabled' : ''}>${vatOpts(l.vat_code)}</select></td>
+      <td><input name="vat_base" aria-label="Base de IVA" class="num" value="${l.vat_base_cents ? money(l.vat_base_cents) : ''}" ${readonly ? 'disabled' : ''}></td>
       <td>${readonly ? '' : '<button class="icon-btn" data-del title="Remover linha">✕</button>'}</td>`;
     const acc = tr.querySelector('[name=account]');
     const showName = () => {

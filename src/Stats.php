@@ -484,7 +484,7 @@ final class Stats
                 if (!$lastBackup || strtotime((string) $lastBackup) < strtotime('-7 days')) {
                     $alerts[] = 'Sem cópia de segurança nos últimos 7 dias';
                 }
-                $chain = Ledger::verifyChain($db);
+                $chain = Ledger::chainStatus($db);
                 if (!$chain['ok']) {
                     $alerts[] = 'Cadeia de integridade quebrada';
                 }

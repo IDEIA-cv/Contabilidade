@@ -68,7 +68,15 @@ final class Api
             self::json(['ok' => false, 'error' => $e->getMessage()], 400);
         } catch (\Throwable $e) {
             error_log('[IDEIA] ' . $e);
-            self::json(['ok' => false, 'error' => 'Erro interno: ' . $e->getMessage()], 500);
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'readonly database') || str_contains($msg, 'unable to open database')) {
+                // causa mais comum no XAMPP: a pasta de dados não pertence ao utilizador do Apache
+                $dir = Companies::dataDir();
+                self::json(['ok' => false, 'error' => "Sem permissão para escrever na pasta de dados ({$dir}). "
+                    . "No Mac, abra o Terminal e corra: sudo chown -R daemon \"{$dir}\" — no Windows, dê permissão de escrita à pasta. Depois recarregue a página."], 500);
+                return;
+            }
+            self::json(['ok' => false, 'error' => 'Erro interno: ' . $msg], 500);
         }
     }
 
@@ -244,9 +252,9 @@ final class Api
             case 'reports.trial':
                 return Reports::trialBalance($db, $year(), $from, $to, isset($in['level']) && $in['level'] !== '' ? (int) $in['level'] : null);
             case 'reports.ledger':
-                return Reports::ledger($db, (string) ($in['account'] ?? ''), $year(), $from, $to);
+                return Reports::ledger($db, (string) ($in['account'] ?? ''), $year(), $from, $to, self::int($in, 'limit', 0), self::int($in, 'offset', 0));
             case 'reports.journal':
-                return Reports::journal($db, $year(), $from, $to, ($in['journal'] ?? '') ?: null);
+                return Reports::journal($db, $year(), $from, $to, ($in['journal'] ?? '') ?: null, self::int($in, 'limit', 0), self::int($in, 'offset', 0));
             case 'reports.balance':
                 return Reports::balanceSheet($db, $year(), $to);
             case 'reports.income':
