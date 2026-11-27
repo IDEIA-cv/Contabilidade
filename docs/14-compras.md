@@ -25,6 +25,8 @@ Código: `src/Purchases.php` (regras), `assets/js/views/purchases.js` (ecrãs). 
   - Uma fatura com pagamentos ou notas de crédito ativos só se anula depois de anular esses documentos.
 - A digitalização da fatura anexa-se ao lançamento gerado (ligação na página do documento).
 
+Numa linha, pode escolher na descrição um artigo que também vende (lista de produtos). A linha fica ligada ao artigo e as estatísticas de vendas passam a mostrar o custo médio e a margem desse artigo.
+
 ## Pagamentos
 
 - **Registar pagamento** numa fatura: valor parcial ou total.

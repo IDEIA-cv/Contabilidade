@@ -35,7 +35,7 @@ await visit(`${c}/contas`, '04-contas');
 await visit(`${c}/terceiros`, '05-terceiros');
 for (const r of ['balancete', 'razao?account=121', 'diario', 'balanco', 'dr']) await visit(`${c}/relatorios/${r}`, `06-relatorio-${r.split('?')[0]}`);
 await visit(`${c}/iva?from=1&to=3`, '07-iva');
-for (const t of ['racios', 'gastos', 'terceiros', 'orcamento', 'previsao', 'indicadores', 'relatorio']) await visit(`${c}/estatisticas/${t}`, `08-stats-${t}`);
+for (const t of ['racios', 'vendas', 'compras', 'prazos', 'vendas?from=11&to=12&family=0', 'gastos', 'terceiros', 'orcamento', 'previsao', 'indicadores', 'relatorio']) await visit(`${c}/estatisticas/${t}`, `08-stats-${t.split("?")[0]}${t.includes("?") ? "-filtro" : ""}`);
 for (const t of ['pendentes', 'conciliados', 'mapa', 'extratos']) await visit(`${c}/reconciliacao?account=121&tab=${t}`, `09-reconciliacao-${t}`, '#tab .card, #tab .alert, #tab .kpis');
 await visit(`${c}/importar`, '09-importar');
 await visit(`${c}/exercicios`, '10-exercicios');

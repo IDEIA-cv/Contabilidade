@@ -30,7 +30,7 @@ final class Api
     private const READ = [
         'ping', 'auth.status', 'auth.users', 'system.check', 'companies.list', 'portfolio', 'company.info', 'accounts.list', 'thirdparties.list', 'entries.list', 'entries.get',
         'reports.trial', 'reports.ledger', 'reports.journal', 'reports.balance', 'reports.income', 'vat.settlement',
-        'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
+        'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom', 'stats.sales', 'stats.purchases', 'stats.terms',
         'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'saft.validate', 'import.template', 'attachments.list', 'attachments.download',
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
         'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.export_zip', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
@@ -536,6 +536,12 @@ final class Api
                 return Stats::ratios($db, $year(), isset($in['to']) ? $to : null);
             case 'stats.costs':
                 return Stats::costs($db, $year(), $from, $to);
+            case 'stats.sales':
+                return BusinessStats::sales($db, $year(), $from, $to, ['family' => $in['family'] ?? '', 'party' => $in['party'] ?? '']);
+            case 'stats.purchases':
+                return BusinessStats::purchases($db, $year(), $from, $to);
+            case 'stats.terms':
+                return BusinessStats::terms($db, $year(), $from, $to);
             case 'stats.top':
                 return Stats::topParties($db, $year(), ($in['kind'] ?? 'C') === 'F' ? 'F' : 'C', self::int($in, 'limit', 10));
             case 'stats.open':

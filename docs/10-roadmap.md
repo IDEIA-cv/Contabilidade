@@ -37,6 +37,8 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 - **Imobilizado**: fichas dos bens, depreciações por quotas constantes lançadas por exercício, abate e venda, mapa de depreciações (esquema v11). Ver [16-imobilizado](16-imobilizado.md).
 - Exportação em ZIP de documentos de venda e de compra, tema claro/escuro/automático, notas de crédito e recibos a partir da lista, associar e duplicar documentos, "Emitir recibo".
 
+- **Estatísticas a partir dos documentos**: vendas por artigo, família e cliente com margem, compras por fornecedor e conta, prazos reais de recebimento e pagamento (também nos rácios PMR/PMP), imobilizado no painel.
+
 ## Próximo — validação (antes de qualquer cliente real)
 
 | Tarefa | Porquê |

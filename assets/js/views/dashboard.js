@@ -46,6 +46,11 @@ export async function render({ view }) {
       <div class="card"><h2>Estrutura de gastos <a class="small" href="#/${cpath('estatisticas/gastos')}">detalhe</a></h2><div id="costs"></div></div>
       <div class="card"><h2>Maiores clientes <a class="small" href="#/${cpath('estatisticas/terceiros')}">detalhe</a></h2><div id="top"></div></div>
     </div>
+    ${d.assets ? `<div class="card"><h2>Imobilizado <a class="small" href="#/${cpath('imobilizado')}">ver bens</a></h2><div class="kpis">
+      <div class="kpi"><div class="label">Investimento em ${y}</div><div class="value">${money(d.assets.investment)}</div><div class="small muted">${d.assets.acquired} bem(ns) adquirido(s)</div></div>
+      <div class="kpi"><div class="label">Depreciações de ${y}</div><div class="value">${money(d.assets.depreciation)}</div><div class="small muted">${d.assets.depreciation_pct_costs !== null ? pct(d.assets.depreciation_pct_costs) + ' dos gastos' : ''}${d.assets.pending ? ` · <a style="text-decoration:underline" href="#/${cpath('imobilizado')}">${d.assets.pending} por lançar</a>` : ''}</div></div>
+      <div class="kpi"><div class="label">Valor líquido dos bens</div><div class="value">${money(d.assets.net)}</div><div class="small muted">custo ${money(d.assets.cost)}</div></div>
+    </div></div>` : ''}
     <div class="card small muted">Margem bruta: <b>${pct(d.margin_pct)}</b> · Margem líquida: <b>${pct(d.net_margin_pct)}</b> · Indicadores calculados neste computador a partir dos lançamentos validados.</div>`;
 
   view.querySelectorAll('.kpi[data-href]').forEach((k) => { if (k.dataset.href) k.onclick = () => go(cpath(k.dataset.href)); });

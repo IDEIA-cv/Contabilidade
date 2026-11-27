@@ -28,10 +28,35 @@ Calculados a partir do balanço à data e da DR do período (`dias = meses × 30
 | Rendibilidade | ROE | Resultado líquido / Capital próprio |
 | | ROA | Resultado líquido / Ativo |
 | | Rendibilidade das vendas | Resultado líquido / Volume de negócios |
-| Atividade | PMR | Clientes / (Vendas × 1,15) × dias |
-| | PMP | Fornecedores / ((CMVMC + FSE) × 1,15) × dias (aproximação) |
+| Atividade | PMR | Prazo real a partir dos recibos (ver abaixo); sem documentos: Clientes / (Vendas × 1,15) × dias |
+| | PMP | Prazo real a partir dos pagamentos; sem documentos: Fornecedores / ((CMVMC + FSE) × 1,15) × dias (aproximação) |
 
 O fator 1,15 assume IVA a 15 % nos saldos de clientes e fornecedores. Cada rácio traz uma frase de leitura para o empresário.
+
+## A partir dos documentos (`Ideia\BusinessStats`)
+
+Separadores **Vendas e artigos**, **Compras** e **Prazos de pagamento**. Usam os documentos de venda emitidos e as compras registadas, para ver o que os lançamentos não mostram: artigos, quantidades, margens e datas reais. Período escolhido por meses (De / Até); tabelas exportam para Excel.
+
+### Vendas e artigos (`stats.sales`)
+
+- Documentos emitidos FT, FR, TV e ND somam; NC subtrai valor e quantidade. Orçamentos, pró-formas, guias e recibos não contam. Valores sem IVA.
+- KPIs: vendas (com variação face ao mesmo período do ano anterior), n.º de documentos e valor médio, clientes, notas de crédito, margem bruta dos artigos.
+- Tabelas: por família, por cliente (ligação à ficha) e por artigo (quantidade, preço médio, vendas, peso, custo médio, margem e margem %). Filtro por família (incluindo "sem família").
+- **Custo e margem**: custo médio das compras registadas (FC e FP) com esse artigo até ao fim do período (`BusinessStats::itemCosts`). Em Compras, a linha liga-se ao artigo escolhendo-o na descrição. Serviços e artigos sem compras ficam sem margem; o KPI mostra a percentagem das vendas que tem custo conhecido.
+
+### Compras (`stats.purchases`)
+
+FC e FP menos NF, sem IVA: totais, série mensal, por fornecedor (com IVA) e por conta de gasto (agrupada a 2 dígitos, com detalhe e ligação ao extrato). Mostra também o investimento (linhas em contas 43/44). Para todos os gastos, incluindo salários e depreciações, use o separador Gastos.
+
+### Prazos de pagamento (`stats.terms`)
+
+Para cada valor liquidado no período (recibos de clientes, pagamentos a fornecedores): dias desde a data da fatura e atraso face ao vencimento, ponderados pelo valor. Faturas-recibo, talões e despesas pagas contam 0 dias. Mostra prazo médio, % do valor liquidado dentro do prazo, atraso médio, valor vencido em aberto (situação atual) e a lista dos clientes/fornecedores, primeiro os que mais se atrasam.
+
+Quando há estes dados, os rácios **PMR** e **PMP** passam a usar os prazos reais (a fórmula mostrada muda); sem documentos, mantêm a aproximação pelos saldos.
+
+### Imobilizado no painel
+
+Com bens registados, o painel mostra o investimento do ano (bens adquiridos), as depreciações do exercício (com peso nos gastos e quantos bens estão por lançar) e o valor líquido dos bens (`BusinessStats::assets`, em `stats.dashboard.assets`).
 
 ## Estrutura de gastos (`stats.costs`)
 

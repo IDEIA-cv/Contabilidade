@@ -21,7 +21,7 @@ Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF
 - **Imobilizado**: fichas dos bens, depreciações e amortizações lançadas por exercício, abate e venda, mapa de depreciações
 - Fecho do exercício e abertura do seguinte
 - **Importação** do histórico por SAF-T (Primavera, PHC, Sage…) e por folhas Excel/CSV; **exportação** SAF-T CV 1.01_01 (contabilidade ou completo), validada com o XSD oficial
-- **Estatísticas**: painel, rácios, gastos, antiguidade de saldos, orçamento, previsão, indicadores próprios, relatório de gestão
+- **Estatísticas**: painel (com imobilizado), rácios, vendas por artigo e família com margem, compras por fornecedor e conta, prazos reais de recebimento e pagamento, gastos, antiguidade de saldos, orçamento, previsão, indicadores próprios, relatório de gestão
 - Cópias de segurança verificadas (automáticas todos os dias) e restauro
 - **Utilizadores com perfis** (contabilista, colaborador, só leitura), autor no registo de auditoria, e diagnóstico automático da instalação
 

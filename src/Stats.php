@@ -99,6 +99,7 @@ final class Stats
             'monthly_previous' => $prev,
             'margin_pct' => $vn ? round(($vn - $cmv) / $vn * 100, 1) : null,
             'net_margin_pct' => $vn ? round($is['resultado_liquido'] / $vn * 100, 1) : null,
+            'assets' => BusinessStats::assets($db, $year),
         ];
     }
 
@@ -133,6 +134,7 @@ final class Stats
         $rl = $is['resultado_liquido'];
         $compras = -($is['lines'][4]['value'] + $is['lines'][5]['value']); // CMVMC + FSE (aproximação)
         $days = $to * 30.4;
+        $terms = BusinessStats::terms($db, $year, 1, $to);
         $div = static fn(int|float $a, int|float $b): ?float => $b != 0 ? round($a / $b, 2) : null;
         $pct = static fn(int|float $a, int|float $b): ?float => $b != 0 ? round($a / $b * 100, 1) : null;
         $r = static fn(string $group, string $key, string $label, ?float $value, string $unit, string $formula, string $reading) =>
@@ -149,11 +151,20 @@ final class Stats
                 $r('Rendibilidade', 'roe', 'Rendibilidade dos capitais próprios', $pct($rl, $cp), '%', 'Resultado líquido / Capital próprio', 'Retorno para os sócios no período.'),
                 $r('Rendibilidade', 'roa', 'Rendibilidade do ativo', $pct($rl, $ativo), '%', 'Resultado líquido / Ativo', 'Eficiência na utilização dos ativos.'),
                 $r('Rendibilidade', 'ros', 'Rendibilidade das vendas', $pct($rl, $vn), '%', 'Resultado líquido / Volume de negócios', 'Lucro por cada 100 ECV vendidos.'),
-                $r('Atividade', 'pmr', 'Prazo médio de recebimento', $vn ? round($clientes / ($vn * 1.15) * $days) : null, 'dias', 'Clientes / (Vendas × 1,15) × dias', 'Dias que os clientes demoram a pagar (assume IVA a 15%).'),
-                $r('Atividade', 'pmp', 'Prazo médio de pagamento', $compras ? round($fornecedores / ($compras * 1.15) * $days) : null, 'dias', 'Fornecedores / ((CMVMC + FSE) × 1,15) × dias', 'Dias que a empresa demora a pagar (aproximação).'),
+                $terms['receivable']['avg_days'] !== null
+                    ? $r('Atividade', 'pmr', 'Prazo médio de recebimento', (float) $terms['receivable']['avg_days'], 'dias', 'Dias entre a fatura e o recibo, ponderados pelo valor (documentos de venda)', 'Dias que os clientes demoram a pagar. ' . self::lateText($terms['receivable']))
+                    : $r('Atividade', 'pmr', 'Prazo médio de recebimento', $vn ? round($clientes / ($vn * 1.15) * $days) : null, 'dias', 'Clientes / (Vendas × 1,15) × dias', 'Dias que os clientes demoram a pagar (assume IVA a 15%).'),
+                $terms['payable']['avg_days'] !== null
+                    ? $r('Atividade', 'pmp', 'Prazo médio de pagamento', (float) $terms['payable']['avg_days'], 'dias', 'Dias entre a fatura e o pagamento, ponderados pelo valor (compras)', 'Dias que a empresa demora a pagar. ' . self::lateText($terms['payable']))
+                    : $r('Atividade', 'pmp', 'Prazo médio de pagamento', $compras ? round($fornecedores / ($compras * 1.15) * $days) : null, 'dias', 'Fornecedores / ((CMVMC + FSE) × 1,15) × dias', 'Dias que a empresa demora a pagar (aproximação).'),
             ],
             'base' => ['ativo' => $ativo, 'capital_proprio' => $cp, 'passivo' => $passivo, 'ativo_corrente' => $ac, 'passivo_corrente' => $pc, 'vn' => $vn, 'rl' => $rl],
         ];
+    }
+
+    private static function lateText(array $t): string
+    {
+        return $t['on_time_pct'] === null ? '' : sprintf('%s%% do valor foi liquidado dentro do prazo; atraso médio de %d %s.', str_replace('.', ',', (string) $t['on_time_pct']), $t['avg_late'], $t['avg_late'] === 1 ? 'dia' : 'dias');
     }
 
     /** Estrutura de gastos por conta de 2.º e 3.º grau. */

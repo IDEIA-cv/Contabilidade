@@ -143,6 +143,11 @@ async function renderEditor({ view, query }, doc) {
   const info = T[type];
   setCrumbs('Compras', doc ? `${info.name} (rascunho)` : `Registar: ${info.name}`);
   const sups = await suppliers();
+  // artigos (produtos) para ligar a linha da compra ao artigo: dá o custo médio e a margem nas estatísticas de vendas
+  const prods = (await api.get('items.list').catch(() => [])).filter((i) => i.kind === 'P' && Number(i.active) !== 0);
+  const itemLabel = (i) => `${i.code} — ${i.name}`;
+  const itemByLabel = Object.fromEntries(prods.map((i) => [itemLabel(i), i]));
+  const itemById = Object.fromEntries(prods.map((i) => [String(i.id), i]));
   const supByLabel = Object.fromEntries(sups.map((c) => [supLabel(c), c]));
   const accLabel = (a) => `${a.code} — ${a.name}`;
   const accByCode = Object.fromEntries(META.accounts.map((a) => [a.code, a]));
@@ -157,6 +162,7 @@ async function renderEditor({ view, query }, doc) {
       <p class="muted">${doc?.origin ? `Corrige a fatura <a href="#/${cpath('compras/' + doc.origin.id)}">${esc(doc.origin.supplier_doc || doc.origin.doc_no)}</a>. ` : ''}${type === 'FP' ? 'Para pequenas despesas pagas no momento (talões, combustível, material de escritório). ' : ''}Copie os dados da fatura que recebeu e carregue em <b>Registar</b>.</p></div>
       <div class="toolbar"><a class="btn" href="#/${cpath('compras')}">Voltar à lista</a></div></div>
     <datalist id="dl-sups">${Object.keys(supByLabel).map((l) => `<option value="${esc(l)}"></option>`).join('')}</datalist>
+    <datalist id="dl-items">${prods.map((i) => `<option value="${esc(itemLabel(i))}"></option>`).join('')}</datalist>
     <datalist id="dl-accs">${META.accounts.map((a) => `<option value="${esc(accLabel(a))}"></option>`).join('')}</datalist>
     <div class="card"><div class="form" id="head">
       ${doc ? '' : `<label>Tipo de documento<select name="type">${['FC', 'FP'].map((t) => `<option value="${t}" ${t === type ? 'selected' : ''}>${T[t].name}</option>`).join('')}</select></label>`}
@@ -171,7 +177,7 @@ async function renderEditor({ view, query }, doc) {
     </div></div>
     <div class="card">
       <h2>O que comprou</h2>
-      <p class="small muted">Em cada linha escolha a conta de gasto ou de compra (ex.: 311 Mercadorias, 624 Energia, 6261 Rendas). Para o mesmo fornecedor é sugerida a última conta usada.</p>
+      <p class="small muted">Em cada linha escolha a conta de gasto ou de compra (ex.: 311 Mercadorias, 624 Energia, 6261 Rendas). Para o mesmo fornecedor é sugerida a última conta usada.${prods.length ? ' Se comprou um artigo que também vende, escolha-o na descrição: as estatísticas passam a mostrar a margem desse artigo.' : ''}</p>
       <div class="table-wrap"><table class="lines sales-lines">
         <thead><tr><th>Descrição</th><th style="width:26%">Conta</th><th class="num" style="width:80px">Qtd.</th><th class="num" style="width:120px">Valor s/ IVA</th><th class="num" style="width:70px">Desc. %</th><th style="width:110px">IVA</th><th class="num" style="width:120px">Total</th><th></th></tr></thead>
         <tbody id="lines"></tbody></table></div>
@@ -213,7 +219,8 @@ async function renderEditor({ view, query }, doc) {
     const tr = document.createElement('tr');
     const acc = accByCode[l.account] || (lastAccount && accByCode[lastAccount]);
     tr.innerHTML = `
-      <td data-label="Descrição"><input name="description" aria-label="Descrição" value="${esc(l.description || '')}" placeholder="Ex.: Mercadoria, eletricidade de maio"></td>
+      <td data-label="Descrição"><input name="description" aria-label="Descrição" list="dl-items" value="${esc(l.description || '')}" placeholder="Ex.: Mercadoria, eletricidade de maio" autocomplete="off">
+        <span class="small muted item-tag">${l.item_id && itemById[String(l.item_id)] ? 'Artigo ' + esc(itemById[String(l.item_id)].code) : ''}</span></td>
       <td data-label="Conta"><input name="account" list="dl-accs" aria-label="Conta de gasto ou compra" value="${esc(acc ? accLabel(acc) : (l.account || ''))}" placeholder="Pesquisar conta" autocomplete="off"></td>
       <td data-label="Qtd."><input name="qty" aria-label="Quantidade" class="num" inputmode="decimal" value="${esc(l.qty_milli ? qtyText(l.qty_milli) : '1')}"></td>
       <td data-label="Valor s/ IVA"><input name="price" aria-label="Valor sem IVA" class="num" inputmode="decimal" value="${l.price_cents !== undefined ? money(l.price_cents) : ''}"></td>
@@ -222,6 +229,13 @@ async function renderEditor({ view, query }, doc) {
       <td data-label="Total" class="num line-total"></td>
       <td><button class="icon-btn" data-del aria-label="Remover linha" title="Remover linha">✕</button></td>`;
     const q = (n) => tr.querySelector(`[name=${n}]`);
+    if (l.item_id) tr.dataset.item = l.item_id;
+    q('description').addEventListener('change', () => {
+      const it = itemByLabel[q('description').value];
+      if (it) { tr.dataset.item = it.id; q('description').value = it.name; }
+      else if (tr.dataset.item && q('description').value !== itemById[tr.dataset.item]?.name) delete tr.dataset.item;
+      tr.querySelector('.item-tag').textContent = tr.dataset.item ? 'Artigo ' + (itemById[tr.dataset.item]?.code || '') : '';
+    });
     q('price').addEventListener('blur', () => { const c = toCents(q('price').value); if (!Number.isNaN(c) && q('price').value) q('price').value = money(c); });
     tr.querySelectorAll('input, select').forEach((i) => i.addEventListener('input', recalc));
     tr.querySelector('[data-del]').onclick = () => { tr.remove(); if (!tbody.children.length) addLine(); recalc(); };
@@ -232,7 +246,7 @@ async function renderEditor({ view, query }, doc) {
   const readLines = () => [...tbody.querySelectorAll('tr')].map((tr) => {
     const q = (n) => tr.querySelector(`[name=${n}]`);
     return { tr, description: q('description').value.trim(), account: q('account').value.split(' ')[0].trim(), qty: q('qty').value, price: q('price').value,
-      discount: q('discount').value, vat_code: q('vat_code').value, rate: Number(q('vat_code').selectedOptions[0]?.dataset.rate || 0) };
+      discount: q('discount').value, vat_code: q('vat_code').value, item_id: tr.dataset.item || null, rate: Number(q('vat_code').selectedOptions[0]?.dataset.rate || 0) };
   });
   const recalc = () => {
     let net = 0, vat = 0;
