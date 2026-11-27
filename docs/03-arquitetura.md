@@ -29,7 +29,7 @@ Não há framework nem dependências: PHP 8 com PDO SQLite no servidor e JavaScr
 | `database/schema.sql` | Esquema SQLite |
 | `database/sncrf.php` | Plano de contas base |
 | `assets/js/` | `main.js` (estado, rotas, cromado), `api.js`, `util.js`, `charts.js`, `xlsx.js` (exportação Excel sem bibliotecas) |
-| `assets/js/views/` | Um módulo por ecrã: `home`, `dashboard`, `entries`, `accounts`, `parties`, `reports`, `vat`, `stats`, `imports`, `settings` |
+| `assets/js/views/` | Um módulo por ecrã: `home`, `dashboard`, `entries`, `accounts`, `parties`, `bank`, `reports`, `vat`, `stats`, `imports`, `settings` |
 | `assets/css/app.css` | Tema (modo claro e escuro), layout, impressão |
 | `tools/` | Utilitários de linha de comando (`seed-demo.php`) |
 | `tests/` | Testes unitários (`run.php`, `unit/`), fixtures e teste no browser (`e2e/smoke.mjs`) |
@@ -43,6 +43,7 @@ Não há framework nem dependências: PHP 8 com PDO SQLite no servidor e JavaScr
 | `Config` | Lê `config.php` com valores por omissão; `override()` para testes e ferramentas |
 | `Db` | Envolve o PDO: `all/one/value/run/insert`, `transaction()`, `meta()/setMeta()`, `audit()`; cria o esquema num ficheiro novo |
 | `Companies` | Lista, cria, abre, cópia (`VACUUM INTO`) e restauro de empresas; valida o identificador |
+| `Bank` | Reconciliação bancária: leitura de extratos, conciliação automática e manual, mapa |
 | `Attachments` | Documentos anexos aos lançamentos (guardados no ficheiro da empresa) |
 | `Money` | Converte texto ↔ centavos (aceita `1.234,56`, `1 234,56`, `1234.56`, `(50)`) e formata |
 | `Ledger` | Plano de contas, diários, códigos de IVA, exercícios, terceiros, lançamentos (guardar, validar, estornar), cadeia de hash |

@@ -19,6 +19,7 @@ Dar às micro, pequenas e médias empresas de Cabo Verde (e aos gabinetes de con
 | Lançamentos | Rascunho → validado; numeração sequencial por diário e exercício; estorno em vez de apagar; códigos de IVA por linha; documentos anexos (PDF, imagens, XML…) |
 | Integridade | Cadeia SHA-256 dos lançamentos validados, verificável no ecrã Empresa; registo de auditoria |
 | Exercícios | Criar, bloquear período (após declarações), fechar (apuramento 6/7 → 811 → 818) e abrir o seguinte (saldos de abertura, resultado para 56) |
+| Reconciliação bancária | Importação de extratos CSV dos bancos, conciliação automática e manual, lançamento de comissões a partir do extrato, mapa de reconciliação |
 | Relatórios | Balancete por nível, extrato (razão), diário, balanço, demonstração dos resultados por naturezas com comparação ao ano anterior; exportação Excel (.xlsx), CSV e impressão/PDF |
 | IVA | Apuramento por período (2432/2433/2434), mapa por código e por terceiro, lançamento automático de apuramento (2436/2437) |
 | Importação | SAF-T CV/PT com pré-visualização e mapeamento de contas; CSV de contas, terceiros, saldos e lançamentos; tudo-ou-nada |

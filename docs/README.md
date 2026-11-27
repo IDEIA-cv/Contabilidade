@@ -16,6 +16,7 @@ Esta pasta reúne toda a documentação técnica. Leia pela ordem abaixo se est�
 | 8 | [Estatísticas](08-estatisticas.md) | Painel, rácios, previsão, orçamento, indicadores próprios |
 | 9 | [Testes](09-testes.md) | Como correr os testes unitários e o teste no browser |
 | 10 | [Roadmap](10-roadmap.md) | Próximas fases (e-Fatura, multiutilizador, empacotamento) |
+| 11 | [Reconciliação bancária](11-reconciliacao-bancaria.md) | Importação de extratos, conciliação e mapa |
 | — | [Decisões de arquitetura (ADR)](adr/) | Porque se escolheu cada solução |
 
 ## Decisões registadas

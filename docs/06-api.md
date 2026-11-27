@@ -67,6 +67,24 @@ curl -X POST -H 'X-Requested-With: IDEIA' -H 'Content-Type: application/json' \
 
 Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `debit_cents`/`credit_cents`, `third_party` (id), `description`, `vat_code`, `vat_base` ou `vat_base_cents`.
 
+## Reconciliação bancária
+
+| Ação | Método | Parâmetros |
+|------|--------|-----------|
+| `bank.accounts` | GET | — contas de depósitos com nº de movimentos e pendentes |
+| `bank.template` | GET | — modelo CSV de extrato |
+| `bank.preview` / `bank.import` | POST | ficheiro, `account`, `opening?` (saldo inicial); a importação concilia automaticamente |
+| `bank.statements` | GET | `account` |
+| `bank.delete_statement` | POST | `id` |
+| `bank.pending` | GET | `account` — pendentes dos dois lados e resumo |
+| `bank.set_start` | POST | `account`, `date` (vazio repõe o valor por omissão) |
+| `bank.match` | POST | `account`, `bank_ids[]`, `ledger_ids[]` (totais iguais) |
+| `bank.unmatch` | POST | `match_id` |
+| `bank.matches` | GET | `account` — últimas 100 conciliações |
+| `bank.auto` | POST | `account` |
+| `bank.create_entry` | POST | `bank_line_id`, `counterpart`, `description?`, `third_party?` |
+| `bank.report` | GET | `account`, `date?` (por omissão, a data do último movimento do extrato) |
+
 ## Relatórios e IVA
 
 | Ação | Método | Parâmetros |

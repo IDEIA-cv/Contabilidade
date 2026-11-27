@@ -11,12 +11,13 @@ import * as vat from './views/vat.js';
 import * as stats from './views/stats.js';
 import * as imports from './views/imports.js';
 import * as settings from './views/settings.js';
+import * as bank from './views/bank.js';
 
 export const state = { company: null, info: null, year: null, companies: [] };
 
 const NAV = [
   { group: null, items: [['painel', 'Painel']] },
-  { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores']] },
+  { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária']] },
   { group: 'Relatórios', items: [['relatorios/balancete', 'Balancete'], ['relatorios/razao', 'Extrato de conta'], ['relatorios/diario', 'Diário'], ['relatorios/balanco', 'Balanço'], ['relatorios/dr', 'Demonstração de resultados'], ['iva', 'Apuramento do IVA']] },
   { group: 'Estatísticas', items: [['estatisticas/racios', 'Rácios financeiros'], ['estatisticas/gastos', 'Estrutura de gastos'], ['estatisticas/terceiros', 'Clientes e fornecedores'], ['estatisticas/orcamento', 'Orçamento'], ['estatisticas/previsao', 'Previsão'], ['estatisticas/indicadores', 'Indicadores próprios'], ['estatisticas/relatorio', 'Relatório de gestão']] },
   { group: 'Dados', items: [['importar', 'Importar e exportar'], ['exercicios', 'Exercícios e fecho'], ['empresa', 'Empresa e cópias']] },
@@ -24,7 +25,7 @@ const NAV = [
 
 const ROUTES = {
   painel: dashboard, lancamentos: entries, lancamento: entries, contas: accounts, terceiros: parties,
-  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings,
+  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank,
 };
 
 export function go(path) { location.hash = '#/' + path.replace(/^#?\/?/, ''); }

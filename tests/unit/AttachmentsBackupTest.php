@@ -35,12 +35,12 @@ return [
         Ledger::deleteDraft($db, (int) $d['id']);
         same(0, (int) $db->value('SELECT COUNT(*) FROM entry_attachments'));
     },
-    'migra um ficheiro da versão 1 para a 2' => function () {
+    'migra um ficheiro da versão 1 para a atual' => function () {
         $db = demoCompany();
         $db->pdo->exec('DROP TABLE entry_attachments');
         $db->setMeta('schema_version', '1');
         $db2 = new Db($db->path);
-        same('2', $db2->meta('schema_version'));
+        same('3', $db2->meta('schema_version'));
         same(0, (int) $db2->value('SELECT COUNT(*) FROM entry_attachments'));
         check(Ledger::verifyChain($db2)['ok']);
     },

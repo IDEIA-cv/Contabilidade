@@ -10,7 +10,7 @@ use PDO;
  */
 final class Db
 {
-    public const SCHEMA_VERSION = 2;
+    public const SCHEMA_VERSION = 3;
 
     public PDO $pdo;
     public string $path;
@@ -44,12 +44,13 @@ final class Db
         if ($v > self::SCHEMA_VERSION) {
             throw new UserError('Este ficheiro foi criado por uma versão mais recente da aplicação. Atualize a aplicação.');
         }
-        if ($v < 2) {
-            // v2: documentos anexos. O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo é seguro.
+        if ($v < 3) {
+            // v2: documentos anexos; v3: reconciliação bancária.
+            // O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo acrescenta apenas o que falta.
             $this->pdo->exec((string) file_get_contents(IDEIA_ROOT . '/database/schema.sql'));
-            $this->setMeta('schema_version', '2');
+            $this->setMeta('schema_version', (string) self::SCHEMA_VERSION);
         }
-        // Próximas migrações: if ($v < 3) { ...; $this->setMeta('schema_version', '3'); }
+        // Próximas migrações (que alterem tabelas existentes): if ($v < 4) { ...; $this->setMeta('schema_version', '4'); }
     }
 
     public function meta(string $key): ?string

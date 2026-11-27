@@ -35,6 +35,7 @@ await visit(`${c}/terceiros`, '05-terceiros');
 for (const r of ['balancete', 'razao?account=121', 'diario', 'balanco', 'dr']) await visit(`${c}/relatorios/${r}`, `06-relatorio-${r.split('?')[0]}`);
 await visit(`${c}/iva?from=1&to=3`, '07-iva');
 for (const t of ['racios', 'gastos', 'terceiros', 'orcamento', 'previsao', 'indicadores', 'relatorio']) await visit(`${c}/estatisticas/${t}`, `08-stats-${t}`);
+for (const t of ['pendentes', 'conciliados', 'mapa', 'extratos']) await visit(`${c}/reconciliacao?account=121&tab=${t}`, `09-reconciliacao-${t}`, '#tab .card, #tab .alert, #tab .kpis');
 await visit(`${c}/importar`, '09-importar');
 await visit(`${c}/exercicios`, '10-exercicios');
 await visit(`${c}/empresa`, '11-empresa');
@@ -70,6 +71,27 @@ await page.setInputFiles('#att-file', { name: 'fatura-teste.pdf', mimeType: 'app
 await page.waitForSelector('#att-list a[target=_blank]');
 console.log('ok', '14-anexo:', await page.innerText('#att-list a[target=_blank]'));
 await page.screenshot({ path: `${OUT}14-anexo.png`, fullPage: true });
+
+// reconciliação: importar extrato, conciliação automática do depósito e lançamento da comissão
+await visit(`${cNew}/reconciliacao?account=121`, '17-reconciliacao-vazia', '#tab .alert');
+await page.click('#import');
+const today = new Date();
+const d = (n) => { const x = new Date(today); x.setDate(x.getDate() + n); return x.toLocaleDateString('pt-PT'); };
+const extrato = `Data;Descritivo;Débito;Crédito;Saldo\n${d(0)};Depósito capital;;50.000,00;50.000,00\n${d(0)};Comissão;150,00;;49.850,00\n`;
+await page.setInputFiles('#bank-file', { name: 'extrato.csv', mimeType: 'text/csv', buffer: Buffer.from(extrato) });
+await page.waitForSelector('#bank-prev .alert.good');
+await page.click('.modal button.primary');
+await page.waitForSelector('#tb-bank input[data-bank]');
+await page.check('#tb-bank input[data-bank]');
+await page.click('#create');
+await page.fill('.modal [name=counterpart]', '698');
+await page.click('.modal button.primary');
+await page.waitForSelector('.toast.good >> text=conciliado');
+await page.waitForSelector('#tb-bank .empty');
+const diff = await page.innerText('.kpi:nth-child(4) .value');
+if (diff.trim() !== '0,00') errors.push(`[reconciliação] diferença por explicar ${diff}`);
+await page.screenshot({ path: `${OUT}17-reconciliacao.png`, fullPage: true });
+console.log('ok', '17-reconciliacao: diferença', diff);
 
 // exportar o balancete para Excel
 await visit(`${cNew}/relatorios/balancete`, '15-balancete-nova', '#out table');

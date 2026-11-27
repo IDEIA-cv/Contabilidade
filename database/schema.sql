@@ -132,6 +132,46 @@ CREATE TABLE IF NOT EXISTS entry_attachments (
 );
 CREATE INDEX IF NOT EXISTS ix_attachments_entry ON entry_attachments(entry_id);
 
+-- ---------------------------------------------------------------- reconciliação bancária (esquema v3)
+
+CREATE TABLE IF NOT EXISTS bank_statements (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    account       TEXT NOT NULL REFERENCES accounts(code),   -- conta de depósitos (12x)
+    filename      TEXT,
+    imported_at   TEXT NOT NULL,
+    date_from     TEXT,
+    date_to       TEXT,
+    opening_cents INTEGER,                                   -- saldo inicial do extrato (indicado ou deduzido da coluna saldo)
+    lines         INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS bank_matches (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    account    TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    auto       INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS bank_lines (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    statement_id  INTEGER NOT NULL REFERENCES bank_statements(id) ON DELETE CASCADE,
+    account       TEXT NOT NULL,
+    date          TEXT NOT NULL,
+    description   TEXT NOT NULL,
+    reference     TEXT,
+    amount_cents  INTEGER NOT NULL,                          -- positivo = entrada no banco, negativo = saída
+    balance_cents INTEGER,                                   -- saldo indicado pelo banco após o movimento
+    fingerprint   TEXT NOT NULL,                             -- evita importar o mesmo movimento duas vezes
+    match_id      INTEGER REFERENCES bank_matches(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS ix_bank_lines_account ON bank_lines(account, date);
+CREATE INDEX IF NOT EXISTS ix_bank_lines_fp ON bank_lines(account, fingerprint);
+
+CREATE TABLE IF NOT EXISTS bank_match_ledger (
+    match_id      INTEGER NOT NULL REFERENCES bank_matches(id) ON DELETE CASCADE,
+    entry_line_id INTEGER NOT NULL UNIQUE REFERENCES entry_lines(id)
+);
+
 -- Vista de movimentos validados (base de todos os relatórios e estatísticas)
 CREATE VIEW IF NOT EXISTS v_movements AS
 SELECT l.id AS line_id, e.id AS entry_id, e.fiscal_year, e.journal, e.number, e.date,

@@ -75,9 +75,10 @@ Junta linhas, cabeçalho e tipo de diário **só dos lançamentos validados**. T
 
 ## Versões do esquema
 
-`Db::SCHEMA_VERSION` (atualmente `2`) é gravado em `meta.schema_version`. Ao abrir um ficheiro de versão inferior, `Db::migrate()` aplica as migrações em falta; um ficheiro de versão superior é recusado ("atualize a aplicação"). As migrações nunca alteram dados de lançamentos validados.
+`Db::SCHEMA_VERSION` (atualmente `3`) é gravado em `meta.schema_version`. Ao abrir um ficheiro de versão inferior, `Db::migrate()` aplica as migrações em falta; um ficheiro de versão superior é recusado ("atualize a aplicação"). As migrações nunca alteram dados de lançamentos validados.
 
 | Versão | Alteração |
 |--------|-----------|
 | 1 | Esquema inicial |
 | 2 | Tabela `entry_attachments` (documentos anexos) |
+| 3 | Reconciliação bancária: `bank_statements`, `bank_lines`, `bank_matches`, `bank_match_ledger` (ver [reconciliação](11-reconciliacao-bancaria.md#dados-esquema-v3)) |

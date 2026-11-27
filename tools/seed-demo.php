@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/bootstrap.php';
 
+use Ideia\Bank;
 use Ideia\Closing;
 use Ideia\Companies;
 use Ideia\Config;
@@ -103,5 +104,30 @@ Stats::saveCustomIndicators($db, [
 ]);
 // um rascunho, para mostrar o alerta
 Ledger::saveEntry($db, ['date' => '2025-10-30', 'journal' => 'DIV', 'description' => 'Rascunho por rever', 'lines' => [['account' => '6268', 'debit' => '5000'], ['account' => '111', 'credit' => '5000']]]);
+
+// extrato bancário de setembro e outubro de 2025 (conta 121), para a reconciliação:
+// datas do banco 0 a 2 dias depois, dois pagamentos de fim de outubro ainda não debitados, comissões e juros que faltam na contabilidade
+$opening = (int) $db->value("SELECT COALESCE(SUM(debit_cents - credit_cents), 0) FROM v_movements WHERE account = '121' AND fiscal_year = 2025 AND date < '2025-09-01'");
+$csv = "Banco Exemplo de Cabo Verde - Extrato de conta\nConta: 0001234567;Moeda: ECV\n\nData Mov.;Descritivo;Referência;Débito;Crédito;Saldo\n";
+$bal = $opening;
+$rows = $db->all("SELECT date, entry_description AS d, document, debit_cents - credit_cents AS v FROM v_movements WHERE account = '121' AND date BETWEEN '2025-09-01' AND '2025-10-31' AND journal_kind = 'normal' ORDER BY date, line_id");
+$skip = array_slice(array_keys(array_filter($rows, static fn($r) => $r['v'] < 0)), -2); // dois pagamentos em circulação
+$lines = [];
+foreach ($rows as $k => $r) {
+    if (in_array($k, $skip, true)) {
+        continue;
+    }
+    $lines[] = [date('Y-m-d', strtotime($r['date'] . ' +' . ($k % 3) . ' days')), $r['d'], (string) $r['document'], (int) $r['v']];
+}
+$lines[] = ['2025-09-30', 'Comissão de manutenção de conta', '', -35000];
+$lines[] = ['2025-10-31', 'Comissão de manutenção de conta', '', -35000];
+$lines[] = ['2025-10-31', 'Juros credores', '', 12750];
+usort($lines, static fn($a, $b) => strcmp($a[0], $b[0]));
+foreach ($lines as [$d, $desc, $ref, $v]) {
+    $bal += $v;
+    $fmt = static fn(int $c) => number_format($c / 100, 2, ',', '.');
+    $csv .= date('d/m/Y', strtotime($d)) . ";{$desc};{$ref};" . ($v < 0 ? $fmt(-$v) : '') . ';' . ($v > 0 ? $fmt($v) : '') . ';' . $fmt($bal) . "\n";
+}
+Bank::import($db, '121', $csv, true, 'extrato_set_out_2025.csv');
 
 echo "Empresa de demonstração criada: {$c['id']} (" . $db->path . ")\n";

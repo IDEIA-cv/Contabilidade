@@ -4,6 +4,11 @@
 
 Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importação SAF-T e CSV, exportação SAF-T CV, estatísticas, cópias e integridade. Ver [visão geral](01-visao-geral.md).
 
+## Feito — versão 0.2
+
+- Fecho do MVP: documentos anexos aos lançamentos, exportação Excel (.xlsx), cópias automáticas diárias.
+- Fase 2 (parte que não depende da DNRE): **reconciliação bancária** com importação de extratos.
+
 ## Próximo — validação (antes de qualquer cliente real)
 
 | Tarefa | Porquê |
@@ -14,7 +19,10 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 | Definir a licença open-source (sugestão: AGPL-3.0 para o núcleo) | Necessário antes de divulgar |
 | Piloto com 2 ou 3 gabinetes de contabilidade | Validar fluxos reais |
 
-## Fase 2 — e-Fatura
+## Fase 2 — e-Fatura e faturação (depende da DNRE)
+
+Inclui a **faturação** (produtos e serviços, emissão de FTE, FRE, TVE, RCE, NCE, NDE, lista de documentos), sempre como DFE válidos. Só arranca com as especificações e credenciais de teste da DNRE (portão da Fase 2 no plano).
+
 
 - Leitura dos DFE (documentos fiscais eletrónicos) emitidos e recebidos, para conferência com a contabilidade e lançamento automático de compras/vendas.
 - Geração de DFE (XML com IUD), assinatura e envio pela API da DNRE, com **fila de contingência** offline e reenvio quando houver internet.

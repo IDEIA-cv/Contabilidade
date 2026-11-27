@@ -21,6 +21,7 @@ final class Api
         'reports.trial', 'reports.ledger', 'reports.journal', 'reports.balance', 'reports.income', 'vat.settlement',
         'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
         'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'import.template', 'attachments.list', 'attachments.download',
+        'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
     ];
 
     public static function handle(): void
@@ -203,6 +204,41 @@ final class Api
                 return true;
             case 'entries.reverse':
                 return Ledger::reverseEntry($db, self::int($in, 'id', 0), ($in['date'] ?? '') ?: null);
+
+            // ---------------------------------------------------------------- reconciliação bancária
+            case 'bank.accounts':
+                return Bank::accounts($db);
+            case 'bank.template':
+                return new Download(Bank::template(), 'modelo_extrato_bancario.csv', 'text/csv; charset=utf-8');
+            case 'bank.preview':
+            case 'bank.import':
+                [, $name, $content] = self::upload();
+                return Bank::import($db, (string) ($in['account'] ?? ''), $content, $action === 'bank.import', $name, isset($in['opening']) ? (string) $in['opening'] : null);
+            case 'bank.statements':
+                return Bank::statements($db, (string) ($in['account'] ?? ''));
+            case 'bank.delete_statement':
+                Bank::deleteStatement($db, self::int($in, 'id', 0));
+                return true;
+            case 'bank.set_start':
+                Bank::setStartDate($db, (string) ($in['account'] ?? ''), ($in['date'] ?? '') ?: null);
+                return true;
+            case 'bank.pending':
+                return Bank::pending($db, (string) ($in['account'] ?? ''));
+            case 'bank.match':
+                return ['match_id' => Bank::match($db, (string) ($in['account'] ?? ''), (array) ($in['bank_ids'] ?? []), (array) ($in['ledger_ids'] ?? []))];
+            case 'bank.unmatch':
+                Bank::unmatch($db, self::int($in, 'match_id', 0));
+                return true;
+            case 'bank.matches':
+                return Bank::matches($db, (string) ($in['account'] ?? ''));
+            case 'bank.auto':
+                return Bank::autoMatch($db, (string) ($in['account'] ?? ''));
+            case 'bank.create_entry':
+                return Bank::createEntry($db, self::int($in, 'bank_line_id', 0), (string) ($in['counterpart'] ?? ''), ($in['description'] ?? '') ?: null, self::int($in, 'third_party', 0) ?: null);
+            case 'bank.report':
+                $acc = (string) ($in['account'] ?? '');
+                $date = (string) (($in['date'] ?? '') ?: ($db->value('SELECT MAX(date) FROM bank_lines WHERE account = ?', [$acc]) ?: date('Y-m-d')));
+                return Bank::report($db, $acc, $date);
 
             // ---------------------------------------------------------------- relatórios
             case 'reports.trial':
