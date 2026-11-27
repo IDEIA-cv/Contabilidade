@@ -137,6 +137,8 @@ $db->setMeta('company_phone', '+238 260 00 00');
 $db->setMeta('company_email', 'geral@demonstracao.cv');
 $db->setMeta('company_bank', 'CV64 0001 0000 1234 5678 9101 2');
 $db->setMeta('sales_footer', 'Capital social 3 000 000 ECV · Conservatória do Registo Comercial da Praia');
+$famServ = Sales::saveFamily($db, ['name' => 'Consultoria e formação', 'kind' => 'S', 'account' => '721'])['id'];
+$famProd = Sales::saveFamily($db, ['name' => 'Material e licenças', 'kind' => 'P', 'vat_code' => 'NOR', 'account' => '711'])['id'];
 $it = [];
 foreach ([
     ['S', 'Consultoria de gestão (hora)', 'H', '6.500,00', 'NOR', null],
@@ -145,7 +147,7 @@ foreach ([
     ['P', 'Licença de software anual', 'UN', '38.000,00', 'NOR', null],
     ['S', 'Deslocação fora da ilha', 'UN', '12.000,00', 'NOR', null],
 ] as [$k, $n, $u, $p, $v, $ex]) {
-    $it[] = Sales::saveItem($db, ['kind' => $k, 'name' => $n, 'unit' => $u, 'price' => $p, 'vat_code' => $v, 'exemption' => $ex])['id'];
+    $it[] = Sales::saveItem($db, ['kind' => $k, 'name' => $n, 'unit' => $u, 'price' => $p, 'vat_code' => $v, 'exemption' => $ex, 'family_id' => $k === 'S' ? $famServ : $famProd])['id'];
 }
 $or = Sales::save($db, ['type' => 'OR', 'date' => '2025-11-03', 'third_party' => $clients[0], 'issue' => true, 'reference' => 'Pedido por email', 'lines' => [
     ['item_id' => $it[0], 'qty' => '20'], ['item_id' => $it[4], 'qty' => '2'], ['item_id' => $it[2], 'qty' => '5', 'discount' => '10'],

@@ -25,7 +25,7 @@ final class Api
         'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
         'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'import.template', 'attachments.list', 'attachments.download',
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
-        'items.list', 'sales.debtors', 'sales.customer', 'sales.statement', 'sales.statement_print', 'sales.meta', 'sales.list', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
+        'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
     ];
 
     public static function handle(): void
@@ -216,6 +216,13 @@ final class Api
                 return ['types' => Sales::TYPES, 'convert' => Sales::CONVERT, 'payment_methods' => Sales::PAYMENT_METHODS, 'exemptions' => Sales::EXEMPTIONS];
             case 'items.list':
                 return Sales::items($db, $in);
+            case 'items.families':
+                return Sales::families($db);
+            case 'items.family_save':
+                return Sales::saveFamily($db, $in);
+            case 'items.family_delete':
+                Sales::deleteFamily($db, self::int($in, 'id', 0));
+                return true;
             case 'items.save':
                 return Sales::saveItem($db, $in);
             case 'items.delete':
@@ -249,8 +256,11 @@ final class Api
                 return Sales::customer($db, self::int($in, 'id', 0), $year());
             case 'sales.statement':
                 return Sales::statement($db, self::int($in, 'id', 0), (string) ($in['from'] ?? date('Y-01-01')), (string) ($in['to'] ?? date('Y-m-d')));
-            case 'sales.statement_print':
-                return new Download(SalesPrint::statement($db, self::int($in, 'id', 0), (string) ($in['from'] ?? date('Y-01-01')), (string) ($in['to'] ?? date('Y-m-d'))), 'extrato.html', 'text/html; charset=utf-8', true);
+            case 'party.statement':
+            case 'party.statement_print':
+                $y = $year();
+                $args = [$db, self::int($in, 'id', 0), $y, (string) (($in['from'] ?? '') ?: "$y-01-01"), (string) (($in['to'] ?? '') ?: "$y-12-31"), (string) ($in['account'] ?? '')];
+                return $action === 'party.statement' ? Reports::partyStatement(...$args) : new Download(SalesPrint::statement(...$args), 'extrato.html', 'text/html; charset=utf-8', true);
             case 'sales.print':
                 $html = SalesPrint::html($db, self::int($in, 'id', 0));
                 return new Download($html, 'documento.html', 'text/html; charset=utf-8', true);

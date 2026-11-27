@@ -22,7 +22,7 @@ export async function render({ view }) {
     const k = view.querySelector('#kind').value;
     const list = rows.filter((r) => (!k || r.kind === k) && (!q || r.name.toLowerCase().includes(q) || (r.nif || '').includes(q)));
     view.querySelector('#rows').innerHTML = list.map((r) => `<tr class="clickable" data-id="${r.id}">
-      <td><b>${esc(r.name)}</b>${r.kind === 'C' || r.kind === 'A' ? ` <a class="small" data-ficha href="#/${cpath('cliente/' + r.id)}">ficha e dívida</a>` : ''}</td><td class="mono">${esc(r.nif || '')}</td><td>${KINDS[r.kind]}</td><td>${esc(r.city || '')}</td>
+      <td><b>${esc(r.name)}</b><a class="small" data-ficha style="margin-left:6px" href="#/${cpath((r.kind === 'F' ? 'terceiro/' : 'cliente/') + r.id)}">extrato${r.kind === 'F' ? '' : ' e dívida'}</a></td><td class="mono">${esc(r.nif || '')}</td><td>${KINDS[r.kind]}</td><td>${esc(r.city || '')}</td>
       <td class="mono">${esc(r.account || '')}</td><td class="small">${esc([r.email, r.phone].filter(Boolean).join(' · '))}</td></tr>`).join('')
       || '<tr><td colspan="6" class="empty">Nenhum terceiro.</td></tr>';
     view.querySelectorAll('tr[data-id]').forEach((tr) => { tr.onclick = (e) => { if (!e.target.closest('[data-ficha]')) edit(rows.find((r) => String(r.id) === tr.dataset.id)); }; });

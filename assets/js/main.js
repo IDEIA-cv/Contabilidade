@@ -27,7 +27,7 @@ const NAV = [
 
 const ROUTES = {
   painel: dashboard, lancamentos: entries, lancamento: entries, contas: accounts, terceiros: parties,
-  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales,
+  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales, terceiro: sales,
 };
 
 export function go(path) { location.hash = '#/' + path.replace(/^#?\/?/, ''); }

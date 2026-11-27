@@ -150,19 +150,20 @@ HTML;
     }
 
     /** Extrato de conta corrente e faturas por pagar de um cliente, para imprimir ou enviar em PDF. */
-    public static function statement(Db $db, int $party, string $from, string $to): string
+    public static function statement(Db $db, int $party, int $year, string $from, string $to, string $account = ''): string
     {
-        $c = Sales::customer($db, $party, (int) substr($to, 0, 4));
-        $st = Sales::statement($db, $party, $from, $to);
+        $st = Reports::partyStatement($db, $party, $year, $from, $to, $account);
+        $cu = $st['party'];
+        $isSupplier = $cu['kind'] === 'F';
+        $c = $isSupplier ? ['open_docs' => [], 'open' => 0, 'overdue' => 0] : Sales::customer($db, $party, $year);
         $e = static fn($v) => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES, 'UTF-8');
         $m = static fn($v) => Money::format((int) $v);
         $dmy = static fn($iso) => $iso ? substr($iso, 8, 2) . '/' . substr($iso, 5, 2) . '/' . substr($iso, 0, 4) : '';
-        $cu = $c['customer'];
         $logo = $db->meta('company_logo');
         $rows = "<tr><td>{$dmy($from)}</td><td colspan=3>Saldo anterior</td><td></td><td></td><td class=num>{$m($st['opening'])}</td></tr>";
         foreach ($st['rows'] as $r) {
-            $rows .= "<tr><td>{$dmy($r['date'])}</td><td>{$e($r['type_name'])}</td><td>{$e($r['doc_no'])}</td><td>{$dmy($r['due_date'])}</td>"
-                . '<td class=num>' . ($r['debit'] ? $m($r['debit']) : '') . '</td><td class=num>' . ($r['credit'] ? $m($r['credit']) : '') . "</td><td class=num>{$m($r['balance'])}</td></tr>";
+            $rows .= "<tr><td>{$dmy($r['date'])}</td><td>{$e($r['document'] ?: $r['journal'] . '/' . $r['number'])}</td><td>{$e($r['description'] ?: $r['entry_description'])}</td><td>{$e($r['account'])}</td>"
+                . '<td class=num>' . ((int) $r['debit_cents'] ? $m($r['debit_cents']) : '') . '</td><td class=num>' . ((int) $r['credit_cents'] ? $m($r['credit_cents']) : '') . "</td><td class=num>{$m($r['balance'])}</td></tr>";
         }
         $open = '';
         foreach ($c['open_docs'] as $d) {
@@ -172,11 +173,11 @@ HTML;
         $openTable = $open !== ''
             ? "<h2>Faturas por pagar</h2><table><thead><tr><th>Documento</th><th>Data</th><th>Vencimento</th><th class=num>Total</th><th class=num>Em dívida</th><th>Atraso</th></tr></thead><tbody>$open</tbody>"
               . "<tfoot><tr><td colspan=4><b>Total em dívida</b></td><td class=num><b>{$m($c['open'])}</b></td><td></td></tr></tfoot></table>"
-            : '<p>Não há faturas por pagar.</p>';
+            : ($isSupplier ? '' : '<p>Não há faturas por pagar.</p>');
         $logoHtml = $logo ? '<img class=logo src="' . $e($logo) . '" alt="">' : '';
         $company = $e($db->meta('company_name')) . '<br>NIF ' . $e($db->meta('company_nif')) . '<br>' . $e($db->meta('company_address')) . ' ' . $e($db->meta('company_city'))
             . '<br>' . $e(implode(' · ', array_filter([$db->meta('company_phone'), $db->meta('company_email')])));
-        $bank = $db->meta('company_bank') ? '<p>Pagamento por transferência: IBAN/NIB ' . $e($db->meta('company_bank')) . '</p>' : '';
+        $bank = !$isSupplier && $db->meta('company_bank') ? '<p>Pagamento por transferência: IBAN/NIB ' . $e($db->meta('company_bank')) . '</p>' : '';
         $today = $dmy(date('Y-m-d'));
         return <<<HTML
 <!doctype html>
@@ -205,14 +206,14 @@ HTML;
 <div class="bar"><button onclick="window.close()">Fechar</button><button class="primary" onclick="window.print()">Imprimir / guardar PDF</button></div>
 <div class="page">
   <header><div>$logoHtml<b>$company</b></div><div><h1>Extrato de conta corrente</h1><div style="text-align:right">{$dmy($from)} a {$dmy($to)}</div></div></header>
-  <div class="box"><div><small>CLIENTE</small><br><b>{$e($cu['name'])}</b><br>NIF {$e($cu['nif'] ?: '—')}<br>{$e(trim(($cu['address'] ?? '') . ' ' . ($cu['city'] ?? '')))}</div>
-    <div style="text-align:right">Saldo em {$dmy($to)}<br><span class="big">{$m($st['closing'])} ECV</span><br>dos quais vencido: {$m($c['overdue'])}</div></div>
+  <div class="box"><div><small>{$e($isSupplier ? 'FORNECEDOR' : 'CLIENTE')}</small><br><b>{$e($cu['name'])}</b><br>NIF {$e($cu['nif'] ?: '—')}<br>{$e(trim(($cu['address'] ?? '') . ' ' . ($cu['city'] ?? '')))}</div>
+    <div style="text-align:right">Saldo em {$dmy($to)}<br><span class="big">{$m($st['closing'])} ECV</span><br>{$e($isSupplier ? ($st['closing'] >= 0 ? 'a pagar ao fornecedor' : 'a favor da empresa') : ($c['overdue'] ? 'dos quais vencido: ' . $m($c['overdue']) : ($st['closing'] >= 0 ? 'a receber do cliente' : 'a favor do cliente')))}</div></div>
   <h2>Movimentos</h2>
-  <table><thead><tr><th>Data</th><th>Documento</th><th>N.º</th><th>Vencimento</th><th class=num>Débito</th><th class=num>Crédito</th><th class=num>Saldo</th></tr></thead>
+  <table><thead><tr><th>Data</th><th>Documento</th><th>Descrição</th><th>Conta</th><th class=num>Débito</th><th class=num>Crédito</th><th class=num>Saldo</th></tr></thead>
     <tbody>$rows</tbody><tfoot><tr><td colspan=4><b>Totais do período</b></td><td class=num>{$m($st['debit'])}</td><td class=num>{$m($st['credit'])}</td><td class=num><b>{$m($st['closing'])}</b></td></tr></tfoot></table>
   $openTable
   $bank
-  <footer>Extrato emitido em $today. Se já efetuou o pagamento, por favor ignore os valores em dívida. Processado por IDEIA Contabilidade.</footer>
+  <footer>Extrato emitido em $today a partir da contabilidade (movimentos validados).{$e($isSupplier ? '' : ' Se já efetuou o pagamento, por favor ignore os valores em dívida.')} Processado por IDEIA Contabilidade.</footer>
 </div></body></html>
 HTML;
     }

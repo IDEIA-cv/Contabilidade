@@ -142,6 +142,54 @@ final class Reports
             'total_rows' => (int) $tot['n'], 'offset' => $offset, 'limit' => $limit];
     }
 
+    /**
+     * Extrato de conta corrente de um terceiro (cliente, fornecedor ou outro) a partir da contabilidade: movimentos validados
+     * do terceiro nas contas correntes (classe 2, exceto Estado 24), com saldo inicial do exercício e saldo acumulado.
+     * O saldo segue o sentido natural: clientes = débito − crédito (o cliente deve); fornecedores = crédito − débito (devemos).
+     */
+    public static function partyStatement(Db $db, int $party, int $year, string $from, string $to, string $accountPrefix = ''): array
+    {
+        $tp = $db->one('SELECT * FROM third_parties WHERE id = ?', [$party]);
+        if (!$tp) {
+            throw new UserError('Terceiro não encontrado.');
+        }
+        foreach ([$from, $to] as $d) {
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) {
+                throw new UserError('Período inválido.');
+            }
+        }
+        if ($from > $to) {
+            throw new UserError('A data inicial é posterior à data final.');
+        }
+        $sign = $tp['kind'] === 'F' ? -1 : 1;
+        $acc = preg_replace('/\D/', '', $accountPrefix) ?? '';
+        $accWhere = $acc !== '' ? 'account LIKE ?' : "account LIKE '2%' AND account NOT LIKE '24%'";
+        $base = "fiscal_year = ? AND third_party = ? AND $accWhere";
+        $args = $acc !== '' ? [$year, $party, $acc . '%'] : [$year, $party];
+        $opening = (int) $db->value("SELECT COALESCE(SUM(debit_cents - credit_cents), 0) FROM v_movements WHERE $base AND (journal_kind = 'abertura' OR date < ?)", [...$args, $from]);
+        $rows = $db->all(
+            "SELECT entry_id, date, journal, number, document, entry_description, description, account, debit_cents, credit_cents
+             FROM v_movements WHERE $base AND journal_kind <> 'abertura' AND date BETWEEN ? AND ? ORDER BY date, journal, number, line_id",
+            [...$args, $from, $to]
+        );
+        $names = [];
+        $bal = $opening;
+        foreach ($rows as &$r) {
+            $bal += (int) $r['debit_cents'] - (int) $r['credit_cents'];
+            $r['balance'] = $bal * $sign;
+            $names[$r['account']] ??= $db->value('SELECT name FROM accounts WHERE code = ?', [$r['account']]);
+            $r['account_name'] = $names[$r['account']];
+        }
+        unset($r);
+        $debit = array_sum(array_map('intval', array_column($rows, 'debit_cents')));
+        $credit = array_sum(array_map('intval', array_column($rows, 'credit_cents')));
+        $accounts = $db->all("SELECT DISTINCT m.account, a.name FROM v_movements m JOIN accounts a ON a.code = m.account WHERE m.fiscal_year = ? AND m.third_party = ? AND m.account LIKE '2%' AND m.account NOT LIKE '24%' ORDER BY m.account", [$year, $party]);
+        return [
+            'party' => $tp, 'year' => $year, 'from' => $from, 'to' => $to, 'account' => $acc, 'accounts' => $accounts,
+            'sign' => $sign, 'opening' => $opening * $sign, 'closing' => $bal * $sign, 'debit' => $debit, 'credit' => $credit, 'rows' => $rows,
+        ];
+    }
+
     /** Diário: lançamentos validados com as linhas, por período. */
     /** Diário. Com $limit > 0 pagina por lançamentos (nunca corta um lançamento entre páginas). */
     public static function journal(Db $db, int $year, int $from = 1, int $to = 12, ?string $journal = null, int $limit = 0, int $offset = 0): array

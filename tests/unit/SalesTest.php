@@ -140,7 +140,61 @@ return [
         same(97750 - 50000 + 195500, $st['closing']);
         $c = Sales::customer($db, $cli, 2025);
         same($st['closing'], $c['open'], 'saldo do extrato = dívida');
-        $html = Ideia\SalesPrint::statement($db, $cli, '2025-01-01', '2025-12-31');
+        $html = Ideia\SalesPrint::statement($db, $cli, 2025, '2025-01-01', '2025-12-31');
         check(str_contains($html, 'Faturas por pagar') && str_contains($html, '2 432,50'), 'extrato impresso com dívida');
+        // extrato contabilístico do cliente: inclui a venda e o recebimento de demoCompany (saldo 0) e as faturas deste teste
+        $ps = Ideia\Reports::partyStatement($db, $cli, 2025, '2025-01-01', '2025-12-31');
+        same(0, $ps['opening']);
+        same(97750 + 195500 - 50000, $ps['closing'], 'saldo contabilístico = dívida das faturas');
+        $ps2 = Ideia\Reports::partyStatement($db, $cli, 2025, '2025-03-01', '2025-12-31');
+        same(97750 - 50000 + 11500000, $ps2['opening'], 'saldo anterior a março inclui a venda de fevereiro, recebida a 01/03');
+    },
+    'extrato de fornecedor: saldo credor positivo, filtro por conta e impressão' => function () {
+        $db = demoCompany();
+        $f = Ledger::saveThirdParty($db, ['name' => 'Electra SA', 'nif' => '261111111', 'kind' => 'F', 'account' => '221'])['id'];
+        Ledger::saveEntry($db, ['date' => '2025-04-05', 'journal' => 'COM', 'description' => 'Fatura energia abril', 'document' => 'F-123', 'validate' => true, 'lines' => [
+            ['account' => '624', 'debit' => '10000'], ['account' => '2432', 'debit' => '1500', 'vat_code' => 'DED', 'vat_base' => '10000'], ['account' => '221', 'credit' => '11500', 'third_party' => $f],
+        ]]);
+        Ledger::saveEntry($db, ['date' => '2025-04-20', 'journal' => 'BCO', 'description' => 'Pagamento Electra', 'validate' => true, 'lines' => [
+            ['account' => '221', 'debit' => '5000', 'third_party' => $f], ['account' => '121', 'credit' => '5000'],
+        ]]);
+        $st = Ideia\Reports::partyStatement($db, $f, 2025, '2025-01-01', '2025-12-31');
+        same(2, count($st['rows']));
+        same(1150000, $st['rows'][0]['balance'], 'a dever ao fornecedor fica positivo');
+        same(650000, $st['closing']);
+        same(1150000, $st['credit']);
+        same(0, count(Ideia\Reports::partyStatement($db, $f, 2025, '2025-01-01', '2025-12-31', '211')['rows']), 'filtro por conta');
+        $html = Ideia\SalesPrint::statement($db, $f, 2025, '2025-01-01', '2025-12-31');
+        check(str_contains($html, 'FORNECEDOR') && str_contains($html, 'a pagar ao fornecedor') && str_contains($html, 'F-123'), 'extrato do fornecedor impresso');
+        throws(fn() => Ideia\Reports::partyStatement($db, $f, 2025, '2025-12-31', '2025-01-01'), 'posterior');
+    },
+    'famílias de artigos: sugerem IVA e conta, filtro, apagar deixa artigos sem família, migração v5' => function () {
+        $db = demoCompany();
+        $f = Sales::saveFamily($db, ['name' => 'Formação', 'kind' => 'S', 'vat_code' => 'ISE', 'exemption' => Sales::EXEMPTIONS[0], 'account' => '722']);
+        throws(fn() => Sales::saveFamily($db, ['name' => 'formação']), 'Já existe');
+        throws(fn() => Sales::saveFamily($db, ['name' => 'X', 'vat_code' => 'ISE']), 'isenção');
+        $i = Sales::saveItem($db, ['name' => 'Curso de Excel', 'family_id' => $f['id'], 'price' => '20000']);
+        same('S', $i['kind']);
+        same('ISE', $i['vat_code']);
+        same('722', $i['account']);
+        same((int) $f['id'], (int) $i['family_id']);
+        Sales::saveItem($db, ['name' => 'Caneta']);
+        same(1, count(Sales::items($db, ['family' => (string) $f['id']])));
+        same(1, count(Sales::items($db, ['family' => 'none'])));
+        same('Formação', Sales::items($db, ['family' => (string) $f['id']])[0]['family_name']);
+        same(1, (int) Sales::families($db)[0]['items']);
+        Sales::deleteFamily($db, (int) $f['id']);
+        same(2, count(Sales::items($db, ['family' => 'none'])));
+        // ficheiro v5 (sem a coluna family_id) é migrado ao abrir
+        $db->run('DROP TABLE item_families');
+        $db->run('CREATE TABLE items_old AS SELECT id, code, name, kind, unit, price_cents, vat_code, exemption, account, barcode, active, created_at FROM items');
+        $db->run('PRAGMA foreign_keys = OFF');
+        $db->run('DROP TABLE items');
+        $db->run('ALTER TABLE items_old RENAME TO items');
+        $db->setMeta('schema_version', '5');
+        $db2 = new Ideia\Db($db->path);
+        same('6', $db2->meta('schema_version'));
+        check(in_array('family_id', array_column($db2->all('PRAGMA table_info(items)'), 'name'), true), 'coluna family_id acrescentada');
+        Sales::saveFamily($db2, ['name' => 'Depois da migração']);
     },
 ];

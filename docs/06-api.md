@@ -90,9 +90,12 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 | Ação | Método | Parâmetros |
 |------|--------|-----------|
 | `sales.meta` | GET | — tipos de documento, conversões possíveis, meios de pagamento, motivos de isenção |
-| `items.list` | GET | `q?`, `kind?` (P/S), `active?` (1, 0, all) |
-| `items.save` | POST | `id?`, `code?` (automático), `name`, `kind`, `unit`, `price` ou `price_cents`, `vat_code`, `exemption?`, `account?`, `barcode?`, `active?` |
+| `items.list` | GET | `q?`, `kind?` (P/S), `family?` (id ou `none`), `active?` (1, 0, all) |
+| `items.save` | POST | `id?`, `code?` (automático), `name`, `kind`, `unit`, `price` ou `price_cents`, `vat_code`, `exemption?`, `account?`, `barcode?`, `family_id?`, `active?` |
 | `items.delete` | POST | `id` — apaga se nunca usado, senão inativa |
+| `items.families` | GET | — famílias com o número de artigos |
+| `items.family_save` | POST | `id?`, `name`, `kind`, `vat_code?`, `exemption?`, `account?`, `active?` |
+| `items.family_delete` | POST | `id` — os artigos ficam sem família |
 | `sales.list` | GET | `type?` (código ou `faturas`), `status?`, `pay?` (aberto, vencido, pago), `party?`, `q?`, `from?`, `to?`, `limit`, `offset` |
 | `sales.get` | GET | `id` |
 | `sales.save` | POST | `id?`, `type`, `date`, `due_date?`, `third_party?`, `customer_name?`/`customer_nif?` (FR sem ficha), `reference?`, `notes?`, `payment_method?`, `delivery_place?`, `origin_id?`, `lines[]`, `issue?` |
@@ -105,7 +108,8 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 | `sales.summary` | GET | `year` — faturado, por receber, vencido, rascunhos, orçamentos em aberto |
 | `sales.debtors` | GET | `q?`, `overdue?`, `as_of?` — dívida por cliente com antiguidade |
 | `sales.customer` | GET | `id`, `year` — ficha do cliente com faturas por pagar |
-| `sales.statement` / `sales.statement_print` | GET | `id`, `from`, `to` — extrato de conta corrente (JSON / página A4) |
+| `sales.statement` | GET | `id`, `from`, `to` — movimentos dos documentos de venda do cliente |
+| `party.statement` / `party.statement_print` | GET | `id` (cliente ou fornecedor), `year`, `from?`, `to?`, `account?` — extrato de conta corrente a partir da contabilidade (JSON / página A4) |
 | `sales.series` / `sales.verify` | GET | — numeração por série / verificação da cadeia |
 | `company.logo` | POST | ficheiro (`file`) ou `remove=1` |
 

@@ -176,6 +176,17 @@ CREATE TABLE IF NOT EXISTS bank_match_ledger (
 );
 
 -- Vendas e documentos comerciais (esquema v5) -------------------------------------------------------------
+-- Famílias de artigos definidas pelo utilizador (esquema v6), com IVA e conta de rendimentos sugeridos para os artigos novos.
+CREATE TABLE IF NOT EXISTS item_families (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    name      TEXT NOT NULL UNIQUE,
+    kind      TEXT NOT NULL DEFAULT 'P' CHECK (kind IN ('P','S')),
+    vat_code  TEXT REFERENCES vat_codes(code),
+    exemption TEXT,
+    account   TEXT REFERENCES accounts(code),
+    active    INTEGER NOT NULL DEFAULT 1
+);
+
 -- Artigos (produtos e serviços) escolhidos na emissão dos documentos. Preços sem IVA, em centavos.
 CREATE TABLE IF NOT EXISTS items (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,7 +200,8 @@ CREATE TABLE IF NOT EXISTS items (
     account     TEXT REFERENCES accounts(code),                      -- conta de rendimentos (71/72)
     barcode     TEXT,
     active      INTEGER NOT NULL DEFAULT 1,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    family_id   INTEGER REFERENCES item_families(id)              -- v6 (acrescentada por ALTER nos ficheiros v5)
 );
 
 -- Numeração: último número emitido por tipo de documento e série (a série por omissão é o ano).

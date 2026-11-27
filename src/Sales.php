@@ -47,6 +47,56 @@ final class Sales
         'Regime especial dos pequenos contribuintes (REMPE)',
     ];
 
+    // ================================================================== famílias de artigos
+
+    public static function families(Db $db): array
+    {
+        return $db->all('SELECT f.*, (SELECT COUNT(*) FROM items i WHERE i.family_id = f.id) AS items FROM item_families f ORDER BY f.name');
+    }
+
+    public static function saveFamily(Db $db, array $d): array
+    {
+        $name = trim((string) ($d['name'] ?? ''));
+        if ($name === '') {
+            throw new UserError('Indique o nome da família.');
+        }
+        $id = !empty($d['id']) ? (int) $d['id'] : null;
+        if ($db->value('SELECT 1 FROM item_families WHERE name = ? COLLATE NOCASE AND id IS NOT ?', [$name, $id])) {
+            throw new UserError("Já existe a família {$name}.");
+        }
+        $kind = ($d['kind'] ?? 'P') === 'S' ? 'S' : 'P';
+        $vat = (string) ($d['vat_code'] ?? '');
+        $exemption = trim((string) ($d['exemption'] ?? ''));
+        if ($vat !== '') {
+            $v = self::saleVat($db, $vat);
+            if ((int) $v['rate_bp'] === 0 && $exemption === '') {
+                throw new UserError('Indique o motivo de isenção do IVA.');
+            }
+        }
+        $account = preg_replace('/\D/', '', (string) ($d['account'] ?? '')) ?: null;
+        if ($account) {
+            self::requireRevenueAccount($db, $account);
+        }
+        $row = ['name' => $name, 'kind' => $kind, 'vat_code' => $vat ?: null, 'exemption' => $vat !== '' && $exemption !== '' ? $exemption : null, 'account' => $account,
+            'active' => isset($d['active']) && in_array($d['active'], [false, 0, '0', 'false'], true) ? 0 : 1];
+        if ($id) {
+            $sets = implode(', ', array_map(static fn($k) => "$k = ?", array_keys($row)));
+            $db->run("UPDATE item_families SET $sets WHERE id = ?", [...array_values($row), $id]);
+        } else {
+            $id = $db->insert('item_families', $row);
+        }
+        return $db->one('SELECT * FROM item_families WHERE id = ?', [$id]);
+    }
+
+    /** Apaga uma família; os artigos dessa família ficam sem família. */
+    public static function deleteFamily(Db $db, int $id): void
+    {
+        $db->transaction(static function () use ($db, $id) {
+            $db->run('UPDATE items SET family_id = NULL WHERE family_id = ?', [$id]);
+            $db->run('DELETE FROM item_families WHERE id = ?', [$id]);
+        });
+    }
+
     // ================================================================== artigos
 
     public static function items(Db $db, array $f = []): array
@@ -62,14 +112,20 @@ final class Sales
             $where[] = 'i.kind = ?';
             $p[] = $f['kind'];
         }
+        if (($f['family'] ?? '') !== '') {
+            $where[] = $f['family'] === 'none' ? 'i.family_id IS NULL' : 'i.family_id = ?';
+            if ($f['family'] !== 'none') {
+                $p[] = (int) $f['family'];
+            }
+        }
         if (($f['active'] ?? '1') !== 'all') {
             $where[] = 'i.active = ?';
             $p[] = ($f['active'] ?? '1') === '0' ? 0 : 1;
         }
         return $db->all(
-            'SELECT i.*, v.rate_bp, v.name AS vat_name,
+            'SELECT i.*, v.rate_bp, v.name AS vat_name, fam.name AS family_name,
                     (SELECT COUNT(*) FROM sales_doc_lines l WHERE l.item_id = i.id) AS uses
-             FROM items i LEFT JOIN vat_codes v ON v.code = i.vat_code
+             FROM items i LEFT JOIN vat_codes v ON v.code = i.vat_code LEFT JOIN item_families fam ON fam.id = i.family_id
              WHERE ' . implode(' AND ', $where) . ' ORDER BY i.name',
             $p
         );
@@ -82,7 +138,19 @@ final class Sales
         if ($name === '') {
             throw new UserError('Indique a descrição do artigo.');
         }
-        $kind = in_array($d['kind'] ?? 'P', ['P', 'S'], true) ? ($d['kind'] ?? 'P') : 'P';
+        $family = !empty($d['family_id']) ? $db->one('SELECT * FROM item_families WHERE id = ?', [(int) $d['family_id']]) : null;
+        if (!empty($d['family_id']) && !$family) {
+            throw new UserError('Família não encontrada.');
+        }
+        // a família sugere tipo, IVA e conta quando o artigo não os indica
+        $kind = in_array($d['kind'] ?? '', ['P', 'S'], true) ? $d['kind'] : ($family['kind'] ?? 'P');
+        if (($d['vat_code'] ?? '') === '' && !empty($family['vat_code'])) {
+            $d['vat_code'] = $family['vat_code'];
+            $d['exemption'] = ($d['exemption'] ?? '') !== '' ? $d['exemption'] : $family['exemption'];
+        }
+        if (($d['account'] ?? '') === '' && !empty($family['account'])) {
+            $d['account'] = $family['account'];
+        }
         $id = !empty($d['id']) ? (int) $d['id'] : null;
         if ($code === '') {
             // código automático: P0001 / S0001
@@ -101,7 +169,7 @@ final class Sales
         if ($price < 0) {
             throw new UserError('O preço não pode ser negativo.');
         }
-        $vat = (string) ($d['vat_code'] ?? 'NOR');
+        $vat = (string) (($d['vat_code'] ?? '') ?: 'NOR');
         $vatRow = self::saleVat($db, $vat);
         $exemption = trim((string) ($d['exemption'] ?? ''));
         if ((int) $vatRow['rate_bp'] === 0 && $exemption === '') {
@@ -113,7 +181,7 @@ final class Sales
             'code' => $code, 'name' => $name, 'kind' => $kind,
             'unit' => strtoupper(trim((string) ($d['unit'] ?? ''))) ?: ($kind === 'S' ? 'SERV' : 'UN'),
             'price_cents' => $price, 'vat_code' => $vat, 'exemption' => (int) $vatRow['rate_bp'] === 0 ? $exemption : null,
-            'account' => $account, 'barcode' => trim((string) ($d['barcode'] ?? '')) ?: null,
+            'account' => $account, 'barcode' => trim((string) ($d['barcode'] ?? '')) ?: null, 'family_id' => $family ? (int) $family['id'] : null,
             'active' => isset($d['active']) && in_array($d['active'], [false, 0, '0', 'false'], true) ? 0 : 1,
         ];
         if ($id) {

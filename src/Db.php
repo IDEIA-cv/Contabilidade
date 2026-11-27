@@ -10,7 +10,7 @@ use PDO;
  */
 final class Db
 {
-    public const SCHEMA_VERSION = 5;
+    public const SCHEMA_VERSION = 6;
 
     public PDO $pdo;
     public string $path;
@@ -44,10 +44,15 @@ final class Db
         if ($v > self::SCHEMA_VERSION) {
             throw new UserError('Este ficheiro foi criado por uma versão mais recente da aplicação. Atualize a aplicação.');
         }
-        if ($v < 5) {
-            // v2: documentos anexos; v3: reconciliação bancária; v4: índices de desempenho; v5: vendas.
+        if ($v < 6) {
+            // v2: documentos anexos; v3: reconciliação bancária; v4: índices de desempenho; v5: vendas; v6: famílias de artigos.
             // O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo acrescenta apenas o que falta.
             $this->pdo->exec((string) file_get_contents(IDEIA_ROOT . '/database/schema.sql'));
+            // colunas novas em tabelas que já existiam
+            $cols = array_column($this->all('PRAGMA table_info(items)'), 'name');
+            if (!in_array('family_id', $cols, true)) {
+                $this->pdo->exec('ALTER TABLE items ADD COLUMN family_id INTEGER REFERENCES item_families(id)');
+            }
             $this->setMeta('schema_version', (string) self::SCHEMA_VERSION);
         }
         // Próximas migrações (que alterem tabelas existentes): if ($v < 4) { ...; $this->setMeta('schema_version', '4'); }

@@ -6,12 +6,12 @@ Avaliação pedida pelo responsável do projeto: nota de 0 a 10 por categoria, c
 
 | Categoria | Inicial | Final | O que foi feito / o que falta |
 |---|---|---|---|
-| Funcionalidade (cobertura do âmbito) | 6 | **8,5** | Faturação completa: 9 tipos de documento, artigos, numeração automática, recibos, notas de crédito, conversões, impressão, dívidas e extrato por cliente. |
+| Funcionalidade (cobertura do âmbito) | 6 | **8,5** | Faturação completa: 9 tipos de documento, artigos, numeração automática, recibos, notas de crédito, conversões, impressão, dívidas e extrato por cliente; extrato de conta corrente de clientes e fornecedores a partir da contabilidade. |
 | Correção contabilística | 8 | **8** | Partidas dobradas, IVA, fecho e lançamentos de vendas testados. Os mapeamentos ainda têm de ser validados por um contabilista certificado (OPACC). |
 | Integridade dos dados | 9 | **9** | Cadeia SHA-256 nos lançamentos e nas séries de documentos, imutabilidade, estornos, cópias automáticas. |
 | Segurança | 6 | **8** | Palavra-passe de acesso opcional (hash bcrypt/argon, sessão HttpOnly/SameSite, fecho após 4 h, bloqueio de 5 min após 5 tentativas); Content-Security-Policy, X-Frame-Options, nosniff, no-referrer; já existia: só localhost, POST com cabeçalho anti-CSRF, pasta de dados fechada. Falta: perfis por utilizador (Fase 3), encriptação do ficheiro. |
 | Desempenho | 9 | **9** | 50 000 lançamentos: relatórios < 0,5 s. 5 000 faturas: listas e dívidas em 10–25 ms. |
-| Testes | 7 | **8,5** | 34 testes unitários (antes 26): vendas, dívidas, API, palavra-passe, diagnóstico. Teste no browser com 30 passos, incluindo emissão de fatura, pagamento e impressão. Auditoria axe-core em 17 páginas. |
+| Testes | 7 | **8,5** | 36 testes unitários (antes 26): vendas, dívidas, API, palavra-passe, diagnóstico. Teste no browser com 30 passos, incluindo emissão de fatura, pagamento e impressão. Auditoria axe-core em 17 páginas. |
 | Manutenibilidade | 8 | **8** | Sem dependências; módulos pequenos; regras de cálculo iguais no servidor e no browser e documentadas. |
 | Documentação | 9 | **9** | Novo [12-vendas](12-vendas.md) e este documento; API, modelo de dados e roadmap atualizados. |
 | Acessibilidade | 8 | **8,5** | 0 violações WCAG A/AA (axe) nas 17 páginas, incluindo as de vendas; ligações sublinhadas em listas. |

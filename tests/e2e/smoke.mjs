@@ -108,6 +108,7 @@ await visit(`${c}/vendas?pay=aberto`, '18-vendas-por-receber', 'table#list');
 await visit(`${c}/artigos`, '19-artigos', '#rows tr[data-id]');
 await visit(`${c}/dividas`, '19-dividas', 'table#debtors tbody tr');
 await visit(`${c}/cliente/1`, '19-cliente', '#t-open');
+await visit(`${c}/terceiro/6`, '19-fornecedor-extrato', '#t-st tbody tr');
 await visit(`${c}/cliente/1?tab=extrato&from=2025-01-01&to=2025-12-31`, '19-cliente-extrato', '#t-st');
 {
   const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#print-st')]);
@@ -119,7 +120,15 @@ await visit(`${c}/cliente/1?tab=extrato&from=2025-01-01&to=2025-12-31`, '19-clie
 
 // vendas na empresa nova: artigo, cliente, fatura emitida, pagamento e impressão
 await visit(`${cNew}/artigos`, '20-artigos-nova', '#rows');
+await page.click('#fams');
+await page.fill('.modal [name=name]', 'Serviços de teste');
+await page.selectOption('.modal #fam-form [name=kind]', 'S');
+await page.click('#fam-save');
+await page.waitForSelector('#fam-rows >> text=Serviços de teste');
+await page.click('.modal footer button');
+await page.waitForSelector('#family >> text=Serviços de teste', { state: 'attached' });
 await page.click('#new');
+await page.selectOption('.modal [name=family_id]', { label: 'Serviços de teste' });
 await page.fill('.modal [name=name]', 'Serviço de teste');
 await page.selectOption('.modal [name=kind]', 'S');
 await page.fill('.modal [name=price_vat]', '1.150,00');
