@@ -13,6 +13,11 @@ on:
 permissions:
   contents: write
 
+# dois pushes seguidos: só o mais recente publica (senão um apaga o lançamento do outro)
+concurrency:
+  group: portatil-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PHP_SERIES: '8.3'
 
