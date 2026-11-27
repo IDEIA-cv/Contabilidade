@@ -148,18 +148,41 @@ export function monthOptions(selected) {
 }
 
 /** Navegação entre páginas. onGo(novoOffset). Devolve '' quando cabe tudo numa página. */
-export function pager(total, offset, limit, label = 'linhas') {
-  if (!limit || total <= limit) return '';
+export const PAGE_SIZES = [25, 50, 100, 200];
+
+/** Linhas por página escolhidas pelo utilizador (guardado neste browser). */
+export function pageSize(def = 50) {
+  try {
+    const n = Number(localStorage.getItem('ideia.pageSize'));
+    return PAGE_SIZES.includes(n) ? n : def;
+  } catch { return def; }
+}
+
+/**
+ * Barra de paginação. Mostra sempre o total; os botões só aparecem com mais de uma página.
+ * sizes: mostra "Por página" (a escolha fica guardada e bindPager chama onGo(0, tamanho)).
+ */
+export function pager(total, offset, limit, label = 'linhas', { sizes = false } = {}) {
+  if (!limit || !total) return '';
   const pages = Math.ceil(total / limit);
+  if (pages <= 1 && !sizes) return '';
   const page = Math.floor(offset / limit) + 1;
+  const sizeSel = sizes ? `<label class="pager-size">Por página <select data-size aria-label="Linhas por página">${PAGE_SIZES.map((n) => `<option ${n === limit ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : '';
+  if (pages <= 1) return `<nav class="pager no-print" aria-label="Paginação"><span>${total} ${label}</span>${total > PAGE_SIZES[0] ? sizeSel : ''}</nav>`;
   return `<nav class="pager no-print" aria-label="Paginação">
     <button data-off="0" ${page === 1 ? 'disabled' : ''} aria-label="Primeira página">«</button>
     <button data-off="${Math.max(0, offset - limit)}" ${page === 1 ? 'disabled' : ''}>‹ Anterior</button>
     <span>Página ${page} de ${pages} · ${offset + 1}–${Math.min(offset + limit, total)} de ${total} ${label}</span>
     <button data-off="${offset + limit}" ${page === pages ? 'disabled' : ''}>Seguinte ›</button>
-    <button data-off="${(pages - 1) * limit}" ${page === pages ? 'disabled' : ''} aria-label="Última página">»</button></nav>`;
+    <button data-off="${(pages - 1) * limit}" ${page === pages ? 'disabled' : ''} aria-label="Última página">»</button>${sizeSel}</nav>`;
 }
 
 export function bindPager(root, onGo) {
   root.querySelectorAll('.pager [data-off]').forEach((b) => { b.onclick = () => onGo(Number(b.dataset.off)); });
+  root.querySelectorAll('.pager [data-size]').forEach((sel) => {
+    sel.onchange = () => {
+      try { localStorage.setItem('ideia.pageSize', sel.value); } catch { /* sem armazenamento: vale só agora */ }
+      onGo(0, Number(sel.value));
+    };
+  });
 }

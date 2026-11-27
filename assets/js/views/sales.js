@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 import { setCrumbs, go, cpath, state } from '../main.js';
 import { invalidateRefs } from './entries.js';
-import { esc, money, toCents, today, fmtDate, toast, modal, confirmDialog, formData, debounce, pager, bindPager } from '../util.js';
+import { esc, money, toCents, today, fmtDate, toast, modal, confirmDialog, formData, debounce, pager, bindPager, pageSize } from '../util.js';
 import { tableToXlsx } from '../xlsx.js';
 import { selHead, selCell, selBox, bindSelection } from '../selection.js';
 import { payDialog as payPurchase, meta as purchasesMeta } from './purchases.js';
@@ -63,11 +63,24 @@ async function renderList({ view, query }) {
   const f = { type: query.type || '', status: query.status || '', pay: query.pay || '', q: query.q || '', from: query.from || '', to: query.to || '', offset: Number(query.offset || 0) };
   const [summary, res] = await Promise.all([
     api.get('sales.summary', { year: state.year }),
-    api.get('sales.list', { ...f, limit: 50 }),
+    api.get('sales.list', { ...f, limit: pageSize() }),
   ]);
   const typeOpts = [['', 'Todos os documentos'], ['faturas', 'Faturas e notas (com valor fiscal)'], ...Object.entries(T).map(([k, v]) => [k, v.plural])];
   const otherTypes = CREATABLE.filter((t) => !QUICK.some(([q]) => q === t));
   const filtered = Object.entries(f).some(([k, v]) => k !== 'offset' && v);
+  const rowHtml = (r) => {
+          const [sl, sc] = STATUS[r.status];
+          const open = r.open_cents !== null ? Number(r.open_cents) : null;
+          const overdue = open > 0 && r.due_date && r.due_date < today();
+          const payBadge = open === null ? '' : open <= 0 ? '<span class="badge good">Pago</span>' : overdue ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Por pagar</span>';
+          return `<tr class="clickable" data-id="${r.id}">${selCell(r.id, r.doc_no || T[r.type].name)}
+            <td><a href="#/${cpath('vendas/' + r.id)}">${esc(r.doc_no || T[r.type].name + ' (rascunho)')}</a><div class="small muted">${esc(T[r.type].name)}${r.derived ? ' → ' + esc(r.derived) : ''}</div></td>
+            <td>${fmtDate(r.date)}${r.due_date && open > 0 ? `<div class="small ${overdue ? 'neg' : 'muted'}">vence ${fmtDate(r.due_date)}</div>` : ''}</td>
+            <td>${r.third_party ? `<a href="#/${cpath('cliente/' + r.third_party)}">${esc(r.customer)}</a>` : esc(r.customer || 'Consumidor final')}${r.nif ? `<div class="small muted mono">${esc(r.nif)}</div>` : ''}</td>
+            <td class="num">${r.type === 'NC' ? '-' : ''}${money(r.total_cents)}</td>
+            <td class="num">${open !== null ? money(open) : ''}</td>
+            <td><span class="badge ${sc}">${sl}</span> ${payBadge}</td></tr>`;
+  };
   view.innerHTML = `
     <div class="page-head"><div><h1>Vendas</h1><p class="muted">Faturas, orçamentos, guias e recibos. A numeração é automática para cada tipo de documento.</p></div>
       <div class="toolbar">${QUICK.map(([t, l], i) => `<button class="${i === 0 ? 'primary' : ''}" data-new="${t}">${l}</button>`).join('')}
@@ -99,20 +112,8 @@ async function renderList({ view, query }) {
     <div class="card">${pager(res.total, res.offset, res.limit, 'documentos')}
       <div class="table-wrap"><table id="list"><caption class="sr-only">Documentos de venda</caption>
         <thead><tr>${selHead}<th>Documento</th><th>Data</th><th>Cliente</th><th class="num">Total</th><th class="num">Por receber</th><th>Estado</th></tr></thead>
-        <tbody>${res.rows.map((r) => {
-          const [sl, sc] = STATUS[r.status];
-          const open = r.open_cents !== null ? Number(r.open_cents) : null;
-          const overdue = open > 0 && r.due_date && r.due_date < today();
-          const payBadge = open === null ? '' : open <= 0 ? '<span class="badge good">Pago</span>' : overdue ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Por pagar</span>';
-          return `<tr class="clickable" data-id="${r.id}">${selCell(r.id, r.doc_no || T[r.type].name)}
-            <td><a href="#/${cpath('vendas/' + r.id)}">${esc(r.doc_no || T[r.type].name + ' (rascunho)')}</a><div class="small muted">${esc(T[r.type].name)}${r.derived ? ' → ' + esc(r.derived) : ''}</div></td>
-            <td>${fmtDate(r.date)}${r.due_date && open > 0 ? `<div class="small ${overdue ? 'neg' : 'muted'}">vence ${fmtDate(r.due_date)}</div>` : ''}</td>
-            <td>${r.third_party ? `<a href="#/${cpath('cliente/' + r.third_party)}">${esc(r.customer)}</a>` : esc(r.customer || 'Consumidor final')}${r.nif ? `<div class="small muted mono">${esc(r.nif)}</div>` : ''}</td>
-            <td class="num">${r.type === 'NC' ? '-' : ''}${money(r.total_cents)}</td>
-            <td class="num">${open !== null ? money(open) : ''}</td>
-            <td><span class="badge ${sc}">${sl}</span> ${payBadge}</td></tr>`;
-        }).join('') || `<tr><td colspan="7" class="empty">${filtered ? 'Nenhum documento com estes filtros.' : 'Ainda não há documentos. Comece por <b>Nova fatura</b> ou <b>Novo orçamento</b>.'}</td></tr>`}</tbody>
-      </table></div>${pager(res.total, res.offset, res.limit, 'documentos')}</div>`;
+        <tbody>${res.rows.map(rowHtml).join('') || `<tr><td colspan="7" class="empty">${filtered ? 'Nenhum documento com estes filtros.' : 'Ainda não há documentos. Comece por <b>Nova fatura</b> ou <b>Novo orçamento</b>.'}</td></tr>`}</tbody>
+      </table></div>${pager(res.total, res.offset, res.limit, 'documentos', { sizes: true })}</div>`;
 
   const setQuery = (patch) => {
     const q = { ...f, ...patch };
@@ -129,9 +130,15 @@ async function renderList({ view, query }) {
   view.querySelectorAll('[data-from]').forEach((b) => { b.onclick = () => (b.dataset.from === 'NC' ? newCreditNote() : newReceipt()); });
   view.querySelectorAll('.kpi[data-href]').forEach((k) => { k.onclick = () => go(cpath('vendas' + k.dataset.href)); });
   view.querySelectorAll('tr[data-id]').forEach((tr) => { tr.onclick = (e) => { if (e.target.tagName !== 'A') go(cpath('vendas/' + tr.dataset.id)); }; });
-  view.querySelector('#xlsx').onclick = () => tableToXlsx(view.querySelector('#list'), `vendas_${today()}.xlsx`, { sheet: 'Vendas', title: `Vendas — ${state.info.name}` });
+  view.querySelector('#xlsx').onclick = async () => {
+    // a exportação leva todos os documentos do filtro, não só a página visível
+    const all = res.total > res.rows.length ? (await api.get('sales.list', { ...f, offset: 0, limit: 0 })).rows : res.rows;
+    const t = document.createElement('table');
+    t.innerHTML = view.querySelector('#list thead').outerHTML + `<tbody>${all.map(rowHtml).join('')}</tbody>`;
+    tableToXlsx(t, `vendas_${today()}.xlsx`, { sheet: 'Vendas', title: `Vendas — ${state.info.name}` });
+  };
   bindSelection(view, { key: 'vendas', action: 'sales.export_zip', filters: Object.fromEntries(Object.entries(f).filter(([k, v]) => k !== 'offset' && v)), total: res.total });
-  bindPager(view, (offset) => setQuery({ offset }));
+  bindPager(view, (offset, size) => setQuery({ offset, ...(size ? { ps: size } : {}) }));
   if (f.q) { const q = form.querySelector('[name=q]'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
 }
 
@@ -584,9 +591,10 @@ async function renderItems({ view, query }) {
     </div></div>
     <div class="card"><div class="table-wrap"><table id="items"><caption class="sr-only">Artigos</caption>
       <thead><tr><th>Código</th><th>Descrição</th><th>Tipo de artigo</th><th>Produto/serviço</th><th>Unidade</th><th class="num">Preço s/ IVA</th><th>IVA</th><th class="num">Preço c/ IVA</th></tr></thead>
-      <tbody id="rows"></tbody></table></div>
+      <tbody id="rows"></tbody></table></div><div id="pages"></div>
       <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button id="xlsx">Excel</button></div></div>`;
-  const draw = () => {
+  let offset = 0;
+  const draw = (all = false) => {
     const q = view.querySelector('#q').value.trim().toLowerCase();
     const k = view.querySelector('#kind').value;
     const a = view.querySelector('#active').value;
@@ -594,7 +602,12 @@ async function renderItems({ view, query }) {
     const list = rows.filter((r) => (!k || r.kind === k) && (a === 'all' || String(r.active) === a)
       && (!fam || (fam === 'none' ? !r.family_id : String(r.family_id) === fam))
       && (!q || r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || (r.barcode || '') === q));
-    view.querySelector('#rows').innerHTML = list.map((r) => {
+    const limit = pageSize();
+    if (offset >= list.length) offset = Math.max(0, Math.floor((list.length - 1) / limit) * limit);
+    const pages = view.querySelector('#pages');
+    pages.innerHTML = all ? '' : pager(list.length, offset, limit, 'artigos', { sizes: true });
+    bindPager(pages, (off) => { offset = off; draw(); });
+    view.querySelector('#rows').innerHTML = (all ? list : list.slice(offset, offset + limit)).map((r) => {
       const withVat = r.price_cents + Math.floor((r.price_cents * Number(r.rate_bp || 0) + 5000) / 10000);
       return `<tr class="clickable" data-id="${r.id}" tabindex="0"><td class="mono">${esc(r.code)}</td><td><b>${esc(r.name)}</b>${Number(r.active) ? '' : ' <span class="badge">Inativo</span>'}</td><td>${esc(r.family_name || '')}</td>
         <td>${r.kind === 'S' ? 'Serviço' : 'Produto'}</td><td title="${esc(r.unit)}">${esc(META.units[r.unit] || r.unit)}</td><td class="num">${money(r.price_cents)}</td>
@@ -670,14 +683,19 @@ async function renderItems({ view, query }) {
     fromNet(); showExempt();
     q(isNew ? 'name' : 'price').focus();
   };
-  view.querySelector('#q').oninput = debounce(draw, 150);
-  view.querySelector('#kind').onchange = draw;
-  view.querySelector('#family').onchange = draw;
-  view.querySelector('#active').onchange = draw;
+  const refilter = () => { offset = 0; draw(); };
+  view.querySelector('#q').oninput = debounce(refilter, 150);
+  view.querySelector('#kind').onchange = refilter;
+  view.querySelector('#family').onchange = refilter;
+  view.querySelector('#active').onchange = refilter;
   view.querySelector('#new').onclick = () => edit();
   view.querySelector('#fams').onclick = () => familiesDialog(vats, () => renderItems({ view, query }));
   if (query.tipos) familiesDialog(vats, () => go(cpath('artigos')));
-  view.querySelector('#xlsx').onclick = () => tableToXlsx(view.querySelector('#items'), `artigos_${today()}.xlsx`, { sheet: 'Artigos', title: `Artigos — ${state.info.name}` });
+  view.querySelector('#xlsx').onclick = () => {
+    draw(true); // todos os artigos do filtro, não só a página
+    tableToXlsx(view.querySelector('#items'), `artigos_${today()}.xlsx`, { sheet: 'Artigos', title: `Artigos — ${state.info.name}` });
+    draw();
+  };
   draw();
 }
 

@@ -39,6 +39,7 @@ header('Referrer-Policy: no-referrer');
   </div>
   <div id="modal-root"></div>
   <div id="toasts" aria-live="polite"></div>
-  <script type="module" src="assets/js/main.js?v=<?= $v ?>"></script>
+  <!-- sem ?v=: os ecrãs importam "../main.js" e um URL diferente criaria uma segunda cópia do módulo (dois routers) -->
+  <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

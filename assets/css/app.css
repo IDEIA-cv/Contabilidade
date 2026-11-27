@@ -130,6 +130,8 @@ table { border-collapse: collapse; width: 100%; }
 .table-wrap { overflow-x: auto; }
 .pager { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
 .pager span { color: var(--muted); font-size: 13px; padding: 0 8px; }
+.pager-size { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-left: 8px; }
+.pager-size select { width: auto; }
 .att-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .att-row:last-child { border-bottom: 0; }
 th, td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }

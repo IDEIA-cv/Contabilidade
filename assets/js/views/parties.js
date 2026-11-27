@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 import { setCrumbs, cpath } from '../main.js';
 import { invalidateRefs } from './entries.js';
-import { esc, modal, formData, toast, debounce } from '../util.js';
+import { esc, modal, formData, toast, debounce, pager, bindPager, pageSize } from '../util.js';
 
 const KINDS = { C: 'Cliente', F: 'Fornecedor', A: 'Cliente e fornecedor', O: 'Outro' };
 
@@ -16,12 +16,18 @@ export async function render({ view }) {
         <button class="primary" id="new">Novo terceiro</button></div></div>
     <div class="card"><div class="table-wrap"><table>
       <thead><tr><th>Nome</th><th>NIF</th><th>Tipo</th><th>Cidade</th><th>Conta</th><th>Contacto</th></tr></thead>
-      <tbody id="rows"></tbody></table></div></div>`;
+      <tbody id="rows"></tbody></table></div><div id="pages"></div></div>`;
+  let offset = 0;
   const draw = () => {
     const q = view.querySelector('#q').value.trim().toLowerCase();
     const k = view.querySelector('#kind').value;
     const list = rows.filter((r) => (!k || r.kind === k) && (!q || r.name.toLowerCase().includes(q) || (r.nif || '').includes(q)));
-    view.querySelector('#rows').innerHTML = list.map((r) => `<tr class="clickable" data-id="${r.id}">
+    const limit = pageSize();
+    if (offset >= list.length) offset = Math.max(0, Math.floor((list.length - 1) / limit) * limit);
+    const pages = view.querySelector('#pages');
+    pages.innerHTML = pager(list.length, offset, limit, 'terceiros', { sizes: true });
+    bindPager(pages, (off) => { offset = off; draw(); });
+    view.querySelector('#rows').innerHTML = list.slice(offset, offset + limit).map((r) => `<tr class="clickable" data-id="${r.id}">
       <td><b>${esc(r.name)}</b><a class="small" data-ficha style="margin-left:6px" href="#/${cpath((r.kind === 'F' ? 'terceiro/' : 'cliente/') + r.id)}">extrato${r.kind === 'F' ? '' : ' e dívida'}</a></td><td class="mono">${esc(r.nif || '')}</td><td>${KINDS[r.kind]}</td><td>${esc(r.city || '')}</td>
       <td class="mono">${esc(r.account || '')}</td><td class="small">${esc([r.email, r.phone].filter(Boolean).join(' · '))}</td></tr>`).join('')
       || '<tr><td colspan="6" class="empty">Nenhum terceiro.</td></tr>';
@@ -49,8 +55,8 @@ export async function render({ view }) {
       } }],
     });
   };
-  view.querySelector('#q').oninput = debounce(draw, 150);
-  view.querySelector('#kind').onchange = draw;
+  view.querySelector('#q').oninput = debounce(() => { offset = 0; draw(); }, 150);
+  view.querySelector('#kind').onchange = () => { offset = 0; draw(); };
   view.querySelector('#new').onclick = () => edit();
   draw();
 }
