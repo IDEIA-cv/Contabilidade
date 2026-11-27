@@ -1,0 +1,34 @@
+IDEIA Contabilidade — versão portátil
+=====================================
+
+Não precisa de instalar nada. Copie esta pasta para onde quiser (Documentos, Ambiente de
+trabalho, uma pen USB...) e abra o programa:
+
+  Windows:  duplo clique em "Abrir IDEIA.bat"
+  Mac:      duplo clique em "Abrir IDEIA.command"
+            Na primeira vez o Mac pode recusar: clique com o botão direito no ficheiro,
+            escolha "Abrir" e confirme. Depois disso o duplo clique passa a funcionar.
+  Linux:    ./abrir-ideia.sh
+
+Abre-se uma janela preta (é o motor do programa) e o browser com o IDEIA Contabilidade.
+Mantenha essa janela aberta enquanto trabalha; para sair, feche-a.
+
+Onde ficam os dados
+-------------------
+Na pasta "dados", ao lado deste ficheiro: uma empresa = um ficheiro .ideia, mais as cópias
+de segurança automáticas (dados/backups) e os utilizadores (dados/acesso.json).
+Para levar tudo para outro computador, copie a pasta inteira.
+
+Cuidados
+--------
+- Não ponha esta pasta dentro do Google Drive, OneDrive, iCloud ou Dropbox enquanto o programa
+  está aberto: a sincronização pode estragar o ficheiro da empresa. Para guardar cópias na
+  cloud use "Cópia de segurança" dentro do programa.
+- O programa só aceita ligações deste computador.
+
+Atualizar para uma versão nova
+------------------------------
+Descarregue o pacote novo e substitua as pastas "app" e "php" e os ficheiros "Abrir IDEIA".
+NÃO substitua a pasta "dados". (Ou copie a pasta "dados" antiga para dentro do pacote novo.)
+
+Ajuda e código: https://github.com/IDEIA-cv/Contabilidade

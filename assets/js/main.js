@@ -116,6 +116,12 @@ async function route_() {
     }
     await companyLoad;
     if (my !== routing) return;
+    // um encaminhamento intermédio (ex.: ida rápida à lista de empresas) pode ter limpo a empresa: recarrega
+    if (state.company !== id || !state.info) {
+      state.company = id; api.company = id;
+      await refreshInfo();
+      if (my !== routing) return;
+    }
     const section = parts[2] || 'painel';
     const mod = ROUTES[section];
     renderChrome(parts.slice(2).join('/'));

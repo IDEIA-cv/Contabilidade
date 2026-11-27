@@ -1,0 +1,120 @@
+# Pacote portátil: a aplicação + PHP para Windows, Mac (Intel e Apple Silicon) e Linux, num zip
+# que se copia para qualquer pasta e se abre com "Abrir IDEIA". Sem instalação nem XAMPP.
+# - push para develop: pré-lançamento "portatil-develop" (substituído a cada push)
+# - tag v*: lançamento com os zips
+name: Pacote portátil
+
+on:
+  push:
+    branches: [develop, main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PHP_SERIES: '8.3'
+
+jobs:
+  php-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descarregar PHP para Windows (windows.php.net)
+        shell: pwsh
+        run: |
+          $rel = Invoke-RestMethod https://windows.php.net/downloads/releases/releases.json
+          $zip = $rel.$env:PHP_SERIES.'nts-vs16-x64'.zip.path
+          Write-Host "PHP: $zip"
+          Invoke-WebRequest "https://windows.php.net/downloads/releases/$zip" -OutFile php.zip
+          Expand-Archive php.zip -DestinationPath phpbin\windows
+          # runtime do Visual C++ ao lado do php.exe, para funcionar mesmo sem o redistribuível instalado
+          Copy-Item C:\Windows\System32\vcruntime140.dll, C:\Windows\System32\vcruntime140_1.dll, C:\Windows\System32\msvcp140.dll phpbin\windows\
+          Remove-Item phpbin\windows\php.ini-*, phpbin\windows\*.pdb -ErrorAction SilentlyContinue
+          Copy-Item tools\portable\php.ini phpbin\windows\php.ini
+      - name: Verificar extensões
+        shell: pwsh
+        run: |
+          $out = & phpbin\windows\php.exe -c phpbin\windows\php.ini -d extension_dir="$PWD\phpbin\windows\ext" -m
+          $out
+          foreach ($e in 'pdo_sqlite','mbstring','zip','xmlwriter','dom','SimpleXML','zlib','curl','openssl') { if (-not ($out -contains $e)) { Write-Error "Falta a extensão $e"; exit 1 } }
+      - name: Testes no Windows
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $php = "phpbin\windows\php.exe"
+          & $php -c phpbin\windows\php.ini -d extension_dir="$PWD\phpbin\windows\ext" tests\run.php
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: php-windows
+          path: phpbin
+
+  php-unix:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descarregar PHP estático (static-php-cli, extensões "common")
+        run: |
+          base=https://dl.static-php.dev/static-php-cli/common
+          list=$(curl -fsSL "$base/")
+          get() { # get <sistema-arq> <pasta>
+            f=$(echo "$list" | grep -oE "php-${PHP_SERIES//./\\.}\.[0-9]+-cli-$1\.tar\.gz" | sort -uV | tail -1)
+            [ -n "$f" ] || { echo "Sem PHP $PHP_SERIES para $1"; exit 1; }
+            echo "PHP: $f"
+            mkdir -p "phpbin/$2"
+            curl -fsSL "$base/$f" | tar -xz -C "phpbin/$2"
+            chmod +x "phpbin/$2/php"
+          }
+          get macos-aarch64 mac-arm64
+          get macos-x86_64 mac-x64
+          get linux-x86_64 linux-x64
+          file phpbin/*/php
+      - name: Testar (Apple Silicon)
+        run: |
+          phpbin/mac-arm64/php -m
+          phpbin/mac-arm64/php tests/run.php
+      - uses: actions/upload-artifact@v4
+        with:
+          name: php-unix
+          path: phpbin
+
+  pacote:
+    needs: [php-windows, php-unix]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: phpbin
+          merge-multiple: true
+      - name: Testar o lançador (Linux)
+        run: |
+          chmod +x phpbin/*/php
+          mkdir -p /tmp/t/app && git archive HEAD | tar -x -C /tmp/t/app
+          IDEIA_DATA_DIR=/tmp/t/dados timeout 15 phpbin/linux-x64/php /tmp/t/app/tools/portable/launcher.php --no-browser &
+          sleep 5
+          curl -fsS http://127.0.0.1:8765/api.php?action=ping | tee /dev/stderr | grep -q '"IDEIA Contabilidade"'
+          curl -fsS -o /dev/null http://127.0.0.1:8765/
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/src/Api.php)" = 404
+      - name: Montar zips
+        run: tools/portable/build.sh phpbin dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IDEIA-Contabilidade-portatil
+          path: dist/*.zip
+      - name: Pré-lançamento portatil-develop
+        if: github.ref == 'refs/heads/develop'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete portatil-develop --cleanup-tag -y || true
+          gh release create portatil-develop dist/*.zip --prerelease --target "$GITHUB_SHA" \
+            --title "Versão portátil (develop)" \
+            --notes "Versão de teste gerada a partir do develop (${GITHUB_SHA::7}). Descarregue o zip do seu sistema, descompacte em qualquer pasta e abra 'Abrir IDEIA'. Veja o LEIA-ME.txt."
+      - name: Lançamento
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "IDEIA Contabilidade $GITHUB_REF_NAME" --generate-notes

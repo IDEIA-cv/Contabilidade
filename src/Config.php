@@ -15,6 +15,12 @@ final class Config
                 $file = IDEIA_ROOT . '/config.sample.php';
             }
             self::$values = require $file;
+            // Versão portátil: o lançador indica a pasta de dados (fora da pasta da aplicação, para sobreviver a atualizações).
+            $env = getenv('IDEIA_DATA_DIR');
+            if (is_string($env) && $env !== '') {
+                self::$values['data_dir'] = rtrim($env, '/\\');
+                self::$values['backup_dir'] = self::$values['data_dir'] . '/backups';
+            }
         }
         return self::$values[$key] ?? $default;
     }

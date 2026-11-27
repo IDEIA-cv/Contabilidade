@@ -6,6 +6,42 @@
 - Um browser recente (Chrome, Edge, Firefox ou Safari).
 - Não precisa de MySQL, Node.js nem internet.
 
+## Opção recomendada — versão portátil (sem instalar nada)
+
+É a forma pensada para os utilizadores: **copiar uma pasta e abrir no browser**. O pacote traz o PHP dentro, por isso não precisa de XAMPP nem de instalar nada.
+
+1. Descarregue o zip do seu sistema na página de lançamentos do GitHub (`IDEIA-Contabilidade-<versão>-windows.zip`, `-mac.zip` ou `-todos.zip`). O pré-lançamento **portatil-develop** é refeito a cada alteração no ramo develop.
+2. Descompacte para qualquer pasta (Documentos, Ambiente de trabalho, pen USB).
+3. Abra o programa:
+   - **Windows:** duplo clique em `Abrir IDEIA.bat`.
+   - **Mac:** duplo clique em `Abrir IDEIA.command`. Na primeira vez o macOS bloqueia ficheiros descarregados: botão direito → **Abrir** → confirmar. O lançador retira a marca de quarentena da pasta para as vezes seguintes.
+   - **Linux:** `./abrir-ideia.sh`.
+
+Abre-se uma janela de consola (o servidor) e o browser em `http://127.0.0.1:<porta>/`. Fechar a janela fecha o programa.
+
+Estrutura do pacote:
+
+```
+IDEIA Contabilidade/
+  Abrir IDEIA.bat / Abrir IDEIA.command / abrir-ideia.sh
+  LEIA-ME.txt
+  app/      a aplicação (substitui-se nas atualizações)
+  php/      PHP portátil: windows/, mac-arm64/, mac-x64/, linux-x64/
+  dados/    empresas .ideia, backups/, acesso.json (nunca se substitui)
+```
+
+Como funciona (`tools/portable/`):
+
+- `launcher.php` escolhe a primeira porta livre entre 8765 e 8799, arranca `php -S 127.0.0.1:<porta>` com `router.php`, espera que responda ao `ping` e abre o browser. Se o programa já estiver aberto com a mesma pasta de dados, só abre o browser (estado em `dados/.servidor.json`, registo em `dados/servidor.log`).
+- A pasta de dados chega à aplicação pela variável de ambiente `IDEIA_DATA_DIR`, que tem prioridade sobre `config.php`.
+- O `php -S` não lê `.htaccess`; `router.php` só serve `index.php`, `api.php` e `assets/`, e responde 404 ao resto (`src/`, `data/`, `config.php`...).
+- Só escuta em `127.0.0.1`. No Mac e no Linux usa 4 processos (`PHP_CLI_SERVER_WORKERS`).
+- PHP incluído: Windows, a versão oficial de windows.php.net (8.3 NTS x64) com o runtime do Visual C++ ao lado; Mac e Linux, os binários estáticos do projeto static-php-cli (extensões "common").
+
+Os zips são montados pelo GitHub Actions (`.github/workflows/portatil.yml`): descarrega o PHP, verifica as extensões, corre os testes com esse PHP e testa o lançador. Localmente: `tools/portable/build.sh <pasta-php> dist`.
+
+Para usar o lançador com o PHP do sistema, a partir do repositório: `php tools/portable/launcher.php` (usa a pasta de dados do `config.php`).
+
 ## Opção A — XAMPP no Mac
 
 1. Copie a pasta do projeto para `/Applications/XAMPP/xamppfiles/htdocs/contabilidade`.
@@ -28,8 +64,10 @@
 ## Opção C — servidor embutido do PHP (desenvolvimento)
 
 ```bash
-php -S 127.0.0.1:8765
+php -S 127.0.0.1:8765 tools/portable/router.php
 ```
+
+Com o router, as pastas internas ficam fechadas como no Apache.
 
 Abra <http://127.0.0.1:8765/>.
 

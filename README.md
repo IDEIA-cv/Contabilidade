@@ -27,14 +27,16 @@ Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF
 
 ## Começar
 
-Requisitos: PHP 8.0+ com `pdo_sqlite` (incluído no XAMPP).
+**Utilizadores:** descarregue a versão portátil (zip com o PHP incluído) nos lançamentos do GitHub, descompacte em qualquer pasta e faça duplo clique em `Abrir IDEIA`. Não precisa de instalar nada. Ver [docs/02-instalacao.md](docs/02-instalacao.md).
+
+**Programadores:** PHP 8.0+ com `pdo_sqlite` (incluído no XAMPP).
 
 ```bash
 # na pasta htdocs do XAMPP, ou em qualquer pasta:
 git clone https://github.com/IDEIA-cv/Contabilidade.git contabilidade
 cd contabilidade
 php tools/seed-demo.php      # opcional: empresa de demonstração
-php -S 127.0.0.1:8765        # ou use o Apache do XAMPP: http://localhost/contabilidade/
+php -S 127.0.0.1:8765 tools/portable/router.php   # ou use o Apache do XAMPP: http://localhost/contabilidade/
 ```
 
 No Mac com XAMPP, dê permissão de escrita ao Apache: `sudo chown -R daemon data`.

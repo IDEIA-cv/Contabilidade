@@ -39,6 +39,7 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 
 - **Estatísticas a partir dos documentos**: vendas por artigo, família e cliente com margem, compras por fornecedor e conta, prazos reais de recebimento e pagamento (também nos rácios PMR/PMP), imobilizado no painel.
 - **Inventário periódico**: apuramento do custo das mercadorias vendidas (31 → 32/33 → 611/612) com o inventário contado; o fecho exige-o. Relatório de gestão e carteira usam os dados da faturação.
+- **Versão portátil**: copiar a pasta e abrir com "Abrir IDEIA" (Windows, Mac, Linux), PHP incluído, sem XAMPP. Zips gerados pelo GitHub Actions. Ver [02-instalacao](02-instalacao.md).
 
 ## Próximo — validação (antes de qualquer cliente real)
 
@@ -61,7 +62,7 @@ A geração dos DFE e o envio pelo Middleware existem desde a v0.5. Falta a homo
 
 ## Fase 3 — produto
 
-- Empacotamento como aplicação de ambiente de trabalho (Tauri ou PHP embebido) com instalador para Windows e macOS, sem precisar de XAMPP. Ver [ADR 0001](adr/0001-php-sqlite-htdocs.md).
+- Versão portátil feita (v0.7): pasta com PHP incluído e lançador "Abrir IDEIA", sem instalação. Falta assinar os binários (Windows SmartScreen, macOS Gatekeeper) para não aparecer o aviso na primeira abertura.
 - Encriptação opcional do ficheiro `.ideia`.
 - Migrações de esquema automáticas e testadas.
 - Módulos: centros de custo (campo `cost_center` já existe), declarações (Modelo 1B, IUR/IRPC) com exportação.
