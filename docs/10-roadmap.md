@@ -16,7 +16,7 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 | Rever plano de contas, balanço e DR com contabilista certificado (OPACC) | Os mapeamentos são uma primeira versão |
 | Obter o XSD oficial do SAF-T CV junto da DNRE e validar a exportação no SAFTPRO | Namespace e campos obrigatórios ainda por confirmar |
 | Recolher SAF-T reais e anonimizados do Primavera, PHC, Sage e exportações do Vendus | Os testes usam um ficheiro sintético |
-| Definir a licença open-source (sugestão: AGPL-3.0 para o núcleo) | Necessário antes de divulgar |
+| Confirmar a licença open-source (o plano propõe GPL-3.0 para a aplicação e Apache-2.0 para as bibliotecas de e-Fatura e SAF-T) | Necessário antes de divulgar |
 | Piloto com 2 ou 3 gabinetes de contabilidade | Validar fluxos reais |
 
 ## Fase 2 — e-Fatura e faturação (depende da DNRE)
