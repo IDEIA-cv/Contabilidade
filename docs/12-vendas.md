@@ -22,7 +22,7 @@ Código: `src/Sales.php` (regras), `src/SalesPrint.php` (impressão A4), `assets
 NC, ND e RC nascem sempre de uma fatura. As notas exigem o motivo de emissão (artigo 65.º do CIVA).
 
 - **Nota de crédito**: botão na lista de vendas (escolhe-se a fatura, fatura-recibo, talão ou nota de débito emitidos numa janela com pesquisa) ou **Emitir nota de crédito** na página da fatura.
-- **Recibo**: botão na lista de vendas (escolhe-se uma fatura por receber e abre o registo do pagamento) ou **Registar pagamento** na página da fatura.
+- **Recibo**: botão na lista de vendas (escolhe-se uma fatura por receber e abre o registo do pagamento) ou **Emitir recibo** na página da fatura. Uma fatura pode ter vários recibos (pagamentos parciais); cada recibo não pode passar do valor ainda em dívida, que a janela mostra junto com o já recebido.
 - **Nota de débito**: **Emitir nota de débito** na página da fatura.
 
 ### Documentos relacionados, associar e duplicar
@@ -79,7 +79,7 @@ As contas de caixa e banco podem ser mudadas em `meta.sales_cash_account` e `met
 
 - **Em dívida** de uma FT/ND = total − recibos emitidos − notas de crédito emitidas (`Sales::openAmount`).
 - **Dívidas de clientes** (`Sales::debtors`): total por cliente com antiguidade a partir da data de vencimento (a vencer, 1–30, 31–60, 61–90, mais de 90 dias), à data escolhida. Exporta para Excel e imprime.
-- **Ficha do cliente** (`#/c/<empresa>/cliente/<id>`): em dívida, vencido, faturado e recebido no ano. Tem três separadores: faturas por pagar (com **Registar pagamento** em cada linha), extrato de conta corrente com saldo acumulado, e últimos documentos.
+- **Ficha do cliente** (`#/c/<empresa>/cliente/<id>`): em dívida, vencido, faturado e recebido no ano. Tem três separadores: faturas por pagar (com **Emitir recibo** em cada linha), extrato de conta corrente com saldo acumulado, e últimos documentos.
 - **Movimentos e extrato** (clientes e fornecedores): extrato de conta corrente a partir da **contabilidade** (`Reports::partyStatement`), com saldo inicial do exercício, todos os movimentos validados do terceiro nas contas correntes (classe 2, exceto Estado 24: 21 clientes, 22 fornecedores, 27/28 outros), saldo acumulado, filtro por conta, Excel e impressão. Inclui faturas emitidas aqui, faturas de fornecedores, pagamentos e histórico importado.
   - O saldo segue o sentido natural: num cliente é positivo quando o cliente deve; num fornecedor é positivo quando a empresa deve.
   - A ficha do fornecedor abre em `#/c/<empresa>/terceiro/<id>`. Em **Clientes e fornecedores**, cada linha tem a ligação "extrato".

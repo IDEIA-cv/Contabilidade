@@ -25,7 +25,7 @@ Média das categorias que dependem do projeto: **8,5**. A conformidade fiscal su
 | Critério | Nota | Notas |
 |---|---|---|
 | Facilidade de aprendizagem | 8 | "Primeiros passos" no painel: dados da empresa → artigos → primeira fatura. Botões grandes "Nova fatura / Nova fatura-recibo / Novo orçamento". Estados vazios dizem o que fazer. |
-| Linguagem clara | 8 | Português corrente nas vendas ("Por receber", "Vencido", "Registar pagamento"). Mensagens de erro dizem como corrigir (ex.: ordem das datas, motivo de isenção). A parte contabilística usa termos técnicos, adequados a contabilistas. |
+| Linguagem clara | 8 | Português corrente nas vendas ("Por receber", "Vencido", "Emitir recibo"). Mensagens de erro dizem como corrigir (ex.: ordem das datas, motivo de isenção). A parte contabilística usa termos técnicos, adequados a contabilistas. |
 | Prevenção de erros | 8,5 | Confirmação antes de emitir, a explicar que o documento deixa de ser editável. Anular pede motivo. Valores calculados ao vivo. Cliente inexistente é assinalado. Preço com IVA calculado automaticamente. |
 | Eficiência | 8 | Pesquisa de artigos e clientes por escrita, criação de cliente sem sair da fatura, Enter acrescenta linha, conversão orçamento → fatura num clique, pagamento direto da lista de dívidas. |
 | Ecrãs pequenos | 8 | As linhas da fatura passam a cartões no telemóvel, sem deslizar na horizontal. Barra de ações fixa no fundo. Nenhuma página com deslocamento horizontal a 390 px. |

@@ -445,7 +445,7 @@ async function renderDoc(ctx, id) {
       <div class="toolbar no-print">
         <a class="btn" href="#/${cpath('vendas')}">Voltar à lista</a>
         <button class="primary" id="print">Imprimir / PDF</button>
-        ${canPay ? '<button class="primary" id="pay">Registar pagamento</button>' : ''}
+        ${canPay ? '<button class="primary" id="pay">Emitir recibo</button>' : ''}
       </div></div>
     ${d.status === 'anulado' ? `<div class="alert bad">Documento anulado. Motivo: ${esc(d.cancel_reason || '')}</div>` : ''}
     <div class="grid cols-2">
@@ -550,8 +550,9 @@ async function renderDoc(ctx, id) {
 
 function payDialog(d, done) {
   modal({
-    title: `Registar pagamento de ${d.doc_no}`,
-    body: `<p>Em dívida: <b>${money(d.open_cents)}</b>. É emitido um recibo e o recebimento é registado na contabilidade.</p>
+    title: `Emitir recibo de ${d.doc_no}`,
+    body: `<p>Valor em dívida: <b>${money(d.open_cents)}</b>${d.receipts?.length ? ` · já recebido ${money(d.receipts.filter((r) => r.status !== 'anulado').reduce((a, r) => a + Number(r.amount_cents), 0))} em ${d.receipts.filter((r) => r.status !== 'anulado').length} recibo(s)` : ''}.</p>
+      <p class="small muted">Se o cliente pagou só uma parte, indique esse valor: pode emitir mais recibos até a fatura ficar paga. O valor não pode passar do que está em dívida. O recebimento é registado na contabilidade.</p>
       <div class="form">
         <label>Data do pagamento<input type="date" name="date" value="${today()}"></label>
         <label>Valor recebido<input name="amount" class="num" inputmode="decimal" value="${money(d.open_cents)}"></label>
@@ -765,7 +766,7 @@ async function renderCustomer(ctx, id) {
       <tbody>${c.open_docs.map((d) => `<tr><td><a href="#/${cpath(docPath + d.id)}">${esc(supplier ? d.supplier_doc || d.doc_no : d.doc_no)}</a></td><td>${fmtDate(d.date)}</td><td>${fmtDate(d.due_date)}</td>
         <td class="num">${money(d.total_cents)}</td><td class="num"><b>${money(d.open_cents)}</b></td>
         <td>${d.days_overdue > 0 ? `<span class="badge ${d.days_overdue > 90 ? 'bad' : 'warn'}">${d.days_overdue} dias</span>` : '<span class="badge">A vencer</span>'}</td>
-        <td class="no-print"><button data-pay="${d.id}">Registar pagamento</button></td></tr>`).join('') || `<tr><td colspan="7" class="empty">${supplier ? 'Não há faturas deste fornecedor por pagar.' : 'Este cliente não tem faturas por pagar.'}</td></tr>`}</tbody>
+        <td class="no-print"><button data-pay="${d.id}">${supplier ? 'Registar pagamento' : 'Emitir recibo'}</button></td></tr>`).join('') || `<tr><td colspan="7" class="empty">${supplier ? 'Não há faturas deste fornecedor por pagar.' : 'Este cliente não tem faturas por pagar.'}</td></tr>`}</tbody>
       ${c.open_docs.length ? `<tfoot><tr class="total"><td colspan="4">Total em dívida</td><td class="num">${money(c.open)}</td><td colspan="2"></td></tr></tfoot>` : ''}</table></div>
       ${c.open_docs.length ? '<div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button id="x-open">Excel</button></div>' : ''}
       <p class="small muted">${supplier ? 'Faturas registadas em Compras' : 'Faturas emitidas neste programa'}. Dívidas de anos anteriores ou importadas aparecem em <a href="${link({ tab: 'extrato' })}">Movimentos e extrato</a>.</p></div>`;

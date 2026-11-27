@@ -827,7 +827,7 @@ final class Sales
             throw new UserError('As notas de crédito fazem-se a partir de uma fatura emitida.');
         }
         if ($src['type'] === 'RC' || $type === 'RC') {
-            throw new UserError('Os recibos registam-se com "Registar pagamento" na fatura.');
+            throw new UserError('Os recibos emitem-se com "Emitir recibo" na fatura ou no botão Recibo da lista de vendas.');
         }
         $lines = array_map(static fn($l) => [
             'item_id' => $l['item_id'], 'code' => $l['code'], 'description' => $l['description'], 'qty_milli' => (int) $l['qty_milli'],
