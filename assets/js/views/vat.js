@@ -14,7 +14,8 @@ export async function render({ view, query }) {
   view.innerHTML = `
     <div class="page-head"><div><h1>Apuramento do IVA</h1><p class="muted">${MONTHS_FULL[q.from - 1]}${q.from !== q.to ? ' a ' + MONTHS_FULL[q.to - 1] : ''} de ${state.year}. Base: contas 2432 (dedutível), 2433 (liquidado) e 2434 (regularizações).</p></div>
       <div class="toolbar no-print" id="tb"><label>De<select name="from">${monthOptions(q.from)}</select></label><label>Até<select name="to">${monthOptions(q.to)}</select></label>
-        <button id="post" class="primary">Gerar lançamento de apuramento</button><button data-print>Imprimir</button></div></div>
+        ${r.posted.length ? '' : '<button id="post" class="primary" data-admin>Gerar lançamento de apuramento</button>'}<button data-print>Imprimir</button></div></div>
+    ${r.posted.length ? `<div class="alert good">Este período já foi apurado: ${r.posted.map(([f, t, id]) => `<a href="#/${cpath('lancamento/' + id)}">${MONTHS_FULL[f - 1]}${f !== t ? ' a ' + MONTHS_FULL[t - 1] : ''}</a>`).join(', ')}. Para refazer, estorne esse lançamento.</div>` : ''}
     <div class="kpis">
       <div class="kpi"><div class="label">IVA liquidado (vendas)</div><div class="value">${money(r.liquidado)}</div></div>
       <div class="kpi"><div class="label">IVA dedutível (compras)</div><div class="value">${money(r.dedutivel)}</div></div>
@@ -34,7 +35,7 @@ export async function render({ view, query }) {
   view.querySelectorAll('#tb select').forEach((s) => { s.onchange = () => { const f = view.querySelector('[name=from]').value, t = view.querySelector('[name=to]').value; go(cpath(`iva?from=${f}&to=${t}`)); }; });
   view.querySelectorAll('[data-xlsx]').forEach((b) => { b.onclick = () => tableToXlsx(view.querySelector('#' + b.dataset.xlsx), `iva_${b.dataset.xlsx}_${state.year}.xlsx`, { sheet: 'IVA', title: `${state.info.name} · Apuramento do IVA ${state.year}` }); });
   view.querySelectorAll('[data-csv]').forEach((b) => { b.onclick = () => tableToCsv(view.querySelector('#' + b.dataset.csv), `iva_${b.dataset.csv}_${state.year}.csv`); });
-  view.querySelector('#post').onclick = async () => {
+  view.querySelector('#post')?.addEventListener('click', async () => {
     if (!(await confirmDialog('Gerar apuramento do IVA', `Será criado e validado um lançamento no último dia de ${MONTHS_FULL[q.to - 1]} com o resultado de ${money(r.resultado)}.`, 'Gerar'))) return;
     try {
       const e = await api.post('vat.post', { year: state.year, from: q.from, to: q.to });
@@ -42,5 +43,5 @@ export async function render({ view, query }) {
       await refreshInfo();
       go(cpath('lancamento/' + e.id));
     } catch (err) { toast(err.message, 'bad'); }
-  };
+  });
 }

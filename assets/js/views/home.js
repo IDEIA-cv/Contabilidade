@@ -15,8 +15,8 @@ export async function render({ view }) {
     <div class="page-head">
       <div><h1>Empresas</h1><p class="muted">Cada empresa é um ficheiro <span class="mono">.ideia</span> guardado neste computador, em <span class="mono">${esc(ping.data_dir)}</span>.</p></div>
       <div class="toolbar">
-        <button id="restore">Abrir cópia (.ideia)</button>
-        <button class="primary" id="create">Nova empresa</button>
+        <button id="restore" data-admin>Abrir cópia (.ideia)</button>
+        <button class="primary" id="create" data-admin>Nova empresa</button>
       </div>
     </div>
     ${problems.length ? `<div class="alert bad"><b>A instalação precisa de atenção:</b><ul>${problems.map((c) => `<li><b>${esc(c.label)}</b>: ${esc(c.fix)}</li>`).join('')}</ul>Depois de corrigir, recarregue a página.</div>` : ''}

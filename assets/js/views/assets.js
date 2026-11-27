@@ -35,9 +35,9 @@ async function renderList({ view, query }) {
     <div class="card" id="post-card">
       <h2>Depreciações do exercício ${y}</h2>
       ${res.pending ? `<p>Há <b>${money(res.pending_cents)}</b> de depreciações por lançar em ${y} (${res.pending} bem(ns)). O lançamento é feito em 31/12/${y} no diário de operações diversas, com uma linha por bem.</p>
-        <div class="toolbar"><button class="primary" id="post">Lançar depreciações de ${y}</button></div>`
+        <div class="toolbar"><button class="primary" id="post" data-admin>Lançar depreciações de ${y}</button></div>`
         : res.posted ? `<p>As depreciações de ${y} estão lançadas${res.posted_entry ? ` (<a href="#/${cpath('lancamento/' + res.posted_entry)}">ver lançamento</a>)` : ''}.</p>
-        <div class="toolbar"><button id="unpost">Anular as depreciações de ${y}</button><span class="small muted">Estorna o lançamento. Use se precisar de corrigir um bem.</span></div>`
+        <div class="toolbar"><button id="unpost" data-admin>Anular as depreciações de ${y}</button><span class="small muted">Estorna o lançamento. Use se precisar de corrigir um bem.</span></div>`
         : `<p class="muted">Não há depreciações a lançar em ${y}.</p>`}
       <p class="small muted">Mude o exercício no topo da página. As taxas sugeridas por categoria devem ser confirmadas pelo contabilista com a tabela legal em vigor.</p>
     </div>
@@ -103,7 +103,7 @@ async function renderAsset(ctx, id) {
     <div class="page-head"><div><h1>${esc(a.code)} · ${esc(a.description)}</h1>
       <p>${a.status === 'abatido' ? `<span class="badge">${esc(a.disposal_reason || 'Abatido')} em ${fmtDate(a.disposal_date)}</span>` : '<span class="badge good">Em uso</span>'} <span class="muted small">${esc(a.category_name)}</span></p></div>
       <div class="toolbar no-print"><a class="btn" href="#/${cpath('imobilizado')}">Voltar à lista</a>
-        ${a.status === 'ativo' ? '<button id="edit">Alterar</button><button id="dispose">Abater ou vender</button>' : ''}
+        ${a.status === 'ativo' ? '<button id="edit">Alterar</button><button id="dispose" data-admin>Abater ou vender</button>' : ''}
         ${a.status === 'ativo' && !posted ? '<button class="danger" id="del">Apagar</button>' : ''}</div></div>
     <div class="grid cols-2">
       <div class="card"><h2>Ficha do bem</h2><dl class="dl">

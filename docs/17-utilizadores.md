@@ -10,7 +10,7 @@ Por omissão a aplicação abre sem palavra-passe (um computador, uma pessoa). E
 | Colaborador | Lançamentos, vendas, compras, bancos, imobilizado (fichas) e envio para a e-Fatura. Não gere utilizadores, a empresa, o plano de contas nem fecha exercícios |
 | Só leitura | Consulta relatórios, listas e documentos, imprime e exporta. Não altera nada |
 
-As permissões são verificadas no servidor (`Api::authorize`) antes de abrir a empresa; o menu do browser é só uma ajuda. Há sempre pelo menos um contabilista ativo.
+As permissões são verificadas no servidor (`Api::authorize`) antes de abrir a empresa. O ecrã esconde as ações que o perfil não pode fazer: botões marcados com `data-admin` para colaborador e só leitura, e todos os botões de alteração para só leitura, que vê também o aviso **Só leitura** no topo. Isto é só ajuda visual, porque quem decide é o servidor. Há sempre pelo menos um contabilista ativo.
 
 ## Entrada e sessão
 

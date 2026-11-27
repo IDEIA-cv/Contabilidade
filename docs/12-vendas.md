@@ -38,6 +38,7 @@ Isenções e unidades usam as listas oficiais da e-Fatura (códigos). Com a e-Fa
 - Cada tipo tem a sua numeração e a série é o ano da data do documento: `FT 2026/1`, `FT 2026/2`, `OR 2026/1`…
 - O número só é atribuído na **emissão**. Os rascunhos não têm número e podem ser apagados sem deixar buracos.
 - A numeração segue a ordem das datas: não é possível emitir um documento com data anterior ao último da mesma série.
+- Um recibo, uma nota de crédito ou uma nota de débito não pode ter data anterior à da fatura a que se refere.
 - Documentos fiscais não podem ter data futura.
 - Um número nunca é reutilizado: um documento anulado mantém o número.
 - Tabela `doc_series` guarda o último número, a última data e o último hash de cada série.

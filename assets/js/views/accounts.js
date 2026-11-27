@@ -11,7 +11,7 @@ export async function render({ view }) {
     <div class="page-head"><div><h1>Plano de contas</h1><p class="muted">Base SNCRF, a validar pelo contabilista. Só as contas sem subcontas (de movimento) aceitam lançamentos.</p></div>
       <div class="toolbar"><label>Pesquisar<input id="q" placeholder="Código ou nome"></label>
         <label>Classe<select id="cls"><option value="">Todas</option>${[1, 2, 3, 4, 5, 6, 7, 8].map((c) => `<option>${c}</option>`).join('')}</select></label>
-        <button class="primary" id="new">Nova conta</button></div></div>
+        <button class="primary" id="new" data-admin>Nova conta</button></div></div>
     <div class="card"><div class="table-wrap"><table>
       <thead><tr><th style="width:140px">Código</th><th>Nome</th><th>Tipo</th><th>Estado</th><th></th></tr></thead>
       <tbody id="rows"></tbody></table></div></div>`;
@@ -24,7 +24,7 @@ export async function render({ view }) {
         <td>${Number(a.movement) ? '<span class="badge info">Movimento</span>' : '<span class="badge">Razão</span>'}</td>
         <td>${Number(a.active) ? '' : '<span class="badge warn">Inativa</span>'}</td>
         <td class="num"><button class="icon-btn" data-sub="${esc(a.code)}" title="Criar subconta">+ subconta</button>
-          <button class="icon-btn" data-edit="${esc(a.code)}">Editar</button>
+          <button class="icon-btn" data-admin data-edit="${esc(a.code)}">Editar</button>
           ${Number(a.movement) && Number(a.used) ? `<a class="small" href="#/${cpath('relatorios/razao?account=' + a.code)}">extrato</a>` : ''}</td></tr>`).join('')
       || '<tr><td colspan="5" class="empty">Nenhuma conta.</td></tr>';
     view.querySelectorAll('[data-sub]').forEach((b) => { b.onclick = () => edit({ code: b.dataset.sub, name: '' }, true); });
@@ -41,7 +41,7 @@ export async function render({ view }) {
         ${parent && Number(parent.used) ? '<p class="wide alert warn">Esta conta já tem movimentos e não pode receber subcontas.</p>' : ''}</div>`,
       actions: [{ label: 'Cancelar' }, { label: 'Guardar', primary: true, onClick: async (el) => {
         const d = formData(el);
-        if (!isNew) d.code = a.code;
+        if (!isNew) d.code = a.code; else d.new = 1;
         await api.post('accounts.save', d);
         accounts = await api.get('accounts.list');
         invalidateRefs();

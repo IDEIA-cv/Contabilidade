@@ -57,7 +57,11 @@ final class Ledger
 
     public static function saveAccount(Db $db, array $data): array
     {
-        $code = preg_replace('/\D/', '', (string) ($data['code'] ?? '')) ?? '';
+        $raw = trim((string) ($data['code'] ?? ''));
+        if (preg_match('/[^\d\s.]/', $raw)) {
+            throw new UserError('O código da conta só pode ter algarismos (ex.: 2211).');
+        }
+        $code = preg_replace('/\D/', '', $raw) ?? '';
         $name = trim((string) ($data['name'] ?? ''));
         if ($code === '' || $code[0] < '1' || $code[0] > '8') {
             throw new UserError('O código da conta deve começar por um dígito de 1 a 8.');
@@ -67,6 +71,9 @@ final class Ledger
         }
         return $db->transaction(static function () use ($db, $code, $name, $data) {
             $exists = $db->one('SELECT * FROM accounts WHERE code = ?', [$code]);
+            if ($exists && !empty($data['new'])) {
+                throw new UserError("A conta {$code} já existe ({$exists['name']}). Para lhe mudar o nome, use Alterar na lista.");
+            }
             if ($exists) {
                 $db->run('UPDATE accounts SET name = ?, active = ? WHERE code = ?', [$name, (int) ($data['active'] ?? 1), $code]);
                 $db->audit('conta.alterada', ['code' => $code]);

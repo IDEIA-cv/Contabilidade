@@ -24,7 +24,7 @@ export async function render({ view }) {
           <label>Modelo<a class="btn" id="csv-template" href="#">Descarregar modelo</a></label>
           <label class="wide">Ficheiro<input type="file" id="csv-file" accept=".csv,.txt"></label>
         </div>
-        <div class="toolbar" style="margin-top:10px"><button id="csv-preview">Pré-visualizar</button><button class="primary" id="csv-import">Importar</button></div>
+        <div class="toolbar" style="margin-top:10px"><button id="csv-preview">Pré-visualizar</button><button class="primary" id="csv-import" data-admin>Importar</button></div>
         <div id="csv-out" style="margin-top:12px"></div></div>
     </div>
     <div class="grid cols-2">
@@ -60,7 +60,7 @@ export async function render({ view }) {
         ${p.conflicts.length ? `<h3 style="margin-top:12px">Contas a mapear</h3><p class="muted small">Estas contas têm subcontas no plano atual. Indique a conta de movimento de destino.</p>
           ${p.conflicts.map((c) => `<div class="form"><label>${esc(c.code)} ${esc(c.name)}<input class="mono" data-map="${esc(c.code)}" placeholder="ex.: ${esc(c.code)}8"></label></div>`).join('')}` : ''}
         ${p.opening_total ? `<label style="display:flex;gap:8px;margin-top:12px"><input type="checkbox" id="saft-opening" ${p.suggest_opening ? 'checked' : ''}> Criar lançamento de abertura a partir dos saldos iniciais das contas</label>` : ''}
-        <div class="toolbar" style="margin-top:12px"><button class="primary" id="saft-commit" ${p.can_import ? '' : 'disabled'}>Importar ${p.transactions} lançamentos</button></div>`;
+        <div class="toolbar" style="margin-top:12px"><button class="primary" id="saft-commit" data-admin ${p.can_import ? '' : 'disabled'}>Importar ${p.transactions} lançamentos</button></div>`;
       const btn = saftOut.querySelector('#saft-commit');
       btn.onclick = async () => {
         btn.disabled = true;

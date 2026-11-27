@@ -77,6 +77,7 @@ function renderChrome(route = '') {
   if (state.info) {
     right.innerHTML = `<label class="small muted" style="display:flex;align-items:center;gap:6px">Exercício
         <select id="year-select">${state.info.years.map((y) => `<option ${Number(y.year) === state.year ? 'selected' : ''}>${y.year}</option>`).join('')}</select></label>
+        ${state.auth?.role === 'leitura' ? '<span class="badge warn" title="Pode consultar, imprimir e exportar, mas não alterar">Só leitura</span>' : ''}
         ${state.info.drafts ? `<a class="badge warn" href="#/${cpath('lancamentos?status=rascunho')}">${state.info.drafts} rascunho(s)</a>` : ''}`;
     right.querySelector('#year-select').onchange = (e) => {
       state.year = Number(e.target.value);
@@ -108,10 +109,12 @@ async function route_() {
     }
     const id = parts[1];
     if (state.company !== id) {
-      state.company = id; api.company = id; state.year = null;
-      state.companies = await api.get('companies.list');
-      await refreshInfo();
+      state.company = id; api.company = id; state.year = null; state.info = null;
+      // dois encaminhamentos seguidos (ex.: entrada + hashchange) esperam pelo mesmo carregamento da empresa
+      companyLoad = (async () => { state.companies = await api.get('companies.list'); await refreshInfo(); })();
+      companyLoad.catch(() => { state.company = null; });
     }
+    await companyLoad;
     if (my !== routing) return;
     const section = parts[2] || 'painel';
     const mod = ROUTES[section];
@@ -126,6 +129,7 @@ async function route_() {
     view.innerHTML = `<div class="alert bad">${esc(err.message)}</div><p><a href="#/">Voltar às empresas</a></p>`;
   }
 }
+let companyLoad = null;
 export const rerender = route_;
 
 // ---------------------------------------------------------------- palavra-passe de acesso (opcional)

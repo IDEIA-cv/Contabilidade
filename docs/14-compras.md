@@ -30,6 +30,7 @@ Código: `src/Purchases.php` (regras), `assets/js/views/purchases.js` (ecrãs). 
 - **Registar pagamento** numa fatura: valor parcial ou total.
 - Na ficha do fornecedor (**Pagar faturas**), em **Dívidas a fornecedores** (**Pagar**) e no **Mapa de pagamentos**: um pagamento pode liquidar várias faturas do mesmo fornecedor (`purchase_settlements`).
 - O valor pago a cada fatura não pode exceder o valor em dívida.
+- O pagamento e a nota de crédito do fornecedor não podem ter data anterior à da fatura.
 
 ## Em dívida, dívidas e mapa
 

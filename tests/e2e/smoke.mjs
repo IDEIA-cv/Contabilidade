@@ -13,7 +13,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
 const errors = [];
 let expect400 = false; // recusas esperadas (teste de perfis)
-page.on('console', (m) => { if (m.type() === 'error' && !(expect400 && m.text().includes('status of 400'))) errors.push(`[console] ${m.text()}`); });
+page.on('console', (m) => { if (m.type() === 'error' && !(expect400 && m.text().includes('status of 400'))) errors.push(`[console] ${m.text()} ${m.location()?.url || ''} @ ${page.url()}`); });
 page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 page.on('response', (r) => { if (r.url().includes('api.php') && r.status() >= 500) errors.push(`[http ${r.status()}] ${r.url()}`); });
 
@@ -340,6 +340,27 @@ console.log('ok', '23-impressao');
     }, COMPANY);
     expect400 = false;
     if (!/contabilista/.test(denied)) errors.push(`[utilizadores] colaborador não foi travado numa ação de contabilista: ${denied}`);
+    // colaborador (sessão de rui): não vê "Nova conta" nem "Fechar exercício", mas vê "Novo bem"
+    await visit(`${c}/contas`, '28-colaborador-contas', '.content h1');
+    if (await page.isVisible('#new')) errors.push('[utilizadores] colaborador vê "Nova conta"');
+    await visit(`${c}/imobilizado`, '28-colaborador-imobilizado', '.content h1');
+    if (!(await page.isVisible('#new'))) errors.push('[utilizadores] colaborador não vê "Novo bem"');
+    if (await page.isVisible('#post')) errors.push('[utilizadores] colaborador vê "Lançar depreciações"');
+    // só leitura: nenhum botão de alteração visível
+    await page.evaluate(async () => {
+      const h = { 'Content-Type': 'application/json', 'X-Requested-With': 'IDEIA' };
+      await fetch('api.php?action=auth.logout', { method: 'POST', headers: h });
+      await fetch('api.php?action=auth.login', { method: 'POST', headers: h, body: JSON.stringify({ username: 'admin', password: 'segredo1' }) });
+      await fetch('api.php?action=auth.user_save', { method: 'POST', headers: h, body: JSON.stringify({ username: 'ana', name: 'Ana Consulta', role: 'leitura', password: 'segredo3' }) });
+      await fetch('api.php?action=auth.logout', { method: 'POST', headers: h });
+      await fetch('api.php?action=auth.login', { method: 'POST', headers: h, body: JSON.stringify({ username: 'ana', password: 'segredo3' }) });
+    });
+    for (const [p, n] of [['vendas', 'vendas'], ['vendas/1', 'venda'], ['lancamentos', 'lancamentos'], ['imobilizado/1', 'bem']]) {
+      await visit(`${c}/${p}`, `28-leitura-${n}`, '.content h1');
+      const vis = await page.$$eval('.content button.primary:not(.ro-ok), .content button.danger', (bs) => bs.filter((b) => b.offsetParent).map((b) => b.textContent.trim()));
+      if (vis.length) errors.push(`[utilizadores] só leitura vê botões de alteração em ${p}: ${vis.join(', ')}`);
+    }
+    if (!(await page.isVisible('.topbar >> text=Só leitura'))) errors.push('[utilizadores] falta o aviso "Só leitura"');
     await page.evaluate(async () => {
       await fetch('api.php?action=auth.logout', { method: 'POST', headers: { 'X-Requested-With': 'IDEIA' } });
       await fetch('api.php?action=auth.login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'IDEIA' }, body: JSON.stringify({ username: 'admin', password: 'segredo1' }) });

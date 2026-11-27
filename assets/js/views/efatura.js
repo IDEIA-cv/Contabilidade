@@ -139,7 +139,7 @@ function renderSettings(box, ov, ctx) {
         <label style="flex-direction:row;align-items:center;gap:8px" class="wide"><input type="checkbox" name="mw_verify" ${s.mw_verify === '1' ? 'checked' : ''}> Verificar o certificado HTTPS do Middleware (desligue se o Middleware usa o certificado autoassinado de origem)</label>
         ${s.mw_key_set ? '<label style="flex-direction:row;align-items:center;gap:8px" class="wide"><input type="checkbox" name="mw_key_clear"> Apagar a chave guardada</label>' : ''}
       </div>
-      <div class="toolbar" style="margin-top:12px"><button class="primary" type="submit">Guardar configuração</button><button type="button" id="test">Testar ligação ao Middleware</button></div>
+      <div class="toolbar" style="margin-top:12px"><button class="primary" type="submit" data-admin>Guardar configuração</button><button type="button" id="test">Testar ligação ao Middleware</button></div>
       <div id="test-out"></div>
     </form>`;
   const form = box.querySelector('#cfg');

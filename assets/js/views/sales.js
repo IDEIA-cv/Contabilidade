@@ -444,7 +444,7 @@ async function renderDoc(ctx, id) {
     <div class="page-head"><div><h1>${esc(info.name)} ${esc(d.doc_no)}</h1><p>${badges.join(' ')}</p></div>
       <div class="toolbar no-print">
         <a class="btn" href="#/${cpath('vendas')}">Voltar à lista</a>
-        <button class="primary" id="print">Imprimir / PDF</button>
+        <button class="primary ro-ok" id="print">Imprimir / PDF</button>
         ${canPay ? '<button class="primary" id="pay">Emitir recibo</button>' : ''}
       </div></div>
     ${d.status === 'anulado' ? `<div class="alert bad">Documento anulado. Motivo: ${esc(d.cancel_reason || '')}</div>` : ''}

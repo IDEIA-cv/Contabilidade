@@ -173,6 +173,9 @@ final class Purchases
                     throw new UserError('A nota de crédito tem de indicar a fatura do fornecedor que corrige.');
                 }
                 $party = $party ?: ($o['third_party'] ? (int) $o['third_party'] : null);
+                if ($date < $o['date']) {
+                    throw new UserError("A nota de crédito não pode ter data anterior à da fatura {$o['supplier_doc']} (" . date('d/m/Y', strtotime($o['date'])) . ').');
+                }
             }
             if ($info['party'] && !$party) {
                 throw new UserError('Escolha o fornecedor.' . ($type === 'FC' ? ' Para pequenas despesas sem fornecedor registado use "Despesa paga".' : ''));
@@ -210,6 +213,9 @@ final class Purchases
                     }
                     if ((int) $row['third_party'] !== $party) {
                         throw new UserError("A fatura {$row['supplier_doc']} é de outro fornecedor.");
+                    }
+                    if ($date < $row['date']) {
+                        throw new UserError("O pagamento não pode ter data anterior à da fatura {$row['supplier_doc']} (" . date('d/m/Y', strtotime($row['date'])) . ').');
                     }
                     $openAmt = self::openAmount($db, $inv);
                     if ($amount < 0 || $amount > $openAmt) {

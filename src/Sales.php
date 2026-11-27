@@ -462,6 +462,9 @@ final class Sales
                     throw new UserError($type === 'NC' ? 'A nota de crédito tem de indicar a fatura emitida que corrige.' : 'A nota de débito tem de indicar uma fatura emitida.');
                 }
                 $party = $party ?: ($o['third_party'] ? (int) $o['third_party'] : null);
+                if ($date < $o['date']) {
+                    throw new UserError('A ' . ($type === 'NC' ? 'nota de crédito' : 'nota de débito') . " não pode ter data anterior à da fatura {$o['doc_no']} (" . date('d/m/Y', strtotime($o['date'])) . ').');
+                }
             }
             $reason = null;
             if (in_array($type, ['NC', 'ND'], true)) {
@@ -490,6 +493,9 @@ final class Sales
                     }
                     if ((int) $row['third_party'] !== $party) {
                         throw new UserError("A fatura {$row['doc_no']} é de outro cliente.");
+                    }
+                    if ($date < $row['date']) {
+                        throw new UserError("O recibo não pode ter data anterior à da fatura {$row['doc_no']} (" . date('d/m/Y', strtotime($row['date'])) . ').');
                     }
                     if ($amount < 0 || $amount > self::openAmount($db, $inv)) {
                         throw new UserError("O valor a receber da fatura {$row['doc_no']} é maior do que o valor em dívida (" . Money::format(self::openAmount($db, $inv)) . ').');

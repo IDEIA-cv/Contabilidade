@@ -252,3 +252,11 @@ details summary { cursor: pointer; color: var(--primary); }
   .print-head { display: block !important; }
 }
 .print-head { display: none; margin-bottom: 12px; }
+
+/* Perfil "só leitura": esconde os botões que alteram dados (o servidor recusa-os de qualquer forma) */
+body[data-role="leitura"] .content button.primary:not(.ro-ok),
+body[data-role="leitura"] .content button.danger,
+body[data-role="leitura"] .content :is(#new, #edit, #delete, #del, #cancel, #pay, #pay-all, #credit, #link, #copy, #issue, #register, #reverse, #validate, #dispose, #unpost, #post, #restore, #create, #logo-rm, #new-sup, #new-cust, #new-fam, #fams, #send-sel, #send-all, #ef-send, #match, #exclude, #add-line),
+body[data-role="leitura"] .content :is([data-edit], [data-del], [data-pay], [data-new], [data-from], [data-convert], [data-unlink], [data-undo], [data-lock], [data-close], [data-sub]) { display: none !important; }
+/* Ações reservadas ao contabilista: escondidas para colaboradores e só leitura */
+body:is([data-role="colaborador"], [data-role="leitura"]) .content [data-admin] { display: none !important; }

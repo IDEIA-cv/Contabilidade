@@ -13,12 +13,12 @@ async function years({ view }) {
   const info = await refreshInfo();
   view.innerHTML = `
     <div class="page-head"><div><h1>Exercícios e fecho</h1><p class="muted">O fecho gera o apuramento de resultados (classes 6 e 7 → 811 → 818) e bloqueia o exercício. A abertura do seguinte transporta os saldos do balanço e passa o resultado para 56.</p></div>
-      <div class="toolbar"><button id="new">Novo exercício</button></div></div>
+      <div class="toolbar"><button id="new" data-admin>Novo exercício</button></div></div>
     <div class="card"><table><thead><tr><th>Exercício</th><th>Período</th><th>Estado</th><th>Bloqueado até</th><th class="num">Lançamentos</th><th></th></tr></thead><tbody>
       ${info.years.map((y) => `<tr><td><b>${y.year}</b></td><td>${fmtDate(y.start_date)} a ${fmtDate(y.end_date)}</td>
         <td>${y.status === 'aberto' ? '<span class="badge good">Aberto</span>' : '<span class="badge">Fechado</span>'}</td>
         <td>${y.locked_until ? fmtDate(y.locked_until) : '—'}</td><td class="num">${y.entries}</td>
-        <td class="num">${y.status === 'aberto' ? `<button data-lock="${y.year}">Bloquear período</button> <button data-close="${y.year}" class="primary">Fechar exercício</button>` : `<button data-open="${y.year}">Abrir ${Number(y.year) + 1}</button>`}</td></tr>`).join('')}
+        <td class="num">${y.status === 'aberto' ? `<button data-admin data-lock="${y.year}">Bloquear período</button> <button data-admin data-close="${y.year}" class="primary">Fechar exercício</button>` : `<button data-admin data-open="${y.year}">Abrir ${Number(y.year) + 1}</button>`}</td></tr>`).join('')}
     </tbody></table></div>`;
   const act = (sel, fn) => view.querySelectorAll(sel).forEach((b) => { b.onclick = async () => { try { await fn(b); } catch (err) { toast(err.message, 'bad'); } }; });
   view.querySelector('#new').onclick = () => modal({
@@ -63,11 +63,11 @@ async function company({ view }) {
         <label>Email<input name="email" type="email" value="${esc(info.email || '')}"></label>
         <label class="wide">IBAN / NIB (aparece nas faturas)<input name="bank" value="${esc(info.bank || '')}"></label>
         <label class="wide">Rodapé dos documentos de venda<input name="sales_footer" value="${esc(info.sales_footer || '')}" placeholder="Ex.: Capital social 1 000 000 ECV · Matrícula n.º …"></label></div>
-        <div class="toolbar" style="margin-top:12px"><button class="primary" id="save">Guardar</button></div>
+        <div class="toolbar" style="margin-top:12px"><button class="primary" id="save" data-admin>Guardar</button></div>
         <h3 style="margin-top:16px">Logótipo nas faturas</h3>
         <div class="toolbar">${info.logo ? `<img src="${esc(info.logo)}" alt="Logótipo atual" style="max-height:48px;max-width:160px;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff">` : '<span class="muted small">Sem logótipo.</span>'}
           <label class="btn">Escolher imagem<input type="file" id="logo" accept="image/png,image/jpeg,image/webp" hidden></label>
-          ${info.logo ? '<button id="logo-rm">Retirar</button>' : ''}<span class="muted small">PNG ou JPG, até 300 KB</span></div></div>
+          ${info.logo ? '<button id="logo-rm" data-admin>Retirar</button>' : ''}<span class="muted small">PNG ou JPG, até 300 KB</span></div></div>
       <div class="card"><h2>Cópias de segurança e mudança de computador</h2>
         <p class="muted">A cópia é um ficheiro <span class="mono">.ideia</span> completo e verificado. Para usar noutro computador (PC ou Mac), instale a aplicação, vá a Empresas → "Abrir cópia" e escolha o ficheiro.</p>
         <div class="toolbar"><a class="btn primary" href="${api.href('backup.download')}">Descarregar cópia (.ideia)</a><button id="backup">Guardar cópia na pasta de cópias</button></div>

@@ -91,7 +91,7 @@ Rendimentos com sinal positivo e gastos com sinal negativo (`Reports::incomeFrom
 - Contas: **2432** IVA dedutível, **2433** IVA liquidado, **2434** regularizações, **2436** IVA a pagar, **2437** IVA a recuperar.
 - `Vat::settlement(ano, de, até)` soma os movimentos dessas contas no período, ignorando lançamentos de apuramento anteriores (descrição começada por "Apuramento de IVA"). Devolve totais, resultado (a pagar / a recuperar), mapa por código de IVA (taxa, base, imposto) e por terceiro (NIF, base, imposto).
 - A **base** vem do campo "Base IVA" das linhas. Linhas sem base aparecem só no total.
-- `Vat::postSettlement` cria e valida no diário `DIV`, no último dia do período, o lançamento que salda 2432/2433/2434 contra 2436 ou 2437.
+- `Vat::postSettlement` cria e valida no diário `DIV`, no último dia do período, o lançamento que salda 2432/2433/2434 contra 2436 ou 2437. Um período (ou parte dele) já apurado e não estornado não pode ser apurado outra vez: `settlement` devolve `posted` com os períodos já apurados e o ecrã mostra a ligação ao lançamento.
 - Taxa normal de Cabo Verde: 15 %. Outras taxas configuram-se como novos códigos de IVA.
 
 ## Fecho do exercício

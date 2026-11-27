@@ -59,14 +59,36 @@ final class Vat
             'situacao' => $resultado > 0 ? 'a_pagar' : ($resultado < 0 ? 'a_recuperar' : 'nulo'),
             'by_code' => $byCode,
             'by_party' => $byParty,
+            'posted' => array_values(array_filter(self::postedPeriods($db, $year), static fn($p) => $from <= $p[1] && $to >= $p[0])),
         ];
     }
 
     /**
      * Gera o lançamento de apuramento: salda 2432/2433/2434 por contrapartida de 2436 (a pagar) ou 2437 (a recuperar).
      */
+    /** Períodos já apurados no exercício (lançamentos de apuramento validados e não estornados): [[from, to, entry_id], ...]. */
+    public static function postedPeriods(Db $db, int $year): array
+    {
+        $out = [];
+        $rows = $db->all("SELECT id, journal, number, description FROM entries WHERE fiscal_year = ? AND source = 'apuramento_iva' AND status = 'validado' AND reversed_by IS NULL AND reverses IS NULL", [$year]);
+        foreach ($rows as $r) {
+            if (preg_match('/(\d{2}) a (\d{2})\/\d{4}/', (string) $r['description'], $m)) {
+                $out[] = [(int) $m[1], (int) $m[2], (int) $r['id'], $r['journal'] . '/' . $r['number']];
+            }
+        }
+        return $out;
+    }
+
     public static function postSettlement(Db $db, int $year, int $from, int $to): array
     {
+        if ($from < 1 || $to > 12 || $from > $to) {
+            throw new UserError('Período inválido: o mês inicial tem de ser anterior ou igual ao final.');
+        }
+        foreach (self::postedPeriods($db, $year) as [$f, $t, , $ref]) {
+            if ($from <= $t && $to >= $f) {
+                throw new UserError(sprintf('O IVA de %02d a %02d/%d já foi apurado (lançamento %s). Para refazer, estorne primeiro esse lançamento.', $f, $t, $year, $ref));
+            }
+        }
         $s = self::settlement($db, $year, $from, $to);
         if ($s['liquidado'] === 0 && $s['dedutivel'] === 0 && $s['regularizacoes'] === 0) {
             throw new UserError('Não há IVA a apurar neste período.');

@@ -55,7 +55,8 @@ final class Api
             if ($method === 'POST') {
                 $ct = $_SERVER['CONTENT_TYPE'] ?? '';
                 if (str_starts_with($ct, 'application/json')) {
-                    $body = json_decode((string) file_get_contents('php://input'), true);
+                    $raw = trim((string) file_get_contents('php://input'));
+                    $body = $raw === '' ? [] : json_decode($raw, true);
                     if (!is_array($body)) {
                         throw new UserError('Pedido JSON inválido.');
                     }

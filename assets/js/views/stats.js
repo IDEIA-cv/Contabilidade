@@ -146,7 +146,7 @@ async function relatorio(el) {
   ]);
   const to = d.to;
   const cut = (arr) => arr.map((v, i) => (i < to ? v : null));
-  el.innerHTML = `<div class="toolbar no-print" style="margin-bottom:12px"><button class="primary" data-print>Imprimir / guardar em PDF</button></div>
+  el.innerHTML = `<div class="toolbar no-print" style="margin-bottom:12px"><button class="primary ro-ok" data-print>Imprimir / guardar em PDF</button></div>
     <div class="card"><h2>Relatório de gestão · ${esc(state.info.name)}</h2>
       <p class="muted">NIF ${esc(state.info.nif || '—')} · janeiro a ${MONTHS_FULL[to - 1].toLowerCase()} de ${y} · gerado em ${fmtDate(new Date().toISOString())}</p>
       <div class="kpis">${d.kpis.map((k) => `<div class="kpi"><div class="label">${esc(k.label)}</div><div class="value ${signClass(k.value)}">${money(k.value)}</div><div class="delta muted">${k.change !== null ? `${k.change >= 0 ? '▲' : '▼'} ${pct(Math.abs(k.change))} vs ${y - 1}` : ''}</div></div>`).join('')}</div>
