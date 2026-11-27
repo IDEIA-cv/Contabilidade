@@ -12,11 +12,13 @@ import * as stats from './views/stats.js';
 import * as imports from './views/imports.js';
 import * as settings from './views/settings.js';
 import * as bank from './views/bank.js';
+import * as sales from './views/sales.js';
 
 export const state = { company: null, info: null, year: null, companies: [] };
 
 const NAV = [
   { group: null, items: [['painel', 'Painel']] },
+  { group: 'Vendas', items: [['vendas', 'Documentos de venda'], ['dividas', 'Dívidas de clientes'], ['artigos', 'Artigos']] },
   { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária']] },
   { group: 'Relatórios', items: [['relatorios/balancete', 'Balancete'], ['relatorios/razao', 'Extrato de conta'], ['relatorios/diario', 'Diário'], ['relatorios/balanco', 'Balanço'], ['relatorios/dr', 'Demonstração de resultados'], ['iva', 'Apuramento do IVA']] },
   { group: 'Estatísticas', items: [['estatisticas/racios', 'Rácios financeiros'], ['estatisticas/gastos', 'Estrutura de gastos'], ['estatisticas/terceiros', 'Clientes e fornecedores'], ['estatisticas/orcamento', 'Orçamento'], ['estatisticas/previsao', 'Previsão'], ['estatisticas/indicadores', 'Indicadores próprios'], ['estatisticas/relatorio', 'Relatório de gestão']] },
@@ -25,7 +27,7 @@ const NAV = [
 
 const ROUTES = {
   painel: dashboard, lancamentos: entries, lancamento: entries, contas: accounts, terceiros: parties,
-  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank,
+  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales,
 };
 
 export function go(path) { location.hash = '#/' + path.replace(/^#?\/?/, ''); }
@@ -110,13 +112,61 @@ async function route_() {
     await mod.render({ view, section, params: parts.slice(3), query, state });
     view.focus({ preventScroll: true });
   } catch (err) {
+    if (err.auth) { view.innerHTML = ''; return; }
     console.error(err);
     view.innerHTML = `<div class="alert bad">${esc(err.message)}</div><p><a href="#/">Voltar às empresas</a></p>`;
   }
 }
 export const rerender = route_;
 
+// ---------------------------------------------------------------- palavra-passe de acesso (opcional)
+let loginShown = false;
+function showLogin() {
+  if (loginShown) return;
+  loginShown = true;
+  document.body.classList.add('locked');
+  const box = document.createElement('div');
+  box.className = 'login-screen';
+  box.innerHTML = `<form class="card login-card" aria-label="Entrar">
+      <img src="assets/img/icon.svg" alt="" width="40" height="40">
+      <h1>IDEIA Contabilidade</h1>
+      <p class="muted">Introduza a palavra-passe de acesso.</p>
+      <label class="sr-only" for="login-pw">Palavra-passe</label>
+      <input type="password" id="login-pw" autocomplete="current-password" placeholder="Palavra-passe" required>
+      <p class="neg small" id="login-err" role="alert"></p>
+      <button class="primary" type="submit">Entrar</button>
+      <p class="small muted">Esqueceu-se? Quem instalou a aplicação pode apagar o ficheiro <span class="mono">acesso.json</span> na pasta de dados.</p></form>`;
+  document.body.appendChild(box);
+  const pw = box.querySelector('#login-pw');
+  pw.focus();
+  box.querySelector('form').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = box.querySelector('button');
+    btn.disabled = true;
+    try {
+      await api.post('auth.login', { password: pw.value });
+      box.remove();
+      loginShown = false;
+      document.body.classList.remove('locked');
+      route_();
+    } catch (err) {
+      box.querySelector('#login-err').textContent = err.message;
+      pw.select();
+    } finally { btn.disabled = false; }
+  };
+}
+window.addEventListener('ideia:auth', showLogin);
+export async function logout() { await api.post('auth.logout'); showLogin(); }
+
+// impressão sem atributos onclick (a política de segurança de conteúdos bloqueia scripts em linha)
+document.addEventListener('click', (e) => { if (e.target.closest('[data-print]')) window.print(); });
+
 window.addEventListener('hashchange', route_);
 document.getElementById('menu-btn').onclick = () => document.getElementById('sidebar').classList.toggle('open');
-window.addEventListener('unhandledrejection', (e) => toast(e.reason?.message || String(e.reason), 'bad'));
-route_();
+window.addEventListener('unhandledrejection', (e) => { if (!e.reason?.auth) toast(e.reason?.message || String(e.reason), 'bad'); });
+api.get('auth.status').then((a) => {
+  const btn = document.getElementById('logout');
+  btn.hidden = !a.enabled;
+  btn.onclick = logout;
+  if (a.enabled && !a.logged) showLogin(); else route_();
+}).catch(() => route_());

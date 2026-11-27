@@ -2,6 +2,10 @@
 declare(strict_types=1);
 require __DIR__ . '/src/bootstrap.php';
 $v = IDEIA_VERSION;
+header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
 ?><!doctype html>
 <html lang="pt">
 <head>
@@ -20,7 +24,7 @@ $v = IDEIA_VERSION;
       </a>
       <div class="company-switch" id="company-switch"></div>
       <nav id="nav"></nav>
-      <div class="sidebar-foot">v<?= $v ?> · dados guardados neste computador</div>
+      <div class="sidebar-foot">v<?= $v ?> · dados guardados neste computador <button id="logout" class="link-btn" hidden>Sair</button></div>
     </aside>
     <main class="main">
       <header class="topbar">

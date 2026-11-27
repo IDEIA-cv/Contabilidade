@@ -188,7 +188,7 @@ async function mapa(el, account, query, link) {
   const date = r.date;
   const rowsOf = (list, label) => list.map((x) => `<tr><td class="indent-1">${fmtDate(x.date)} · ${esc(x.description)}${x.journal ? ` (${esc(x.journal)} ${x.number})` : ''}</td><td class="num">${money(x.amount_cents)}</td></tr>`).join('') || `<tr><td class="indent-1 muted">${label}</td><td></td></tr>`;
   el.innerHTML = `<div class="toolbar no-print" style="margin-bottom:12px"><label>Data<input type="date" id="d" value="${esc(date)}"></label>
-      <button id="xlsx">Exportar Excel</button><button onclick="window.print()">Imprimir / PDF</button></div>
+      <button id="xlsx">Exportar Excel</button><button data-print>Imprimir / PDF</button></div>
     <div class="print-head"><b>${esc(state.info.name)}</b> · NIF ${esc(state.info.nif || '')} · Reconciliação bancária · ${esc(r.account)} ${esc(r.account_name)} · ${fmtDate(date)}</div>
     <div class="card"><h2>Mapa de reconciliação · ${esc(r.account)} ${esc(r.account_name)} em ${fmtDate(date)}</h2><table id="map"><tbody>
       <tr class="section"><td>Saldo do extrato bancário</td><td class="num">${r.bank_balance === null ? '—' : money(r.bank_balance)}</td></tr>

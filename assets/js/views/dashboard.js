@@ -9,16 +9,27 @@ const LINKS = { vn: 'relatorios/razao?account=7', mb: 'relatorios/dr', ebitda: '
 export async function render({ view }) {
   setCrumbs('Painel');
   const y = state.year;
-  const [d, costs, top, info] = await Promise.all([
+  const [d, costs, top, info, sales, items] = await Promise.all([
     api.get('stats.dashboard', { year: y }),
     api.get('stats.costs', { year: y }),
     api.get('stats.top', { year: y, kind: 'C', limit: 5 }),
     Promise.resolve(state.info),
+    api.get('sales.summary', { year: y }),
+    api.get('items.list'),
   ]);
+  // primeiros passos para quem começa a faturar: dados da empresa, artigos, primeira fatura
+  const steps = [
+    [Boolean(info.nif && info.address), 'Complete os dados da empresa (NIF, morada, telefone, logótipo)', 'empresa'],
+    [items.length > 0, 'Registe os produtos e serviços que vende', 'artigos'],
+    [sales.invoiced !== 0 || sales.drafts > 0, 'Emita a primeira fatura', 'vendas/novo?type=FT'],
+  ];
+  const pending = steps.filter(([done]) => !done);
   const noData = d.monthly.vendas.every((v) => !v) && d.monthly.gastos.every((v) => !v);
   view.innerHTML = `
     <div class="page-head"><div><h1>Painel ${y}</h1><p class="muted">Acumulado de janeiro a ${MONTHS[d.to - 1].toLowerCase()}${d.has_previous ? `, comparado com o mesmo período de ${y - 1}` : ''}.</p></div>
-      <div class="toolbar"><a class="btn primary" href="#/${cpath('lancamento/novo')}">Novo lançamento</a></div></div>
+      <div class="toolbar"><a class="btn primary" href="#/${cpath('vendas/novo?type=FT')}">Nova fatura</a><a class="btn" href="#/${cpath('vendas/novo?type=OR')}">Novo orçamento</a><a class="btn" href="#/${cpath('lancamento/novo')}">Novo lançamento</a></div></div>
+    ${pending.length ? `<div class="card"><h2>Primeiros passos</h2><ol class="steps">${steps.map(([done, label, href]) => `<li class="${done ? 'done' : ''}">${done ? '✓ ' : ''}<a href="#/${cpath(href)}">${esc(label)}</a></li>`).join('')}</ol></div>` : ''}
+    ${sales.open ? `<div class="alert ${sales.overdue ? 'warn' : 'info'}">Tem ${money(sales.open)} por receber de clientes${sales.overdue ? `, dos quais <b>${money(sales.overdue)} vencidos</b>` : ''}. <a href="#/${cpath('dividas')}">Ver dívidas de clientes</a></div>` : ''}
     ${noData ? `<div class="alert info">Ainda não há lançamentos validados em ${y}. Comece por <a href="#/${cpath('lancamento/novo')}">criar um lançamento</a> ou <a href="#/${cpath('importar')}">importar o histórico</a>.</div>` : ''}
     ${info.drafts ? `<div class="alert warn">Há ${info.drafts} lançamento(s) em rascunho que não entram nos relatórios. <a href="#/${cpath('lancamentos?status=rascunho')}">Ver rascunhos</a></div>` : ''}
     <div class="kpis">${d.kpis.map((k) => `<div class="kpi" data-href="${LINKS[k.key] || ''}" title="${esc(k.hint)}">

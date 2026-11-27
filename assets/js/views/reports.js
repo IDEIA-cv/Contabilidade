@@ -19,7 +19,7 @@ export async function render({ view, params, query }) {
         ${usesFrom ? `<label>De<select name="from">${monthOptions(q.from)}</select></label>` : ''}
         <label>${usesFrom ? 'Até' : 'Data'}<select name="to">${monthOptions(q.to)}</select></label>
         ${type === 'balancete' ? `<label>Nível<select name="level"><option value="">Todos</option>${[1, 2, 3, 4].map((l) => `<option ${String(q.level) === String(l) ? 'selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
-        <button id="xlsx">Exportar Excel</button><button id="csv">CSV</button><button onclick="window.print()">Imprimir / PDF</button>
+        <button id="xlsx">Exportar Excel</button><button id="csv">CSV</button><button data-print>Imprimir / PDF</button>
       </div></div>
     <div class="print-head"><b>${esc(state.info.name)}</b> · NIF ${esc(state.info.nif || '')} · ${TITLES[type]} · ${state.year}</div>
     <div class="card" id="out"><div class="loading">A calcular…</div></div>`;

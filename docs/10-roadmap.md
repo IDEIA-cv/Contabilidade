@@ -9,6 +9,13 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 - Fecho do MVP: documentos anexos aos lançamentos, exportação Excel (.xlsx), cópias automáticas diárias.
 - Fase 2 (parte que não depende da DNRE): **reconciliação bancária** com importação de extratos.
 
+## Feito — versão 0.3
+
+- Reforço técnico: índices (esquema v4), paginação, desempenho com 50 000 lançamentos, acessibilidade e ecrãs pequenos.
+- **Vendas antecipadas da Fase 2** (decisão de 27/11/2026): artigos; orçamentos, pro-formas, guias, faturas, faturas-recibo, notas de débito e de crédito, recibos; numeração automática por tipo e série; lançamento contabilístico automático; dívidas de clientes e extrato. Ver [12-vendas](12-vendas.md).
+- Palavra-passe de acesso opcional, cabeçalhos de segurança, diagnóstico da instalação.
+- [Avaliação de qualidade](13-avaliacao-qualidade.md).
+
 ## Próximo — validação (antes de qualquer cliente real)
 
 | Tarefa | Porquê |
@@ -21,7 +28,7 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 
 ## Fase 2 — e-Fatura e faturação (depende da DNRE)
 
-Inclui a **faturação** (produtos e serviços, emissão de FTE, FRE, TVE, RCE, NCE, NDE, lista de documentos), sempre como DFE válidos. Só arranca com as especificações e credenciais de teste da DNRE (portão da Fase 2 no plano).
+A emissão de documentos já existe (v0.3). Falta transformá-los em DFE válidos e comunicá-los, o que só arranca com as especificações e credenciais de teste da DNRE (portão da Fase 2 no plano). Os documentos emitidos até lá ficam com `efatura_status = 'pendente'` para poderem ser tratados.
 
 
 - Leitura dos DFE (documentos fiscais eletrónicos) emitidos e recebidos, para conferência com a contabilidade e lançamento automático de compras/vendas.

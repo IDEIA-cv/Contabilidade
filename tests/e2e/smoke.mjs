@@ -102,6 +102,57 @@ const head = readFileSync(xlsxPath).subarray(0, 2).toString();
 if (head !== 'PK') errors.push('[xlsx] ficheiro exportado não é um ZIP/XLSX');
 console.log('ok', '16-excel:', dl.suggestedFilename());
 
+// vendas: ecrãs da empresa de demonstração
+await visit(`${c}/vendas`, '18-vendas', 'table#list tbody tr[data-id]');
+await visit(`${c}/vendas?pay=aberto`, '18-vendas-por-receber', 'table#list');
+await visit(`${c}/artigos`, '19-artigos', '#rows tr[data-id]');
+await visit(`${c}/dividas`, '19-dividas', 'table#debtors tbody tr');
+await visit(`${c}/cliente/1`, '19-cliente', '#t-open');
+await visit(`${c}/cliente/1?tab=extrato&from=2025-01-01&to=2025-12-31`, '19-cliente-extrato', '#t-st');
+{
+  const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#print-st')]);
+  await pop.waitForLoadState();
+  if (!(await pop.innerText('body')).includes('Extrato de conta corrente')) errors.push('[extrato] impressão sem título');
+  await pop.screenshot({ path: `${OUT}19-extrato-impressao.png`, fullPage: true });
+  await pop.close();
+}
+
+// vendas na empresa nova: artigo, cliente, fatura emitida, pagamento e impressão
+await visit(`${cNew}/artigos`, '20-artigos-nova', '#rows');
+await page.click('#new');
+await page.fill('.modal [name=name]', 'Serviço de teste');
+await page.selectOption('.modal [name=kind]', 'S');
+await page.fill('.modal [name=price_vat]', '1.150,00');
+await page.click('.modal button.primary');
+await page.waitForSelector('#rows tr[data-id]');
+await visit(`${cNew}/vendas/novo?type=FT`, '21-fatura-nova', '#lines tr');
+await page.click('#new-cust');
+await page.fill('.modal [name=name]', 'Cliente Teste E2E');
+await page.fill('.modal [name=nif]', '299999999');
+await page.click('.modal button.primary');
+await page.waitForSelector('.toast.good >> text=Cliente guardado');
+await page.fill('#lines tr [name=item]', 'S0001 — Serviço de teste');
+await page.dispatchEvent('#lines tr [name=item]', 'change');
+await page.fill('#lines tr [name=qty]', '2');
+await page.dispatchEvent('#lines tr [name=qty]', 'input');
+const total = (await page.innerText('#totals .grand td.num')).trim();
+if (total !== '2 300,00 ECV') errors.push(`[fatura] total calculado ${total}`);
+await page.click('#issue');
+await page.click('.modal button.primary');
+await page.waitForSelector('.page-head h1 >> text=FT ');
+await page.screenshot({ path: `${OUT}22-fatura-emitida.png`, fullPage: true });
+console.log('ok', '22-fatura-emitida', await page.innerText('.page-head h1'));
+await page.click('#pay');
+await page.click('.modal button.primary');
+await page.waitForSelector('.badge.good >> text=Pago');
+const [popup] = await Promise.all([page.waitForEvent('popup'), page.click('#print')]);
+await popup.waitForLoadState();
+const printed = await popup.innerText('body');
+if (!printed.includes('Cliente Teste E2E') || !printed.includes('2 300,00')) errors.push('[impressão] documento sem cliente ou total');
+await popup.screenshot({ path: `${OUT}23-fatura-impressao.png`, fullPage: true });
+await popup.close();
+console.log('ok', '23-impressao');
+
 await browser.close();
 if (errors.length) {
   console.error('\nERROS:\n' + errors.join('\n'));

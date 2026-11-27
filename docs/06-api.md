@@ -85,6 +85,44 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 | `bank.create_entry` | POST | `bank_line_id`, `counterpart`, `description?`, `third_party?` |
 | `bank.report` | GET | `account`, `date?` (por omissão, a data do último movimento do extrato) |
 
+## Vendas
+
+| Ação | Método | Parâmetros |
+|------|--------|-----------|
+| `sales.meta` | GET | — tipos de documento, conversões possíveis, meios de pagamento, motivos de isenção |
+| `items.list` | GET | `q?`, `kind?` (P/S), `active?` (1, 0, all) |
+| `items.save` | POST | `id?`, `code?` (automático), `name`, `kind`, `unit`, `price` ou `price_cents`, `vat_code`, `exemption?`, `account?`, `barcode?`, `active?` |
+| `items.delete` | POST | `id` — apaga se nunca usado, senão inativa |
+| `sales.list` | GET | `type?` (código ou `faturas`), `status?`, `pay?` (aberto, vencido, pago), `party?`, `q?`, `from?`, `to?`, `limit`, `offset` |
+| `sales.get` | GET | `id` |
+| `sales.save` | POST | `id?`, `type`, `date`, `due_date?`, `third_party?`, `customer_name?`/`customer_nif?` (FR sem ficha), `reference?`, `notes?`, `payment_method?`, `delivery_place?`, `origin_id?`, `lines[]`, `issue?` |
+| `sales.issue` | POST | `id` — atribui número, hash e lançamento |
+| `sales.cancel` | POST | `id`, `reason` |
+| `sales.delete` | POST | `id` (só rascunhos) |
+| `sales.derive` | POST | `id`, `type`, `mode` (convert, credit, copy) — novo rascunho a partir de outro documento |
+| `sales.pay` | POST | `id` (FT/ND), `date`, `amount?` (por omissão o valor em dívida), `payment_method`, `notes?` — emite recibo |
+| `sales.print` | GET | `id` — página HTML A4 |
+| `sales.summary` | GET | `year` — faturado, por receber, vencido, rascunhos, orçamentos em aberto |
+| `sales.debtors` | GET | `q?`, `overdue?`, `as_of?` — dívida por cliente com antiguidade |
+| `sales.customer` | GET | `id`, `year` — ficha do cliente com faturas por pagar |
+| `sales.statement` / `sales.statement_print` | GET | `id`, `from`, `to` — extrato de conta corrente (JSON / página A4) |
+| `sales.series` / `sales.verify` | GET | — numeração por série / verificação da cadeia |
+| `company.logo` | POST | ficheiro (`file`) ou `remove=1` |
+
+Linhas: `item_id?`, `description`, `qty` (texto, ex. `"1,5"`) ou `qty_milli`, `price` ou `price_cents`, `discount` (%) ou `discount_bp`, `vat_code`, `exemption?`, `account?`.
+
+## Acesso e diagnóstico
+
+| Ação | Método | Parâmetros |
+|------|--------|-----------|
+| `auth.status` | GET | — `{enabled, logged}` (disponível sem sessão) |
+| `auth.login` | POST | `password` (disponível sem sessão) |
+| `auth.logout` | POST | — |
+| `auth.set` | POST | `current` (se já houver palavra-passe), `password` (vazio retira) |
+| `system.check` | GET | — verificações da instalação, com instruções de correção |
+
+Com palavra-passe ativa, qualquer outra ação sem sessão responde HTTP 401 `{ok:false, auth:true}` e o browser mostra o ecrã de entrada.
+
 ## Relatórios e IVA
 
 | Ação | Método | Parâmetros |

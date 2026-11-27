@@ -13,15 +13,19 @@ use Ideia\Saft\Importer;
 final class Api
 {
     /** Ações que não precisam de empresa aberta. */
-    private const GLOBAL = ['ping', 'companies.list', 'companies.create', 'companies.restore', 'portfolio'];
+    private const GLOBAL = ['ping', 'auth.status', 'auth.login', 'auth.logout', 'auth.set', 'system.check', 'companies.list', 'companies.create', 'companies.restore', 'portfolio'];
+
+    /** Ações disponíveis sem sessão iniciada (quando há palavra-passe). */
+    private const PUBLIC = ['ping', 'auth.status', 'auth.login'];
 
     /** Ações de leitura (GET). As restantes exigem POST. */
     private const READ = [
-        'ping', 'companies.list', 'portfolio', 'company.info', 'accounts.list', 'thirdparties.list', 'entries.list', 'entries.get',
+        'ping', 'auth.status', 'system.check', 'companies.list', 'portfolio', 'company.info', 'accounts.list', 'thirdparties.list', 'entries.list', 'entries.get',
         'reports.trial', 'reports.ledger', 'reports.journal', 'reports.balance', 'reports.income', 'vat.settlement',
         'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
         'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'import.template', 'attachments.list', 'attachments.download',
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
+        'items.list', 'sales.debtors', 'sales.customer', 'sales.statement', 'sales.statement_print', 'sales.meta', 'sales.list', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
     ];
 
     public static function handle(): void
@@ -53,6 +57,10 @@ final class Api
                         }
                     }
                 }
+            }
+            if (!in_array($action, self::PUBLIC, true) && !Auth::loggedIn()) {
+                self::json(['ok' => false, 'auth' => true, 'error' => 'A sessão terminou. Introduza a palavra-passe.'], 401);
+                return;
             }
             $db = null;
             if (!in_array($action, self::GLOBAL, true)) {
@@ -124,6 +132,19 @@ final class Api
             case 'ping':
                 return ['app' => 'IDEIA Contabilidade', 'version' => IDEIA_VERSION, 'php' => PHP_VERSION, 'sqlite' => (new \PDO('sqlite::memory:'))->query('SELECT sqlite_version()')->fetchColumn(), 'data_dir' => Companies::dataDir()];
 
+            // ---------------------------------------------------------------- acesso e diagnóstico
+            case 'auth.status':
+                return Auth::status();
+            case 'auth.login':
+                return Auth::login((string) ($in['password'] ?? ''));
+            case 'auth.logout':
+                Auth::logout();
+                return true;
+            case 'auth.set':
+                return Auth::set((string) ($in['current'] ?? ''), (string) ($in['password'] ?? ''));
+            case 'system.check':
+                return System::check();
+
             // ---------------------------------------------------------------- empresas
             case 'companies.list':
                 return Companies::list();
@@ -148,6 +169,12 @@ final class Api
                     'journals' => Ledger::journals($db),
                     'vat_codes' => Ledger::vatCodes($db),
                     'drafts' => (int) $db->value("SELECT COUNT(*) FROM entries WHERE status = 'rascunho'"),
+                    'phone' => $db->meta('company_phone'),
+                    'email' => $db->meta('company_email'),
+                    'bank' => $db->meta('company_bank'),
+                    'sales_footer' => $db->meta('sales_footer'),
+                    'logo' => $db->meta('company_logo'),
+                    'sales_drafts' => (int) $db->value("SELECT COUNT(*) FROM sales_docs WHERE status = 'rascunho'"),
                 ];
             case 'company.update':
                 $nif = preg_replace('/\D/', '', (string) ($in['nif'] ?? '')) ?? '';
@@ -157,7 +184,8 @@ final class Api
                 if (trim((string) ($in['name'] ?? '')) === '') {
                     throw new UserError('Indique o nome da empresa.');
                 }
-                foreach (['name' => 'company_name', 'address' => 'company_address', 'city' => 'company_city', 'regime' => 'tax_regime'] as $k => $meta) {
+                foreach (['name' => 'company_name', 'address' => 'company_address', 'city' => 'company_city', 'regime' => 'tax_regime',
+                    'phone' => 'company_phone', 'email' => 'company_email', 'bank' => 'company_bank', 'sales_footer' => 'sales_footer'] as $k => $meta) {
                     if (isset($in[$k])) {
                         $db->setMeta($meta, trim((string) $in[$k]));
                     }
@@ -165,6 +193,67 @@ final class Api
                 $db->setMeta('company_nif', $nif);
                 $db->audit('empresa.alterada', []);
                 return true;
+
+            case 'company.logo':
+                if (!empty($in['remove']) && $in['remove'] !== 'false') {
+                    $db->setMeta('company_logo', null);
+                    return true;
+                }
+                [, $name, $content] = self::upload();
+                $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($content) ?: '';
+                if (!in_array($mime, ['image/png', 'image/jpeg', 'image/webp'], true)) {
+                    throw new UserError('O logótipo tem de ser uma imagem PNG, JPG ou WEBP.');
+                }
+                if (strlen($content) > 300 * 1024) {
+                    throw new UserError('O logótipo tem de ter menos de 300 KB.');
+                }
+                $db->setMeta('company_logo', 'data:' . $mime . ';base64,' . base64_encode($content));
+                $db->audit('empresa.logotipo', ['file' => $name]);
+                return true;
+
+            // ---------------------------------------------------------------- vendas
+            case 'sales.meta':
+                return ['types' => Sales::TYPES, 'convert' => Sales::CONVERT, 'payment_methods' => Sales::PAYMENT_METHODS, 'exemptions' => Sales::EXEMPTIONS];
+            case 'items.list':
+                return Sales::items($db, $in);
+            case 'items.save':
+                return Sales::saveItem($db, $in);
+            case 'items.delete':
+                return ['result' => Sales::deleteItem($db, self::int($in, 'id', 0))];
+            case 'sales.list':
+                return Sales::list($db, $in);
+            case 'sales.get':
+                return Sales::get($db, self::int($in, 'id', 0));
+            case 'sales.save':
+                return Sales::save($db, $in);
+            case 'sales.issue':
+                return Sales::issue($db, self::int($in, 'id', 0));
+            case 'sales.cancel':
+                return Sales::cancel($db, self::int($in, 'id', 0), (string) ($in['reason'] ?? ''));
+            case 'sales.delete':
+                Sales::deleteDraft($db, self::int($in, 'id', 0));
+                return true;
+            case 'sales.derive':
+                return Sales::derive($db, self::int($in, 'id', 0), (string) ($in['type'] ?? ''), (string) ($in['mode'] ?? 'convert'));
+            case 'sales.pay':
+                return Sales::pay($db, self::int($in, 'id', 0), $in);
+            case 'sales.series':
+                return Sales::series($db);
+            case 'sales.summary':
+                return Sales::summary($db, $year());
+            case 'sales.verify':
+                return Sales::verifyChain($db);
+            case 'sales.debtors':
+                return Sales::debtors($db, $in);
+            case 'sales.customer':
+                return Sales::customer($db, self::int($in, 'id', 0), $year());
+            case 'sales.statement':
+                return Sales::statement($db, self::int($in, 'id', 0), (string) ($in['from'] ?? date('Y-01-01')), (string) ($in['to'] ?? date('Y-m-d')));
+            case 'sales.statement_print':
+                return new Download(SalesPrint::statement($db, self::int($in, 'id', 0), (string) ($in['from'] ?? date('Y-01-01')), (string) ($in['to'] ?? date('Y-m-d'))), 'extrato.html', 'text/html; charset=utf-8', true);
+            case 'sales.print':
+                $html = SalesPrint::html($db, self::int($in, 'id', 0));
+                return new Download($html, 'documento.html', 'text/html; charset=utf-8', true);
 
             // ---------------------------------------------------------------- plano, terceiros, exercícios
             case 'accounts.list':

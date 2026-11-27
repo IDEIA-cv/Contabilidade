@@ -5,7 +5,12 @@ import { esc, money, modal, formData, toast, signClass } from '../util.js';
 
 export async function render({ view }) {
   view.innerHTML = '<div class="loading">A carregar empresas…</div>';
-  const [ping, list] = await Promise.all([api.get('ping'), api.get('portfolio')]);
+  // o diagnóstico vem primeiro: se a pasta de dados não tiver permissões, a carteira falharia sem explicação útil
+  const [ping, sys] = await Promise.all([api.get('ping'), api.get('system.check')]);
+  const problems = sys.checks.filter((c) => !c.ok && !c.warn);
+  const warnings = sys.checks.filter((c) => !c.ok && c.warn);
+  let list = [];
+  try { list = await api.get('portfolio'); } catch (e) { if (!problems.length) throw e; }
   view.innerHTML = `
     <div class="page-head">
       <div><h1>Empresas</h1><p class="muted">Cada empresa é um ficheiro <span class="mono">.ideia</span> guardado neste computador, em <span class="mono">${esc(ping.data_dir)}</span>.</p></div>
@@ -14,6 +19,8 @@ export async function render({ view }) {
         <button class="primary" id="create">Nova empresa</button>
       </div>
     </div>
+    ${problems.length ? `<div class="alert bad"><b>A instalação precisa de atenção:</b><ul>${problems.map((c) => `<li><b>${esc(c.label)}</b>: ${esc(c.fix)}</li>`).join('')}</ul>Depois de corrigir, recarregue a página.</div>` : ''}
+    ${warnings.length ? `<div class="alert warn small">${warnings.map((c) => `<b>${esc(c.label)}</b>: ${esc(c.fix)}`).join('<br>')}</div>` : ''}
     ${list.length ? `<div class="card"><h2>Carteira <span class="muted small">${list.length} empresa(s)</span></h2>
       <div class="table-wrap"><table>
         <thead><tr><th>Empresa</th><th>NIF</th><th>Exercício</th><th class="num">Volume de negócios</th><th class="num">Resultado</th><th>Último lançamento</th><th>Alertas</th></tr></thead>

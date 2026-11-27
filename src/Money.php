@@ -51,7 +51,7 @@ final class Money
             $s = str_replace('.', '', $s);
         }
         if (!preg_match('/^\d*(\.\d+)?$/', $s) || $s === '' || $s === '.') {
-            throw new \InvalidArgumentException("Valor monetário inválido: {$value}");
+            throw new UserError("Valor inválido: \"{$value}\". Use, por exemplo, 1 234,56.");
         }
         [$int, $frac] = array_pad(explode('.', $s, 2), 2, '');
         $frac = str_pad(substr($frac, 0, 3), 3, '0');

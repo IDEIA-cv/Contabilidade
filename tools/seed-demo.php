@@ -13,6 +13,7 @@ use Ideia\Closing;
 use Ideia\Companies;
 use Ideia\Config;
 use Ideia\Ledger;
+use Ideia\Sales;
 use Ideia\Stats;
 
 if (isset($argv[1])) {
@@ -129,5 +130,33 @@ foreach ($lines as [$d, $desc, $ref, $v]) {
     $csv .= date('d/m/Y', strtotime($d)) . ";{$desc};{$ref};" . ($v < 0 ? $fmt(-$v) : '') . ';' . ($v > 0 ? $fmt($v) : '') . ';' . $fmt($bal) . "\n";
 }
 Bank::import($db, '121', $csv, true, 'extrato_set_out_2025.csv');
+
+
+// vendas: artigos e documentos de novembro de 2025 (orçamento convertido em fatura, recibo parcial, fatura-recibo, guia, rascunho)
+$db->setMeta('company_phone', '+238 260 00 00');
+$db->setMeta('company_email', 'geral@demonstracao.cv');
+$db->setMeta('company_bank', 'CV64 0001 0000 1234 5678 9101 2');
+$db->setMeta('sales_footer', 'Capital social 3 000 000 ECV · Conservatória do Registo Comercial da Praia');
+$it = [];
+foreach ([
+    ['S', 'Consultoria de gestão (hora)', 'H', '6.500,00', 'NOR', null],
+    ['S', 'Formação em contabilidade (dia)', 'DIA', '45.000,00', 'ISE', Sales::EXEMPTIONS[0]],
+    ['P', 'Manual de procedimentos impresso', 'UN', '2.500,00', 'NOR', null],
+    ['P', 'Licença de software anual', 'UN', '38.000,00', 'NOR', null],
+    ['S', 'Deslocação fora da ilha', 'UN', '12.000,00', 'NOR', null],
+] as [$k, $n, $u, $p, $v, $ex]) {
+    $it[] = Sales::saveItem($db, ['kind' => $k, 'name' => $n, 'unit' => $u, 'price' => $p, 'vat_code' => $v, 'exemption' => $ex])['id'];
+}
+$or = Sales::save($db, ['type' => 'OR', 'date' => '2025-11-03', 'third_party' => $clients[0], 'issue' => true, 'reference' => 'Pedido por email', 'lines' => [
+    ['item_id' => $it[0], 'qty' => '20'], ['item_id' => $it[4], 'qty' => '2'], ['item_id' => $it[2], 'qty' => '5', 'discount' => '10'],
+]]);
+$ft = Sales::derive($db, (int) $or['id'], 'FT');
+$ft = Sales::save($db, ['id' => $ft['id'], 'date' => '2025-11-10', 'lines' => $ft['lines'], 'issue' => true]);
+Sales::pay($db, (int) $ft['id'], ['date' => '2025-11-20', 'amount' => '100.000,00', 'payment_method' => 'NU']);
+Sales::save($db, ['type' => 'FT', 'date' => '2025-11-12', 'third_party' => $clients[2], 'issue' => true, 'lines' => [['item_id' => $it[1], 'qty' => '3']]]);
+Sales::save($db, ['type' => 'FT', 'date' => '2025-11-14', 'third_party' => $clients[1], 'issue' => true, 'lines' => [['item_id' => $it[3], 'qty' => '4']]]);
+Sales::save($db, ['type' => 'FR', 'date' => '2025-11-15', 'payment_method' => 'NU', 'issue' => true, 'lines' => [['item_id' => $it[2], 'qty' => '2']]]);
+Sales::save($db, ['type' => 'GE', 'date' => '2025-11-14', 'third_party' => $clients[1], 'issue' => true, 'delivery_place' => 'Armazém Achada Grande', 'lines' => [['item_id' => $it[3], 'qty' => '4']]]);
+Sales::save($db, ['type' => 'PF', 'date' => '2025-11-25', 'third_party' => $clients[3], 'lines' => [['item_id' => $it[0], 'qty' => '8']]]);
 
 echo "Empresa de demonstração criada: {$c['id']} (" . $db->path . ")\n";

@@ -175,6 +175,97 @@ CREATE TABLE IF NOT EXISTS bank_match_ledger (
     entry_line_id INTEGER NOT NULL UNIQUE REFERENCES entry_lines(id)
 );
 
+-- Vendas e documentos comerciais (esquema v5) -------------------------------------------------------------
+-- Artigos (produtos e serviços) escolhidos na emissão dos documentos. Preços sem IVA, em centavos.
+CREATE TABLE IF NOT EXISTS items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    code        TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL,
+    kind        TEXT NOT NULL DEFAULT 'P' CHECK (kind IN ('P','S')),   -- Produto, Serviço
+    unit        TEXT NOT NULL DEFAULT 'UN',
+    price_cents INTEGER NOT NULL DEFAULT 0,
+    vat_code    TEXT REFERENCES vat_codes(code),
+    exemption   TEXT,                                                -- motivo de isenção (quando a taxa é 0)
+    account     TEXT REFERENCES accounts(code),                      -- conta de rendimentos (71/72)
+    barcode     TEXT,
+    active      INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Numeração: último número emitido por tipo de documento e série (a série por omissão é o ano).
+CREATE TABLE IF NOT EXISTS doc_series (
+    type        TEXT NOT NULL,
+    series      TEXT NOT NULL,
+    last_number INTEGER NOT NULL DEFAULT 0,
+    last_date   TEXT,
+    last_hash   TEXT,
+    PRIMARY KEY (type, series)
+);
+
+CREATE TABLE IF NOT EXISTS sales_docs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    type            TEXT NOT NULL,                     -- OR, PF, GE, GT, FT, FR, ND, NC, RC
+    series          TEXT,
+    number          INTEGER,                           -- atribuído na emissão, sem saltos
+    doc_no          TEXT,                              -- "FT 2026/12"
+    status          TEXT NOT NULL DEFAULT 'rascunho' CHECK (status IN ('rascunho','emitido','anulado')),
+    date            TEXT NOT NULL,
+    due_date        TEXT,                              -- vencimento (faturas) ou validade (orçamentos)
+    third_party     INTEGER REFERENCES third_parties(id),
+    customer_name   TEXT,                              -- dados do cliente no momento da emissão
+    customer_nif    TEXT,
+    customer_address TEXT,
+    reference       TEXT,                              -- requisição / encomenda do cliente
+    notes           TEXT,
+    origin_id       INTEGER REFERENCES sales_docs(id), -- documento de origem (conversão, nota de crédito)
+    payment_method  TEXT,
+    delivery_place  TEXT,                              -- guias: local de entrega / carga
+    net_cents       INTEGER NOT NULL DEFAULT 0,
+    discount_cents  INTEGER NOT NULL DEFAULT 0,
+    vat_cents       INTEGER NOT NULL DEFAULT 0,
+    total_cents     INTEGER NOT NULL DEFAULT 0,
+    entry_id        INTEGER REFERENCES entries(id),    -- lançamento contabilístico gerado
+    efatura_status  TEXT,                              -- pendente / comunicado (documentos fiscais)
+    hash            TEXT,
+    prev_hash       TEXT,
+    cancel_reason   TEXT,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    issued_at       TEXT,
+    UNIQUE (type, series, number)
+);
+CREATE INDEX IF NOT EXISTS ix_sales_type_date ON sales_docs(type, date);
+CREATE INDEX IF NOT EXISTS ix_sales_party ON sales_docs(third_party);
+CREATE INDEX IF NOT EXISTS ix_sales_origin ON sales_docs(origin_id);
+
+CREATE TABLE IF NOT EXISTS sales_doc_lines (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id       INTEGER NOT NULL REFERENCES sales_docs(id) ON DELETE CASCADE,
+    line_no      INTEGER NOT NULL,
+    item_id      INTEGER REFERENCES items(id),
+    code         TEXT,
+    description  TEXT NOT NULL,
+    qty_milli    INTEGER NOT NULL DEFAULT 1000,        -- quantidade × 1000 (3 casas decimais)
+    unit         TEXT,
+    price_cents  INTEGER NOT NULL DEFAULT 0,           -- preço unitário sem IVA
+    discount_bp  INTEGER NOT NULL DEFAULT 0,           -- desconto em pontos base (1000 = 10%)
+    vat_code     TEXT REFERENCES vat_codes(code),
+    vat_rate_bp  INTEGER NOT NULL DEFAULT 0,
+    exemption    TEXT,
+    account      TEXT REFERENCES accounts(code),
+    net_cents    INTEGER NOT NULL DEFAULT 0,
+    vat_cents    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_sales_lines_doc ON sales_doc_lines(doc_id);
+
+-- Recibos: que faturas / notas de débito cada recibo liquida.
+CREATE TABLE IF NOT EXISTS sales_settlements (
+    receipt_id   INTEGER NOT NULL REFERENCES sales_docs(id) ON DELETE CASCADE,
+    invoice_id   INTEGER NOT NULL REFERENCES sales_docs(id),
+    amount_cents INTEGER NOT NULL,
+    PRIMARY KEY (receipt_id, invoice_id)
+);
+CREATE INDEX IF NOT EXISTS ix_settlements_invoice ON sales_settlements(invoice_id);
+
 -- Vista de movimentos validados (base de todos os relatórios e estatísticas)
 CREATE VIEW IF NOT EXISTS v_movements AS
 SELECT l.id AS line_id, e.id AS entry_id, e.fiscal_year, e.journal, e.number, e.date,

@@ -48,7 +48,8 @@ async function years({ view }) {
 async function company({ view }) {
   setCrumbs('Empresa e cópias');
   const info = await refreshInfo();
-  const [chain, audit] = await Promise.all([api.get('chain.verify'), api.get('audit.list')]);
+  const [chain, audit, series, salesChain] = await Promise.all([api.get('chain.verify'), api.get('audit.list'), api.get('sales.series'), api.get('sales.verify')]);
+  const auth = await api.get('auth.status');
   view.innerHTML = `
     <div class="page-head"><div><h1>Empresa e cópias</h1><p class="muted">Ficheiro: <span class="mono">${esc(info.path)}</span></p></div></div>
     <div class="grid cols-2">
@@ -57,8 +58,16 @@ async function company({ view }) {
         <label>NIF<input name="nif" class="mono" maxlength="9" value="${esc(info.nif || '')}"></label>
         <label>Regime<select name="regime"><option value="contabilidade_organizada" ${info.regime === 'contabilidade_organizada' ? 'selected' : ''}>Contabilidade organizada</option><option value="rempe" ${info.regime === 'rempe' ? 'selected' : ''}>REMPE</option></select></label>
         <label class="wide">Morada<input name="address" value="${esc(info.address || '')}"></label>
-        <label>Cidade<input name="city" value="${esc(info.city || '')}"></label></div>
-        <div class="toolbar" style="margin-top:12px"><button class="primary" id="save">Guardar</button></div></div>
+        <label>Cidade<input name="city" value="${esc(info.city || '')}"></label>
+        <label>Telefone<input name="phone" value="${esc(info.phone || '')}"></label>
+        <label>Email<input name="email" type="email" value="${esc(info.email || '')}"></label>
+        <label class="wide">IBAN / NIB (aparece nas faturas)<input name="bank" value="${esc(info.bank || '')}"></label>
+        <label class="wide">Rodapé dos documentos de venda<input name="sales_footer" value="${esc(info.sales_footer || '')}" placeholder="Ex.: Capital social 1 000 000 ECV · Matrícula n.º …"></label></div>
+        <div class="toolbar" style="margin-top:12px"><button class="primary" id="save">Guardar</button></div>
+        <h3 style="margin-top:16px">Logótipo nas faturas</h3>
+        <div class="toolbar">${info.logo ? `<img src="${esc(info.logo)}" alt="Logótipo atual" style="max-height:48px;max-width:160px;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff">` : '<span class="muted small">Sem logótipo.</span>'}
+          <label class="btn">Escolher imagem<input type="file" id="logo" accept="image/png,image/jpeg,image/webp" hidden></label>
+          ${info.logo ? '<button id="logo-rm">Retirar</button>' : ''}<span class="muted small">PNG ou JPG, até 300 KB</span></div></div>
       <div class="card"><h2>Cópias de segurança e mudança de computador</h2>
         <p class="muted">A cópia é um ficheiro <span class="mono">.ideia</span> completo e verificado. Para usar noutro computador (PC ou Mac), instale a aplicação, vá a Empresas → "Abrir cópia" e escolha o ficheiro.</p>
         <div class="toolbar"><a class="btn primary" href="${api.href('backup.download')}">Descarregar cópia (.ideia)</a><button id="backup">Guardar cópia na pasta de cópias</button></div>
@@ -67,12 +76,53 @@ async function company({ view }) {
         ${chain.ok ? `<div class="alert good">Cadeia de integridade válida: ${chain.count} lançamento(s) validados verificados.</div>` : `<div class="alert bad">A cadeia de integridade está quebrada no lançamento ${chain.broken_at}. O ficheiro pode ter sido alterado fora da aplicação.</div>`}
       </div>
     </div>
+    <div class="card"><h2>Palavra-passe de acesso</h2>
+      <p class="muted small">Opcional. Protege todas as empresas deste computador: a aplicação pede a palavra-passe ao abrir e fecha a sessão após 4 horas sem uso.</p>
+      <div class="form" id="pw">
+        ${auth.enabled ? '<label>Palavra-passe atual<input type="password" name="current" autocomplete="current-password"></label>' : ''}
+        <label>${auth.enabled ? 'Nova palavra-passe' : 'Palavra-passe'}<input type="password" name="password" autocomplete="new-password" placeholder="pelo menos 6 caracteres"></label>
+        <label>Repetir<input type="password" name="password2" autocomplete="new-password"></label></div>
+      <div class="toolbar" style="margin-top:10px"><button class="primary" id="pw-save">${auth.enabled ? 'Alterar palavra-passe' : 'Ativar palavra-passe'}</button>
+        ${auth.enabled ? '<button id="pw-off" class="danger">Retirar palavra-passe</button>' : ''}</div>
+    </div>
+    <div class="card"><h2>Numeração dos documentos de venda</h2>
+      <p class="muted small">Cada tipo de documento tem a sua numeração, que recomeça em cada ano (série). Os números são atribuídos na emissão, por ordem, sem saltos.</p>
+      ${series.length ? `<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Série</th><th class="num">Último número</th><th>Última data</th></tr></thead><tbody>
+        ${series.map((s) => `<tr><td>${esc(s.name)} (${esc(s.type)})</td><td>${esc(s.series)}</td><td class="num">${s.last_number}</td><td>${esc(s.last_date || '')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Ainda não foi emitido nenhum documento de venda.</p>'}
+      ${salesChain.documents ? (salesChain.ok ? `<div class="alert good small">Numeração e assinaturas dos ${salesChain.documents} documentos emitidos estão corretas.</div>` : `<div class="alert bad small">${salesChain.errors.map(esc).join('<br>')}</div>`) : ''}
+    </div>
     <div class="card"><h2>Registo de auditoria <span class="muted small">últimas 300 operações</span></h2><div class="table-wrap" style="max-height:420px;overflow:auto" tabindex="0" role="region" aria-label="Registo de auditoria"><table>
       <thead><tr><th>Data</th><th>Operação</th><th>Detalhes</th></tr></thead><tbody>
       ${audit.map((a) => `<tr><td class="small">${esc(a.ts)}</td><td>${esc(a.action)}</td><td class="small mono">${esc(a.details || '')}</td></tr>`).join('')}</tbody></table></div></div>`;
   view.querySelector('#save').onclick = async () => {
     try { await api.post('company.update', formData(view.querySelector('#f'))); toast('Dados guardados.', 'good'); await refreshInfo(); } catch (err) { toast(err.message, 'bad'); }
   };
+  const pwForm = view.querySelector('#pw');
+  view.querySelector('#pw-save').onclick = async () => {
+    const f = formData(pwForm);
+    if (f.password.length < 6) return toast('A palavra-passe deve ter pelo menos 6 caracteres.', 'bad');
+    if (f.password !== f.password2) return toast('As duas palavras-passe não são iguais.', 'bad');
+    try {
+      await api.post('auth.set', { current: f.current || '', password: f.password });
+      document.getElementById('logout').hidden = false;
+      toast('Palavra-passe guardada. Guarde-a num local seguro.', 'good');
+      company({ view });
+    } catch (err) { toast(err.message, 'bad'); }
+  };
+  view.querySelector('#pw-off')?.addEventListener('click', async () => {
+    try {
+      await api.post('auth.set', { current: formData(pwForm).current || '', password: '' });
+      document.getElementById('logout').hidden = true;
+      toast('Palavra-passe retirada.');
+      company({ view });
+    } catch (err) { toast(err.message, 'bad'); }
+  });
+  view.querySelector('#logo').onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try { await api.upload('company.logo', f); toast('Logótipo guardado.', 'good'); company({ view }); } catch (err) { toast(err.message, 'bad'); }
+  };
+  view.querySelector('#logo-rm')?.addEventListener('click', async () => { await api.post('company.logo', { remove: true }); toast('Logótipo retirado.'); company({ view }); });
   view.querySelector('#backup').onclick = async () => {
     try { const r = await api.post('backup.create'); toast('Cópia guardada em ' + r.file, 'good'); } catch (err) { toast(err.message, 'bad'); }
   };

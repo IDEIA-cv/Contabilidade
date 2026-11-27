@@ -5,7 +5,11 @@ const BASE = 'api.php';
 async function parse(res) {
   let body;
   try { body = await res.json(); } catch { throw new Error(`Resposta inválida do servidor (HTTP ${res.status}). Verifique se o PHP está a correr.`); }
-  if (!body.ok) throw new Error(body.error || 'Erro desconhecido');
+  if (!body.ok) {
+    const err = new Error(body.error || 'Erro desconhecido');
+    if (body.auth) { err.auth = true; window.dispatchEvent(new CustomEvent('ideia:auth')); }
+    throw err;
+  }
   return body.data;
 }
 

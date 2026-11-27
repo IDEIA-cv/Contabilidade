@@ -17,6 +17,8 @@ Esta pasta reúne toda a documentação técnica. Leia pela ordem abaixo se est�
 | 9 | [Testes](09-testes.md) | Como correr os testes unitários e o teste no browser |
 | 10 | [Roadmap](10-roadmap.md) | Próximas fases (e-Fatura, multiutilizador, empacotamento) |
 | 11 | [Reconciliação bancária](11-reconciliacao-bancaria.md) | Importação de extratos, conciliação e mapa |
+| 12 | [Vendas e documentos comerciais](12-vendas.md) | Faturas, orçamentos, guias, recibos, numeração, dívidas de clientes |
+| 13 | [Avaliação de qualidade](13-avaliacao-qualidade.md) | Notas por categoria (software e UI/UX) e próximos passos |
 | — | [Decisões de arquitetura (ADR)](adr/) | Porque se escolheu cada solução |
 
 ## Decisões registadas

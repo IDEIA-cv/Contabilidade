@@ -14,7 +14,7 @@ export async function render({ view, query }) {
   view.innerHTML = `
     <div class="page-head"><div><h1>Apuramento do IVA</h1><p class="muted">${MONTHS_FULL[q.from - 1]}${q.from !== q.to ? ' a ' + MONTHS_FULL[q.to - 1] : ''} de ${state.year}. Base: contas 2432 (dedutível), 2433 (liquidado) e 2434 (regularizações).</p></div>
       <div class="toolbar no-print" id="tb"><label>De<select name="from">${monthOptions(q.from)}</select></label><label>Até<select name="to">${monthOptions(q.to)}</select></label>
-        <button id="post" class="primary">Gerar lançamento de apuramento</button><button onclick="window.print()">Imprimir</button></div></div>
+        <button id="post" class="primary">Gerar lançamento de apuramento</button><button data-print>Imprimir</button></div></div>
     <div class="kpis">
       <div class="kpi"><div class="label">IVA liquidado (vendas)</div><div class="value">${money(r.liquidado)}</div></div>
       <div class="kpi"><div class="label">IVA dedutível (compras)</div><div class="value">${money(r.dedutivel)}</div></div>

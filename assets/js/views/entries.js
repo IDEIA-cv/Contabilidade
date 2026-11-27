@@ -118,7 +118,7 @@ async function editor({ view, params, query }) {
         <span class="muted small">${readonly ? 'Pode acrescentar documentos a um lançamento validado, mas não retirá-los.' : 'Os documentos escolhidos antes de guardar são anexados quando gravar o lançamento.'}</span></div>
     </div>
     <div class="toolbar no-print" style="justify-content:flex-end">
-      ${readonly ? `${e.reversed_by ? '' : '<button id="reverse" class="danger">Estornar</button>'}<button onclick="window.print()">Imprimir</button>`
+      ${readonly ? `${e.reversed_by ? '' : '<button id="reverse" class="danger">Estornar</button>'}<button data-print>Imprimir</button>`
         : `${id ? '<button id="delete" class="danger">Apagar rascunho</button>' : ''}<button id="save">Guardar rascunho</button><button class="primary" id="validate">Validar</button>`}
     </div>`;
 
