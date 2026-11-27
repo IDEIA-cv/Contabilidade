@@ -10,7 +10,7 @@ use PDO;
  */
 final class Db
 {
-    public const SCHEMA_VERSION = 9;
+    public const SCHEMA_VERSION = 10;
 
     public PDO $pdo;
     public string $path;
@@ -44,9 +44,10 @@ final class Db
         if ($v > self::SCHEMA_VERSION) {
             throw new UserError('Este ficheiro foi criado por uma versão mais recente da aplicação. Atualize a aplicação.');
         }
-        if ($v < 9) {
+        if ($v < 10) {
             // v2: anexos; v3: reconciliação bancária; v4: índices; v5: vendas; v6: famílias de artigos; v7: compras;
-            // v8: e-Fatura (IUD, estado da comunicação, motivo das notas); v9: IUD dos documentos de compra recebidos.
+            // v8: e-Fatura (IUD, estado da comunicação, motivo das notas); v9: IUD dos documentos de compra recebidos;
+            // v10: associações entre documentos de venda (sales_doc_links).
             // O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo acrescenta apenas o que falta.
             $this->pdo->exec((string) file_get_contents(IDEIA_ROOT . '/database/schema.sql'));
             // colunas novas em tabelas que já existiam

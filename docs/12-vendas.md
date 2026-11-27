@@ -19,7 +19,17 @@ Código: `src/Sales.php` (regras), `src/SalesPrint.php` (impressão A4), `assets
 | NC | Nota de crédito | da fatura de origem | sim (movimentos ao contrário) | NCE | — |
 | RC | Recibo | sim | sim (caixa/banco a débito, cliente a crédito) | RCE | — |
 
-NC, ND e RC não se criam diretamente. As notas partem de uma fatura emitida (**Emitir nota de crédito** / **Emitir nota de débito**) e exigem o motivo de emissão (artigo 65.º do CIVA). O recibo nasce de **Registar pagamento** numa fatura ou nota de débito.
+NC, ND e RC nascem sempre de uma fatura. As notas exigem o motivo de emissão (artigo 65.º do CIVA).
+
+- **Nota de crédito**: botão na lista de vendas (escolhe-se a fatura, fatura-recibo, talão ou nota de débito emitidos numa janela com pesquisa) ou **Emitir nota de crédito** na página da fatura.
+- **Recibo**: botão na lista de vendas (escolhe-se uma fatura por receber e abre o registo do pagamento) ou **Registar pagamento** na página da fatura.
+- **Nota de débito**: **Emitir nota de débito** na página da fatura.
+
+### Documentos relacionados, associar e duplicar
+
+- A página de cada documento mostra o documento de origem, as notas, os recibos, as conversões e as **associações**.
+- **Associar documento** liga dois documentos do mesmo cliente que nasceram separados (ex.: o orçamento à fatura feita à parte, a guia à fatura). A associação não muda valores nem a numeração e pode ser removida. Um orçamento ou pró-forma associado a uma fatura emitida deixa de contar como "em aberto" e sai no SAF-T como faturado (`WorkStatus` F).
+- **Duplicar** pede o tipo do novo documento (fatura, talão, fatura-recibo, orçamento, pró-forma ou guia) e pergunta se a cópia fica associada ao original (proposto quando o tipo muda). A cópia é um rascunho com a data de hoje.
 
 Isenções e unidades usam as listas oficiais da e-Fatura (códigos). Com a e-Fatura ativa, cada documento fiscal recebe IUD e código QR na emissão. Ver [15-efatura](15-efatura.md).
 
@@ -102,7 +112,10 @@ Na lista, marque as caixas dos documentos (a seleção mantém-se ao mudar de p�
 
 O ZIP (`documentos_vendas_<NIF>_<data>.zip`) tem uma pasta por tipo com cada documento em HTML pronto a imprimir ou guardar em PDF, o XML da e-Fatura dos documentos com IUD, `documentos.csv` (um documento por linha), `linhas.csv` e `LEIA-ME.txt`. Os CSV usam ponto e vírgula e UTF-8 com BOM para abrir diretamente no Excel.
 
-## Esquema (v5, v6 e v8)
+## Esquema (v5, v6, v8 e v10)
+
+v10: `sales_doc_links (a_id, b_id)` com `a_id < b_id`, para as associações livres. A origem fiscal (notas, recibos, conversões) continua em `sales_docs.origin_id`.
+
 
 Na v8 `sales_docs` ganhou `iud`, `efatura_message`, `efatura_at`, `efatura_mode` e `issue_reason`. Tabelas `item_families` (v6), `items` (com `family_id` desde a v6), `doc_series`, `sales_docs`, `sales_doc_lines`, `sales_settlements` (recibo → faturas liquidadas). Ver [modelo de dados](04-modelo-de-dados.md).
 

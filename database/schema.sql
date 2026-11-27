@@ -283,6 +283,17 @@ CREATE TABLE IF NOT EXISTS sales_settlements (
 );
 CREATE INDEX IF NOT EXISTS ix_settlements_invoice ON sales_settlements(invoice_id);
 
+-- Associações livres entre documentos de venda (v10): ex. orçamento ↔ fatura feita à parte, cópia ↔ original.
+-- Não altera valores nem a cadeia de integridade; a origem fiscal (notas, recibos, conversões) continua em origin_id.
+CREATE TABLE IF NOT EXISTS sales_doc_links (
+    a_id       INTEGER NOT NULL REFERENCES sales_docs(id) ON DELETE CASCADE,
+    b_id       INTEGER NOT NULL REFERENCES sales_docs(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (a_id, b_id),
+    CHECK (a_id < b_id)
+);
+CREATE INDEX IF NOT EXISTS ix_links_b ON sales_doc_links(b_id);
+
 -- Compras (esquema v7) -------------------------------------------------------------------------------------
 -- Faturas de fornecedores (FC), faturas-recibo / despesas pagas no ato (FP), notas de crédito de fornecedores (NF) e
 -- pagamentos (PG). O número interno (FC 2026/1) ordena o registo; supplier_doc é o número no documento do fornecedor.

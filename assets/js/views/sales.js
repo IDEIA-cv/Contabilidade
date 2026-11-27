@@ -72,7 +72,9 @@ async function renderList({ view, query }) {
     <div class="page-head"><div><h1>Vendas</h1><p class="muted">Faturas, orçamentos, guias e recibos. A numeração é automática para cada tipo de documento.</p></div>
       <div class="toolbar">${QUICK.map(([t, l], i) => `<button class="${i === 0 ? 'primary' : ''}" data-new="${t}">${l}</button>`).join('')}
         <label class="sr-only" for="new-other">Outro documento</label>
-        <select id="new-other"><option value="">Outro documento…</option>${otherTypes.map((t) => `<option value="${t}">${T[t].name}</option>`).join('')}</select></div></div>
+        <select id="new-other"><option value="">Outro documento…</option>${otherTypes.map((t) => `<option value="${t}">${T[t].name}</option>`).join('')}</select>
+        <button data-from="NC" title="Escolha a fatura a corrigir ou a devolver">Nota de crédito</button>
+        <button data-from="RC" title="Escolha a fatura que o cliente pagou">Recibo</button></div></div>
     <div class="kpis">
       <div class="kpi" data-href="?type=faturas"><div class="label">Faturado em ${state.year}</div><div class="value">${money(summary.invoiced)}</div><div class="small muted">faturas − notas de crédito</div></div>
       <div class="kpi" data-href="?pay=aberto"><div class="label">Por receber</div><div class="value">${money(summary.open)}</div><div class="small muted">faturas emitidas não pagas</div></div>
@@ -124,6 +126,7 @@ async function renderList({ view, query }) {
   view.querySelector('#clear')?.addEventListener('click', () => go(cpath('vendas')));
   view.querySelectorAll('[data-new]').forEach((b) => { b.onclick = () => go(cpath('vendas/novo?type=' + b.dataset.new)); });
   view.querySelector('#new-other').onchange = (e) => { if (e.target.value) go(cpath('vendas/novo?type=' + e.target.value)); };
+  view.querySelectorAll('[data-from]').forEach((b) => { b.onclick = () => (b.dataset.from === 'NC' ? newCreditNote() : newReceipt()); });
   view.querySelectorAll('.kpi[data-href]').forEach((k) => { k.onclick = () => go(cpath('vendas' + k.dataset.href)); });
   view.querySelectorAll('tr[data-id]').forEach((tr) => { tr.onclick = (e) => { if (e.target.tagName !== 'A') go(cpath('vendas/' + tr.dataset.id)); }; });
   view.querySelector('#xlsx').onclick = () => tableToXlsx(view.querySelector('#list'), `vendas_${today()}.xlsx`, { sheet: 'Vendas', title: `Vendas — ${state.info.name}` });
@@ -326,7 +329,7 @@ async function renderEditor({ view, query }, doc) {
     if (!ok) return;
     try {
       const r = await save(true);
-      toast(`${info.name} ${r.doc_no} emitida.`, 'good');
+      toast(`${info.name} ${r.doc_no} ${['OR', 'TV', 'RC'].includes(r.type) ? 'emitido' : 'emitida'}.`, 'good');
       go(cpath('vendas/' + r.id));
     } catch (e) { toast(e.message, 'bad'); }
   };
@@ -338,6 +341,84 @@ async function renderEditor({ view, query }, doc) {
     go(cpath('vendas'));
   });
   if (!doc) custInput.focus();
+}
+
+// =========================================================================== escolher um documento (nota de crédito, recibo, associar)
+
+/** Janela com pesquisa sobre a lista de vendas. base: filtros fixos (sales.list); exclude: ids a esconder. */
+function pickDoc({ title, intro, base, exclude = [], empty = 'Nenhum documento encontrado.', onPick }) {
+  const T = META.types;
+  const m = modal({
+    title, wide: true,
+    body: `<p class="small muted">${intro}</p>
+      <div class="form"><label class="wide">Pesquisar<input id="pick-q" placeholder="N.º do documento, cliente ou NIF" autocomplete="off"></label></div>
+      <div class="table-wrap" style="margin-top:10px;max-height:50vh;overflow:auto" tabindex="0" role="region" aria-label="Documentos"><table><thead><tr><th>Documento</th><th>Data</th><th>Cliente</th><th class="num">Total</th><th></th></tr></thead><tbody id="pick-rows"><tr><td colspan="5" class="loading">A carregar…</td></tr></tbody></table></div>`,
+    actions: [{ label: 'Cancelar' }],
+  });
+  const rows = m.el.querySelector('#pick-rows');
+  const load = async () => {
+    const res = await api.get('sales.list', { ...base, q: m.el.querySelector('#pick-q').value, limit: 30 });
+    const list = res.rows.filter((r) => !exclude.includes(Number(r.id)));
+    rows.innerHTML = list.map((r) => `<tr><td><b>${esc(r.doc_no || T[r.type].name + ' (rascunho)')}</b><div class="small muted">${esc(T[r.type].name)}</div></td><td>${fmtDate(r.date)}</td>
+      <td>${esc(r.customer || 'Consumidor final')}${r.nif ? ` <span class="small mono muted">${esc(r.nif)}</span>` : ''}</td>
+      <td class="num">${money(r.total_cents)}${r.open_cents !== null && Number(r.open_cents) > 0 ? `<div class="small muted">por receber ${money(r.open_cents)}</div>` : ''}</td>
+      <td><button class="primary" data-pick="${r.id}">Escolher</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty">${empty}</td></tr>`;
+    rows.querySelectorAll('[data-pick]').forEach((b) => {
+      b.onclick = async () => {
+        b.disabled = true;
+        try { await onPick(Number(b.dataset.pick), m); m.close(); } catch (e) { toast(e.message, 'bad'); b.disabled = false; }
+      };
+    });
+  };
+  m.el.querySelector('#pick-q').oninput = debounce(load, 300);
+  load();
+}
+
+function newCreditNote() {
+  pickDoc({
+    title: 'Nota de crédito: escolha a fatura',
+    intro: 'A nota de crédito corrige ou anula, no todo ou em parte, uma fatura, fatura-recibo, talão ou nota de débito já emitidos. A seguir deixa só as linhas e quantidades a creditar.',
+    base: { type: 'creditaveis', status: 'emitido' },
+    empty: 'Não há faturas emitidas com estes dados.',
+    onPick: async (id) => {
+      const r = await api.post('sales.derive', { id, type: 'NC', mode: 'credit' });
+      toast('Rascunho da nota de crédito criado. Deixe só as linhas e quantidades a creditar e emita.', 'good');
+      go(cpath('vendas/' + r.id));
+    },
+  });
+}
+
+function newReceipt() {
+  pickDoc({
+    title: 'Recibo: escolha a fatura paga',
+    intro: 'O recibo regista o pagamento (total ou parcial) de uma fatura ou nota de débito. As faturas-recibo e os talões já incluem o pagamento.',
+    base: { pay: 'aberto' },
+    empty: 'Não há faturas por receber com estes dados.',
+    onPick: async (id) => { go(cpath(`vendas/${id}?pay=1`)); },
+  });
+}
+
+/** Duplicar: escolher o tipo da cópia e se fica associada ao original. */
+function duplicateDialog(d) {
+  const T = META.types;
+  const types = CREATABLE.filter((t) => T[t]);
+  const m = modal({
+    title: `Duplicar ${d.doc_no || T[d.type].name}`,
+    body: `<p class="small muted">Cria um rascunho com o mesmo cliente e as mesmas linhas, com a data de hoje. Pode mudá-lo antes de emitir.</p>
+      <div class="form">
+        <label class="wide">Tipo do novo documento<select name="type">${types.map((t) => `<option value="${t}" ${t === d.type ? 'selected' : ''}>${esc(T[t].name)}</option>`).join('')}</select></label>
+        <label class="wide check"><input type="checkbox" name="link"> Associar ao documento original (aparece nos "Documentos relacionados" dos dois)</label>
+      </div>`,
+    actions: [{ label: 'Cancelar' }, { label: 'Duplicar', primary: true, onClick: async (el) => {
+      const type = el.querySelector('[name=type]').value;
+      const r = await api.post('sales.derive', { id: d.id, type, mode: 'copy', link: el.querySelector('[name=link]').checked ? 1 : 0 });
+      toast(`Rascunho de ${T[type].name.toLowerCase()} criado. Reveja e emita.`, 'good');
+      go(cpath('vendas/' + r.id));
+    } }],
+  });
+  const sel = m.el.querySelector('[name=type]');
+  const link = m.el.querySelector('[name=link]');
+  sel.onchange = () => { link.checked = sel.value !== d.type; };
 }
 
 // =========================================================================== documento emitido
@@ -402,10 +483,14 @@ async function renderDoc(ctx, id) {
       ${d.iud ? `<div class="toolbar"><button id="ef-check">Verificar com o XSD oficial</button><a class="btn" href="${api.href('efatura.xml', { id: d.id })}">Descarregar XML</a>
         ${META.efatura && !['autorizado', 'excluido'].includes(d.efatura_status) ? '<button class="primary" id="ef-send">Enviar à e-Fatura</button>' : ''}<a href="#/${cpath('efatura')}" class="small">Página e-Fatura</a></div><div id="ef-out"></div>`
         : `<p class="small muted">${META.efatura ? 'Documento anterior à adesão: sem IUD.' : `A e-Fatura não está ativa. <a href="#/${cpath('efatura')}">Configurar a e-Fatura</a>`}</p>`}</div>` : ''}
-    ${d.receipts.length || d.derived.length ? `<div class="card"><h2>Documentos relacionados</h2><ul>
+    ${d.receipts.length || d.derived.length || d.links.length || d.origin || d.status === 'emitido' ? `<div class="card" id="related"><h2>Documentos relacionados</h2><ul>
+      ${d.origin ? `<li><a href="#/${cpath('vendas/' + d.origin.id)}">${esc(d.origin.doc_no || T[d.origin.type].name + ' (rascunho)')}</a> · ${esc(T[d.origin.type].name)} · documento de origem</li>` : ''}
+      ${d.links.map((x) => `<li><a href="#/${cpath('vendas/' + x.id)}">${esc(x.doc_no || T[x.type].name + ' (rascunho)')}</a> · ${esc(T[x.type].name)} de ${fmtDate(x.date)} · ${money(x.total_cents)} ${x.status !== 'emitido' ? `<span class="badge ${STATUS[x.status][1]}">${STATUS[x.status][0]}</span>` : ''}
+        <button class="link-btn no-print" data-unlink="${x.id}" aria-label="Remover a associação a ${esc(x.doc_no || 'rascunho')}">remover associação</button></li>`).join('')}
       ${d.receipts.map((r) => `<li><a href="#/${cpath('vendas/' + r.id)}">${esc(r.doc_no)}</a> · recibo de ${fmtDate(r.date)} · ${money(r.amount_cents)} ${r.status === 'anulado' ? '<span class="badge bad">Anulado</span>' : ''}</li>`).join('')}
-      ${d.derived.map((x) => `<li><a href="#/${cpath('vendas/' + x.id)}">${esc(x.doc_no || T[x.type].name + ' (rascunho)')}</a> · ${esc(T[x.type].name)} · ${money(x.total_cents)} ${x.status !== 'emitido' ? `<span class="badge ${STATUS[x.status][1]}">${STATUS[x.status][0]}</span>` : ''}</li>`).join('')}
-    </ul></div>` : ''}
+      ${d.derived.filter((x) => x.type !== 'RC').map((x) => `<li><a href="#/${cpath('vendas/' + x.id)}">${esc(x.doc_no || T[x.type].name + ' (rascunho)')}</a> · ${esc(T[x.type].name)} · ${money(x.total_cents)} ${x.status !== 'emitido' ? `<span class="badge ${STATUS[x.status][1]}">${STATUS[x.status][0]}</span>` : ''}</li>`).join('')}
+    </ul>${d.receipts.length || d.derived.length || d.links.length || d.origin ? '' : '<p class="small muted">Nenhum documento relacionado.</p>'}
+      ${d.status !== 'anulado' ? '<div class="toolbar no-print"><button id="link">Associar documento</button><span class="small muted">Ex.: ligar o orçamento ou a guia a esta fatura.</span></div>' : ''}</div>` : ''}
     ${d.status === 'emitido' ? `<div class="card no-print"><h2>Outras ações</h2><div class="toolbar">
       ${d.can_convert.map((t) => `<button data-convert="${t}">${t === 'ND' ? 'Emitir nota de débito' : `Converter em ${esc(T[t].name.toLowerCase())}`}</button>`).join('')}
       ${canCredit ? '<button id="credit">Emitir nota de crédito</button>' : ''}
@@ -437,11 +522,18 @@ async function renderDoc(ctx, id) {
     toast('Rascunho da nota de crédito criado. Deixe só as linhas e quantidades a creditar.', 'good');
     go(cpath('vendas/' + r.id));
   });
-  view.querySelector('#copy')?.addEventListener('click', async () => {
-    const r = await api.post('sales.derive', { id: d.id, type: d.type, mode: 'copy' });
-    toast('Cópia criada como rascunho.', 'good');
-    go(cpath('vendas/' + r.id));
+  view.querySelector('#copy')?.addEventListener('click', () => duplicateDialog(d));
+  view.querySelector('#link')?.addEventListener('click', () => pickDoc({
+    title: `Associar a ${d.doc_no}`,
+    intro: `Escolha o documento a ligar${d.third_party ? ' (mesmo cliente)' : ''}. A associação não altera valores: serve para encontrar os documentos relacionados.`,
+    base: d.third_party ? { party: d.third_party } : {},
+    exclude: [d.id, ...d.links.map((x) => Number(x.id)), ...(d.origin ? [Number(d.origin.id)] : []), ...d.derived.map((x) => Number(x.id))],
+    onPick: async (other) => { await api.post('sales.link', { id: d.id, other }); toast('Documentos associados.', 'good'); renderDoc(ctx, id); },
+  }));
+  view.querySelectorAll('[data-unlink]').forEach((b) => {
+    b.onclick = async () => { await api.post('sales.unlink', { id: d.id, other: Number(b.dataset.unlink) }); toast('Associação removida.'); renderDoc(ctx, id); };
   });
+  if (ctx.query?.pay && canPay) payDialog(d, () => go(cpath('vendas/' + d.id)));
   view.querySelector('#cancel')?.addEventListener('click', () => {
     modal({
       title: `Anular ${d.doc_no}?`,

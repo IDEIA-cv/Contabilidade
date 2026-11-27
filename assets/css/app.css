@@ -76,6 +76,7 @@ nav a.active { background: rgba(90,169,240,.18); color: #fff; }
 .theme-pick { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .theme-pick select { background: rgba(255,255,255,.06); color: var(--sidebar-ink); border-color: rgba(255,255,255,.15); padding: 3px 6px; font-size: 12px; }
 .theme-pick select option { color: #1c2430; background: #fff; }
+.form label.check { flex-direction: row; align-items: center; gap: 8px; }
 th.sel, td.sel { width: 32px; padding-right: 0; }
 td.sel input, th.sel input { width: 16px; height: 16px; cursor: pointer; }
 tr.selected td { background: var(--primary-soft); }

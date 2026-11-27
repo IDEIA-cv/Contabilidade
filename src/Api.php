@@ -251,7 +251,11 @@ final class Api
                 Sales::deleteDraft($db, self::int($in, 'id', 0));
                 return true;
             case 'sales.derive':
-                return Sales::derive($db, self::int($in, 'id', 0), (string) ($in['type'] ?? ''), (string) ($in['mode'] ?? 'convert'));
+                return Sales::derive($db, self::int($in, 'id', 0), (string) ($in['type'] ?? ''), (string) ($in['mode'] ?? 'convert'), !empty($in['link']));
+            case 'sales.link':
+                return Sales::link($db, self::int($in, 'id', 0), self::int($in, 'other', 0));
+            case 'sales.unlink':
+                return Sales::unlink($db, self::int($in, 'id', 0), self::int($in, 'other', 0));
             case 'sales.pay':
                 return Sales::pay($db, self::int($in, 'id', 0), $in);
             case 'sales.series':

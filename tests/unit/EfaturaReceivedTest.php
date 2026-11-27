@@ -122,7 +122,7 @@ return [
         $db->run('ALTER TABLE purchase_docs DROP COLUMN iud');
         $db->setMeta('schema_version', '8');
         $db2 = new Db($db->path);
-        same('9', $db2->meta('schema_version'));
+        same((string) Db::SCHEMA_VERSION, $db2->meta('schema_version'));
         check((bool) $db2->value("SELECT 1 FROM pragma_table_info('purchase_docs') WHERE name = 'iud'"));
         check((bool) $db2->value("SELECT 1 FROM sqlite_master WHERE name = 'ux_purchase_iud'"));
     },

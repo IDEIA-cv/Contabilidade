@@ -96,13 +96,15 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 | `items.families` | GET | — famílias com o número de artigos |
 | `items.family_save` | POST | `id?`, `name`, `kind`, `vat_code?`, `exemption?`, `account?`, `active?` |
 | `items.family_delete` | POST | `id` — os artigos ficam sem família |
-| `sales.list` | GET | `type?` (código ou `faturas`), `status?`, `pay?` (aberto, vencido, pago), `party?`, `q?`, `from?`, `to?`, `limit`, `offset` |
+| `sales.list` | GET | `type?` (código, `faturas` ou `creditaveis` = FT, FR, TV, ND), `status?`, `pay?` (aberto, vencido, pago), `party?`, `q?`, `from?`, `to?`, `limit`, `offset` |
 | `sales.get` | GET | `id` |
 | `sales.save` | POST | `id?`, `type`, `date`, `due_date?`, `third_party?`, `customer_name?`/`customer_nif?` (FR e TV sem ficha), `reference?`, `notes?`, `payment_method?`, `delivery_place?`, `origin_id?`, `issue_reason?` (NC, ND), `lines[]`, `issue?` |
 | `sales.issue` | POST | `id` — atribui número, hash e lançamento |
 | `sales.cancel` | POST | `id`, `reason` |
 | `sales.delete` | POST | `id` (só rascunhos) |
-| `sales.derive` | POST | `id`, `type`, `mode` (convert, credit, copy) — novo rascunho a partir de outro documento |
+| `sales.derive` | POST | `id`, `type`, `mode` (convert, credit, copy), `link?` (só em copy: associa a cópia ao original) — novo rascunho a partir de outro documento |
+| `sales.link` | POST | `id`, `other` — associa dois documentos do mesmo cliente; devolve o documento com `links` |
+| `sales.unlink` | POST | `id`, `other` — remove a associação |
 | `sales.pay` | POST | `id` (FT/ND), `date`, `amount?` (por omissão o valor em dívida), `payment_method`, `notes?` — emite recibo |
 | `sales.print` | GET | `id` — página HTML A4 |
 | `sales.export_zip` | GET | `ids` (lista separada por vírgulas) ou os mesmos filtros de `sales.list` — ZIP com HTML, XML da e-Fatura e CSV |

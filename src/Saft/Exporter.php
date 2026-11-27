@@ -326,7 +326,8 @@ final class Exporter
         self::el($w, 'TotalDebit', '0.00');
         self::el($w, 'TotalCredit', Money::decimal(array_sum(array_map(static fn($d) => (int) $d['net_cents'], $valid))));
         foreach ($docs as $d) {
-            $invoiced = (bool) $db->value("SELECT 1 FROM sales_docs WHERE origin_id = ? AND type IN ('FT','FR','TV') AND status = 'emitido'", [$d['id']]);
+            $invoiced = (bool) $db->value("SELECT 1 FROM sales_docs x WHERE x.type IN ('FT','FR','TV') AND x.status = 'emitido' AND (x.origin_id = :id
+                OR EXISTS (SELECT 1 FROM sales_doc_links l WHERE (l.a_id = :id AND l.b_id = x.id) OR (l.b_id = :id AND l.a_id = x.id)))", ['id' => $d['id']]);
             $w->startElement('WorkDocument');
             self::el($w, 'DocumentNumber', self::docNumber($d['type'], (string) $d['series'], (int) $d['number']));
             $w->startElement('DocumentStatus');

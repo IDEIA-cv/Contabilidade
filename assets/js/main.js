@@ -34,7 +34,11 @@ const ROUTES = {
   relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales, terceiro: sales, compras: purchases, 'dividas-fornecedores': purchases, pagamentos: purchases, efatura,
 };
 
-export function go(path) { location.hash = '#/' + path.replace(/^#?\/?/, ''); }
+export function go(path) {
+  const hash = '#/' + path.replace(/^#?\/?/, '');
+  // o mesmo endereço não dispara hashchange (ex.: emitir um rascunho já aberto): volta a desenhar o ecrã
+  if (location.hash === hash) route_(); else location.hash = hash;
+}
 export function cpath(path) { return `c/${state.company}/${path}`; }
 
 export async function refreshInfo() {

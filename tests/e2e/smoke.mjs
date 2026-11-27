@@ -239,6 +239,46 @@ await popup.screenshot({ path: `${OUT}23-fatura-impressao.png`, fullPage: true }
 await popup.close();
 console.log('ok', '23-impressao');
 
+// associar documentos, duplicar com associação, nota de crédito e recibo a partir da lista
+{
+  const ftUrl = page.url();
+  await page.click('#copy');
+  await page.selectOption('.modal [name=type]', 'OR');
+  if (!(await page.isChecked('.modal [name=link]'))) errors.push('[duplicar] outro tipo devia propor associar');
+  await page.click('.modal button.primary');
+  await page.waitForSelector('#issue');
+  await page.click('#issue');
+  await page.click('.modal button.primary');
+  await page.waitForSelector('#related');
+  if (!(await page.innerText('#related')).includes('FT ')) errors.push('[duplicar] orçamento sem a fatura associada');
+  await page.goto(ftUrl);
+  await page.waitForSelector('#related [data-unlink]');
+  await page.click('#related [data-unlink]'); // desfaz a associação ao orçamento e volta a fazê-la pela pesquisa
+  await page.waitForFunction(() => !document.querySelector('#related [data-unlink]'));
+  await page.click('#link');
+  await page.waitForSelector('.modal [data-pick]');
+  await page.screenshot({ path: `${OUT}24-associar-escolher.png`, fullPage: false });
+  await page.click('.modal [data-pick]');
+  await page.waitForSelector('#related [data-unlink]');
+  await page.screenshot({ path: `${OUT}24-documentos-relacionados.png`, fullPage: true });
+  console.log('ok', '24-documentos-relacionados');
+
+  await visit(`${c}/vendas`, '25-vendas-lista', '[data-from=NC]');
+  await page.click('[data-from=NC]');
+  await page.waitForSelector('.modal [data-pick]');
+  await page.screenshot({ path: `${OUT}25-nota-credito-escolher.png`, fullPage: false });
+  await page.click('.modal [data-pick]');
+  await page.waitForSelector('.page-head h1 >> text=Nota de crédito');
+  console.log('ok', '25-nota-credito-rascunho');
+  await visit(`${c}/vendas`, '25-vendas-lista', '[data-from=RC]');
+  await page.click('[data-from=RC]');
+  await page.waitForSelector('.modal [data-pick]');
+  await page.click('.modal [data-pick]');
+  await page.waitForSelector('.modal [name=amount], .modal [name=date]');
+  await page.screenshot({ path: `${OUT}26-recibo-pagamento.png`, fullPage: false });
+  console.log('ok', '26-recibo-da-lista');
+}
+
 await browser.close();
 if (errors.length) {
   console.error('\nERROS:\n' + errors.join('\n'));

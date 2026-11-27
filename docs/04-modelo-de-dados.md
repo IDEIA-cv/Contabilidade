@@ -75,7 +75,7 @@ Junta linhas, cabeçalho e tipo de diário **só dos lançamentos validados**. T
 
 ## Versões do esquema
 
-`Db::SCHEMA_VERSION` (atualmente `9`) é gravado em `meta.schema_version`. Ao abrir um ficheiro de versão inferior, `Db::migrate()` aplica as migrações em falta; um ficheiro de versão superior é recusado ("atualize a aplicação"). As migrações nunca alteram dados de lançamentos validados.
+`Db::SCHEMA_VERSION` (atualmente `10`) é gravado em `meta.schema_version`. Ao abrir um ficheiro de versão inferior, `Db::migrate()` aplica as migrações em falta; um ficheiro de versão superior é recusado ("atualize a aplicação"). As migrações nunca alteram dados de lançamentos validados.
 
 | Versão | Alteração |
 |--------|-----------|
@@ -88,3 +88,4 @@ Junta linhas, cabeçalho e tipo de diário **só dos lançamentos validados**. T
 | 7 | Compras: `purchase_docs`, `purchase_doc_lines`, `purchase_settlements` (ver [compras](14-compras.md#esquema-v7)) |
 | 8 | e-Fatura: colunas `sales_docs.iud` (índice único), `efatura_message`, `efatura_at`, `efatura_mode`, `issue_reason`; chaves `efatura_*` em `meta` (ver [e-Fatura](15-efatura.md)) |
 | 9 | Documentos recebidos da e-Fatura: coluna `purchase_docs.iud` (índice único `ux_purchase_iud`) |
+| 10 | Associações entre documentos de venda: `sales_doc_links` (ver [vendas](12-vendas.md#documentos-relacionados-associar-e-duplicar)) |

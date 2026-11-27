@@ -278,6 +278,9 @@ final class Sales
         $type = (string) ($f['type'] ?? '');
         if ($type === 'faturas') {
             $where[] = "d.type IN ('FT','FR','TV','ND','NC')";
+        } elseif ($type === 'creditaveis') {
+            // documentos a que se pode emitir nota de crédito
+            $where[] = "d.type IN ('FT','FR','TV','ND')";
         } elseif ($type !== '') {
             self::typeInfo($type);
             $where[] = 'd.type = ?';
@@ -367,6 +370,8 @@ final class Sales
         );
         $d['origin'] = $d['origin_id'] ? $db->one('SELECT id, type, doc_no, date, status FROM sales_docs WHERE id = ?', [$d['origin_id']]) : null;
         $d['derived'] = $db->all('SELECT id, type, doc_no, date, status, total_cents FROM sales_docs WHERE origin_id = ? ORDER BY id', [$id]);
+        $d['links'] = $db->all('SELECT d.id, d.type, d.doc_no, d.date, d.status, d.total_cents FROM sales_doc_links l
+            JOIN sales_docs d ON d.id = CASE WHEN l.a_id = ? THEN l.b_id ELSE l.a_id END WHERE l.a_id = ? OR l.b_id = ? ORDER BY d.date, d.id', [$id, $id, $id]);
         $d['receipts'] = $db->all(
             "SELECT r.id, r.doc_no, r.date, r.status, s.amount_cents FROM sales_settlements s JOIN sales_docs r ON r.id = s.receipt_id WHERE s.invoice_id = ? ORDER BY r.date",
             [$id]
@@ -806,11 +811,12 @@ final class Sales
             throw new UserError('Só é possível apagar rascunhos. Um documento emitido anula-se.');
         }
         $db->run('UPDATE sales_docs SET origin_id = NULL WHERE origin_id = ? AND status = \'rascunho\'', [$id]);
+        $db->run('DELETE FROM sales_doc_links WHERE a_id = ? OR b_id = ?', [$id, $id]);
         $db->run('DELETE FROM sales_docs WHERE id = ?', [$id]);
     }
 
     /** Novo rascunho a partir de outro documento: conversão (orçamento → fatura), nota de crédito ou cópia. */
-    public static function derive(Db $db, int $id, string $type, string $mode = 'convert'): array
+    public static function derive(Db $db, int $id, string $type, string $mode = 'convert', bool $link = false): array
     {
         $src = self::get($db, $id);
         self::typeInfo($type);
@@ -828,7 +834,10 @@ final class Sales
             'unit' => $l['unit'], 'price_cents' => (int) $l['price_cents'], 'discount_bp' => (int) $l['discount_bp'],
             'vat_code' => $l['vat_code'], 'exemption' => $l['exemption'], 'account' => $l['account'],
         ], $src['lines']);
-        return self::save($db, [
+        if ($mode === 'copy' && !in_array($type, ['FT', 'TV', 'FR', 'OR', 'PF', 'GE', 'GT'], true)) {
+            throw new UserError('Uma cópia pode ser fatura, talão, fatura-recibo, orçamento, pró-forma ou guia.');
+        }
+        $doc = self::save($db, [
             'type' => $type,
             'date' => date('Y-m-d'),
             'third_party' => $src['third_party'],
@@ -840,6 +849,36 @@ final class Sales
             'payment_method' => $src['payment_method'],
             'lines' => $lines,
         ]);
+        if ($mode === 'copy' && $link) {
+            $doc = self::link($db, (int) $doc['id'], $id);
+        }
+        return $doc;
+    }
+
+    /** Associa dois documentos de venda (sem efeito nos valores): ex. um orçamento à fatura emitida à parte. */
+    public static function link(Db $db, int $id, int $other): array
+    {
+        if ($id === $other) {
+            throw new UserError('Escolha outro documento.');
+        }
+        $a = self::get($db, $id);
+        $b = self::get($db, $other);
+        if ($a['third_party'] && $b['third_party'] && (int) $a['third_party'] !== (int) $b['third_party']) {
+            throw new UserError('Só se associam documentos do mesmo cliente.');
+        }
+        if ((int) $a['origin_id'] === $other || (int) $b['origin_id'] === $id) {
+            throw new UserError('Estes documentos já estão ligados (um nasceu do outro).');
+        }
+        $db->run('INSERT OR IGNORE INTO sales_doc_links (a_id, b_id) VALUES (?, ?)', [min($id, $other), max($id, $other)]);
+        $db->audit('venda.associada', ['id' => $id, 'com' => $other, 'documentos' => [$a['doc_no'] ?: 'rascunho', $b['doc_no'] ?: 'rascunho']]);
+        return self::get($db, $id);
+    }
+
+    public static function unlink(Db $db, int $id, int $other): array
+    {
+        $db->run('DELETE FROM sales_doc_links WHERE a_id = ? AND b_id = ?', [min($id, $other), max($id, $other)]);
+        $db->audit('venda.desassociada', ['id' => $id, 'com' => $other]);
+        return self::get($db, $id);
     }
 
     /** Regista o pagamento de uma fatura / nota de débito: emite um recibo. */
@@ -1031,7 +1070,8 @@ final class Sales
             'open' => (int) $db->value("SELECT COALESCE(SUM($open),0) FROM sales_docs d WHERE d.status = 'emitido' AND d.type IN ('FT','ND')"),
             'overdue' => (int) $db->value("SELECT COALESCE(SUM($open),0) FROM sales_docs d WHERE d.status = 'emitido' AND d.type IN ('FT','ND') AND d.due_date < date('now','localtime')"),
             'drafts' => (int) $db->value("SELECT COUNT(*) FROM sales_docs WHERE status = 'rascunho'"),
-            'quotes_open' => (int) $db->value("SELECT COUNT(*) FROM sales_docs d WHERE d.type = 'OR' AND d.status = 'emitido' AND (d.due_date IS NULL OR d.due_date >= date('now','localtime')) AND NOT EXISTS (SELECT 1 FROM sales_docs x WHERE x.origin_id = d.id AND x.status <> 'anulado')"),
+            'quotes_open' => (int) $db->value("SELECT COUNT(*) FROM sales_docs d WHERE d.type = 'OR' AND d.status = 'emitido' AND (d.due_date IS NULL OR d.due_date >= date('now','localtime')) AND NOT EXISTS (SELECT 1 FROM sales_docs x WHERE x.origin_id = d.id AND x.status <> 'anulado')
+                AND NOT EXISTS (SELECT 1 FROM sales_doc_links l JOIN sales_docs x ON x.id = CASE WHEN l.a_id = d.id THEN l.b_id ELSE l.a_id END WHERE d.id IN (l.a_id, l.b_id) AND x.type IN ('FT','FR','TV') AND x.status = 'emitido')"),
         ];
     }
 }
