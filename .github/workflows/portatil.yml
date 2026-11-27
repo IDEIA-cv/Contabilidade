@@ -40,7 +40,6 @@ jobs:
           $out
           foreach ($e in 'pdo_sqlite','mbstring','zip','xmlwriter','dom','SimpleXML','zlib','curl','openssl') { if (-not ($out -contains $e)) { Write-Error "Falta a extensão $e"; exit 1 } }
       - name: Testes no Windows
-        continue-on-error: true
         shell: pwsh
         run: |
           $php = "phpbin\windows\php.exe"
