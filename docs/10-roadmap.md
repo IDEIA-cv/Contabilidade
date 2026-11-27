@@ -41,6 +41,7 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 - **Inventário periódico**: apuramento do custo das mercadorias vendidas (31 → 32/33 → 611/612) com o inventário contado; o fecho exige-o. Relatório de gestão e carteira usam os dados da faturação.
 - **Versão portátil**: copiar a pasta e abrir com "Abrir IDEIA" (Windows, Mac, Linux), PHP incluído, sem XAMPP. Zips gerados pelo GitHub Actions. Ver [02-instalacao](02-instalacao.md).
 - Paginação em vendas, compras, clientes e fornecedores e artigos, com escolha de linhas por página (25/50/100/200, guardada no browser); a exportação Excel leva todas as linhas do filtro.
+- Menu lateral por secções (Vendas, Compras, Fatura eletrónica, Contabilidade, Relatórios, Estatísticas, Dados) com ícone e submenus que abrem e fecham; a secção do ecrã atual abre sozinha e as que o utilizador abre ficam guardadas no browser.
 
 ## Próximo — validação (antes de qualquer cliente real)
 

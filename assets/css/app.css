@@ -73,6 +73,18 @@ nav .group { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; 
 nav a { display: block; color: var(--sidebar-ink); padding: 7px 10px; border-radius: 7px; }
 nav a:hover { background: rgba(255,255,255,.06); text-decoration: none; color: #fff; }
 nav a.active { background: rgba(90,169,240,.18); color: #fff; }
+nav .nav-top { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; margin-top: 2px; border: 0; border-radius: 7px;
+  background: none; color: var(--sidebar-ink); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+nav .nav-top:hover { background: rgba(255,255,255,.06); color: #fff; text-decoration: none; }
+nav .nav-top:focus-visible { outline: 2px solid #5aa9f0; outline-offset: -2px; }
+nav .nav-top span { flex: 1; }
+nav .nav-group.here > .nav-top { color: #fff; }
+.nav-ico { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.nav-chev { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .15s; opacity: .7; }
+.nav-top[aria-expanded="true"] .nav-chev { transform: rotate(90deg); }
+.nav-sub { margin: 2px 0 6px 19px; padding-left: 10px; border-left: 1px solid rgba(255,255,255,.12); }
+.nav-sub a { padding: 6px 10px; font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .nav-chev { transition: none; } }
 .theme-pick { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .theme-pick select { background: rgba(255,255,255,.06); color: var(--sidebar-ink); border-color: rgba(255,255,255,.15); padding: 3px 6px; font-size: 12px; }
 .theme-pick select option { color: #1c2430; background: #fff; }

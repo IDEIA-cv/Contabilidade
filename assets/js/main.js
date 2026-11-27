@@ -19,16 +19,36 @@ import * as imobilizado from './views/assets.js';
 
 export const state = { company: null, info: null, year: null, companies: [] };
 
+// Menu lateral: cada secção é um item que abre e fecha os seus submenus.
+const ICONS = {
+  painel: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  vendas: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/>',
+  compras: '<path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.8h8.2a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="21" r="1"/><circle cx="18" cy="21" r="1"/>',
+  efatura: '<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 14l2 2 4-4"/>',
+  contabilidade: '<path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6.5a2.5 2.5 0 0 0 0 5H20"/>',
+  relatorios: '<path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4M9 18v-4M12 18v-7M15 18v-2"/>',
+  estatisticas: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  dados: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+};
 const NAV = [
-  { group: null, items: [['painel', 'Painel']] },
-  { group: 'Vendas', items: [['vendas', 'Documentos de venda'], ['dividas', 'Dívidas de clientes'], ['artigos', 'Artigos'], ['artigos?tipos=1', 'Tipos de artigo']] },
-  { group: 'Compras', items: [['compras', 'Faturas de fornecedores'], ['dividas-fornecedores', 'Dívidas a fornecedores'], ['pagamentos', 'Mapa de pagamentos']] },
-  { group: 'Fatura eletrónica', items: [['efatura', 'e-Fatura: estado e envio'], ['efatura/recebidos', 'Documentos recebidos'], ['efatura/conferencia', 'Conferência do IVA'], ['efatura/configurar', 'Configuração e-Fatura'], ['efatura/documentacao', 'Documentação oficial']] },
-  { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária'], ['imobilizado', 'Imobilizado']] },
-  { group: 'Relatórios', items: [['relatorios/balancete', 'Balancete'], ['relatorios/razao', 'Extrato de conta'], ['relatorios/diario', 'Diário'], ['relatorios/balanco', 'Balanço'], ['relatorios/dr', 'Demonstração de resultados'], ['iva', 'Apuramento do IVA']] },
-  { group: 'Estatísticas', items: [['estatisticas/racios', 'Rácios financeiros'], ['estatisticas/gastos', 'Estrutura de gastos'], ['estatisticas/terceiros', 'Clientes e fornecedores'], ['estatisticas/orcamento', 'Orçamento'], ['estatisticas/previsao', 'Previsão'], ['estatisticas/indicadores', 'Indicadores próprios'], ['estatisticas/relatorio', 'Relatório de gestão']] },
-  { group: 'Dados', items: [['importar', 'Importar e exportar'], ['exercicios', 'Exercícios e fecho'], ['empresa', 'Empresa e cópias']] },
+  { key: 'painel', label: 'Painel', href: 'painel' },
+  { key: 'vendas', label: 'Vendas', items: [['vendas', 'Documentos de venda'], ['dividas', 'Dívidas de clientes'], ['artigos', 'Artigos'], ['artigos?tipos=1', 'Tipos de artigo']] },
+  { key: 'compras', label: 'Compras', items: [['compras', 'Faturas de fornecedores'], ['dividas-fornecedores', 'Dívidas a fornecedores'], ['pagamentos', 'Mapa de pagamentos']] },
+  { key: 'efatura', label: 'Fatura eletrónica', items: [['efatura', 'Estado e envio'], ['efatura/recebidos', 'Documentos recebidos'], ['efatura/conferencia', 'Conferência do IVA'], ['efatura/configurar', 'Configuração'], ['efatura/documentacao', 'Documentação oficial']] },
+  { key: 'contabilidade', label: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária'], ['imobilizado', 'Imobilizado']] },
+  { key: 'relatorios', label: 'Relatórios', items: [['relatorios/balancete', 'Balancete'], ['relatorios/razao', 'Extrato de conta'], ['relatorios/diario', 'Diário'], ['relatorios/balanco', 'Balanço'], ['relatorios/dr', 'Demonstração de resultados'], ['iva', 'Apuramento do IVA']] },
+  { key: 'estatisticas', label: 'Estatísticas', items: [['estatisticas/racios', 'Rácios financeiros'], ['estatisticas/vendas', 'Vendas e artigos'], ['estatisticas/compras', 'Compras'], ['estatisticas/prazos', 'Prazos de pagamento'], ['estatisticas/gastos', 'Estrutura de gastos'], ['estatisticas/terceiros', 'Clientes e fornecedores'], ['estatisticas/orcamento', 'Orçamento'], ['estatisticas/previsao', 'Previsão'], ['estatisticas/indicadores', 'Indicadores próprios'], ['estatisticas/relatorio', 'Relatório de gestão']] },
+  { key: 'dados', label: 'Dados e configuração', items: [['importar', 'Importar e exportar'], ['exercicios', 'Exercícios e fecho'], ['empresa', 'Empresa e cópias']] },
 ];
+const icon = (k) => `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ''}</svg>`;
+const openGroups = () => { try { return JSON.parse(localStorage.getItem('ideia.nav') || '[]'); } catch { return []; } };
+const saveGroups = (g) => { try { localStorage.setItem('ideia.nav', JSON.stringify(g)); } catch { /* sem armazenamento */ } };
+/** A ligação corresponde ao ecrã atual? (com ?query: tem de coincidir exatamente) */
+function navActive(p, cur, full) {
+  if (p.includes('?')) return full === p;
+  if (p === 'artigos' && full.startsWith('artigos?tipos=')) return false;
+  return cur === p || (cur.startsWith(p + '/') && p !== 'painel' && p !== 'efatura') || (p === 'lancamentos' && cur.startsWith('lancamento'));
+}
 
 const ROUTES = {
   painel: dashboard, lancamentos: entries, lancamento: entries, contas: accounts, terceiros: parties,
@@ -69,8 +89,25 @@ function renderChrome(route = '') {
     return;
   }
   const cur = route || parseHash().parts.slice(2).join('/');
-  nav.innerHTML = NAV.map((g) => (g.group ? `<div class="group">${g.group}</div>` : '') + g.items.map(([p, label]) =>
-    `<a href="#/${cpath(p)}" class="${cur === p || (cur.startsWith(p + '/') && p !== 'painel' && p !== 'efatura') || (p === 'lancamentos' && cur.startsWith('lancamento')) ? 'active' : ''}">${label}</a>`).join('')).join('');
+  const full = location.hash.replace(/^#\/c\/[^/]+\//, '');
+  const opened = openGroups();
+  nav.innerHTML = NAV.map((g) => {
+    if (!g.items) return `<a href="#/${cpath(g.href)}" class="nav-top ${navActive(g.href, cur, full) ? 'active' : ''}">${icon(g.key)}<span>${g.label}</span></a>`;
+    const here = g.items.some(([p]) => navActive(p, cur, full));
+    const open = here || opened.includes(g.key);
+    return `<div class="nav-group ${here ? 'here' : ''}">
+      <button type="button" class="nav-top" data-group="${g.key}" aria-expanded="${open}" aria-controls="nav-${g.key}">${icon(g.key)}<span>${g.label}</span><svg class="nav-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      <div class="nav-sub" id="nav-${g.key}" ${open ? '' : 'hidden'}>${g.items.map(([p, label]) => `<a href="#/${cpath(p)}" class="${navActive(p, cur, full) ? 'active' : ''}" ${navActive(p, cur, full) ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</div></div>`;
+  }).join('');
+  nav.querySelectorAll('[data-group]').forEach((b) => {
+    b.onclick = () => {
+      const open = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', String(open));
+      b.nextElementSibling.hidden = !open;
+      const g = openGroups().filter((k) => k !== b.dataset.group);
+      saveGroups(open ? [...g, b.dataset.group] : g);
+    };
+  });
   const opts = state.companies.map((c) => `<option value="${esc(c.id)}" ${c.id === state.company ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   sw.innerHTML = `<select aria-label="Empresa" id="company-select">${opts}<option value="">— Todas as empresas —</option></select>`;
   sw.querySelector('select').onchange = (e) => { e.target.value ? go(`c/${e.target.value}/painel`) : go(''); };
