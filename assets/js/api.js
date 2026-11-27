@@ -43,6 +43,23 @@ export const api = {
     }).then(parse);
   },
 
+  /** Descarrega um ficheiro gerado pela API; um erro (ex.: filtros sem documentos) chega como exceção com a mensagem. */
+  async download(action, params = {}, fallbackName = 'ficheiro') {
+    const res = await fetch(url(action, { c: this.company, ...params }));
+    if ((res.headers.get('Content-Type') || '').includes('application/json')) return parse(res);
+    if (!res.ok) throw new Error(`Erro do servidor (HTTP ${res.status}).`);
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/) || cd.match(/filename="([^"]+)"/);
+    const name = m ? decodeURIComponent(m[1]) : fallbackName;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await res.blob());
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    return name;
+  },
+
   /** URL para descarregar ficheiros (SAF-T, cópias, modelos). */
   href(action, params = {}) {
     return url(action, { c: this.company, ...params });

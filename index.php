@@ -14,6 +14,7 @@ header('Referrer-Policy: no-referrer');
   <title>IDEIA Contabilidade</title>
   <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/css/app.css?v=<?= $v ?>">
+  <script src="assets/js/theme.js?v=<?= $v ?>"></script>
 </head>
 <body>
   <div class="app">
@@ -24,7 +25,8 @@ header('Referrer-Policy: no-referrer');
       </a>
       <div class="company-switch" id="company-switch"></div>
       <nav id="nav"></nav>
-      <div class="sidebar-foot">v<?= $v ?> · dados guardados neste computador <button id="logout" class="link-btn" hidden>Sair</button></div>
+      <div class="sidebar-foot"><label class="theme-pick">Tema <select id="theme-select"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
+        v<?= $v ?> · dados guardados neste computador <button id="logout" class="link-btn" hidden>Sair</button></div>
     </aside>
     <main class="main">
       <header class="topbar">

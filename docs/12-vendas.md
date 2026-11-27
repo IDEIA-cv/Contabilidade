@@ -96,6 +96,12 @@ Tabela `items`: código (automático P0001/S0001 se vazio), descrição, tipo (p
 - Os rascunhos e os documentos anulados levam uma marca de água.
 - Os dados da empresa para os documentos editam-se em **Empresa e cópias**: telefone, email, IBAN, rodapé e logótipo (PNG/JPG até 300 KB, guardado no ficheiro da empresa).
 
+## Exportar documentos em ZIP
+
+Na lista, marque as caixas dos documentos (a seleção mantém-se ao mudar de página e limpa-se quando os filtros mudam) e use **Exportar N em ZIP**. Sem nada marcado, o botão **Exportar ZIP** exporta todos os documentos que cumprem os filtros (com confirmação). Máximo de 1000 documentos de cada vez (`DocExport::MAX_DOCS`).
+
+O ZIP (`documentos_vendas_<NIF>_<data>.zip`) tem uma pasta por tipo com cada documento em HTML pronto a imprimir ou guardar em PDF, o XML da e-Fatura dos documentos com IUD, `documentos.csv` (um documento por linha), `linhas.csv` e `LEIA-ME.txt`. Os CSV usam ponto e vírgula e UTF-8 com BOM para abrir diretamente no Excel.
+
 ## Esquema (v5, v6 e v8)
 
 Na v8 `sales_docs` ganhou `iud`, `efatura_message`, `efatura_at`, `efatura_mode` e `issue_reason`. Tabelas `item_families` (v6), `items` (com `family_id` desde a v6), `doc_series`, `sales_docs`, `sales_doc_lines`, `sales_settlements` (recibo → faturas liquidadas). Ver [modelo de dados](04-modelo-de-dados.md).

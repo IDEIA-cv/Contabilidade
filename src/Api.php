@@ -25,8 +25,8 @@ final class Api
         'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
         'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'saft.validate', 'import.template', 'attachments.list', 'attachments.download',
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
-        'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
-        'purchases.meta', 'purchases.list', 'purchases.get', 'purchases.creditors', 'purchases.schedule', 'purchases.supplier', 'purchases.summary', 'purchases.last_account',
+        'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.export_zip', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
+        'purchases.meta', 'purchases.list', 'purchases.export_zip', 'purchases.get', 'purchases.creditors', 'purchases.schedule', 'purchases.supplier', 'purchases.summary', 'purchases.last_account',
         'efatura.overview', 'efatura.documents', 'efatura.xml', 'efatura.check', 'efatura.doc', 'efatura.codes', 'efatura.conference',
     ];
 
@@ -233,6 +233,12 @@ final class Api
                 return ['result' => Sales::deleteItem($db, self::int($in, 'id', 0))];
             case 'sales.list':
                 return Sales::list($db, $in);
+            case 'sales.export_zip':
+                [$zip, $name] = DocExport::sales($db, $in);
+                return new Download($zip, $name, 'application/zip');
+            case 'purchases.export_zip':
+                [$zip, $name] = DocExport::purchases($db, $in);
+                return new Download($zip, $name, 'application/zip');
             case 'sales.get':
                 return Sales::get($db, self::int($in, 'id', 0));
             case 'sales.save':

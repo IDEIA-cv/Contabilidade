@@ -105,6 +105,7 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 | `sales.derive` | POST | `id`, `type`, `mode` (convert, credit, copy) — novo rascunho a partir de outro documento |
 | `sales.pay` | POST | `id` (FT/ND), `date`, `amount?` (por omissão o valor em dívida), `payment_method`, `notes?` — emite recibo |
 | `sales.print` | GET | `id` — página HTML A4 |
+| `sales.export_zip` | GET | `ids` (lista separada por vírgulas) ou os mesmos filtros de `sales.list` — ZIP com HTML, XML da e-Fatura e CSV |
 | `sales.summary` | GET | `year` — faturado, por receber, vencido, rascunhos, orçamentos em aberto |
 | `sales.debtors` | GET | `q?`, `overdue?`, `as_of?` — dívida por cliente com antiguidade |
 | `sales.customer` | GET | `id`, `year` — ficha do cliente com faturas por pagar |
@@ -139,6 +140,7 @@ Linhas: `item_id?`, `description`, `qty` (texto, ex. `"1,5"`) ou `qty_milli`, `p
 |------|--------|-----------|
 | `purchases.meta` | GET | — tipos (FC, FP, NF, PG), meios de pagamento, códigos de IVA de compras, contas permitidas (classes 3, 4, 6) |
 | `purchases.list` | GET | `type?`, `status?`, `pay?` (aberto, vencido, pago), `party?`, `q?`, `from?`, `to?`, `limit`, `offset` |
+| `purchases.export_zip` | GET | `ids` ou os filtros de `purchases.list` — ZIP com CSV e anexos |
 | `purchases.get` | GET | `id` |
 | `purchases.save` | POST | `id?`, `type`, `date`, `due_date?`, `third_party?`, `supplier_doc`, `payment_method?`, `notes?`, `origin_id?` (NF), `lines[]` (com `account`), `settlements[]` (PG), `register?` |
 | `purchases.register` | POST | `id` — número interno e lançamento |

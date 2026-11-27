@@ -131,7 +131,7 @@ export function downloadXlsx(rows, filename, { sheet = 'Folha1', title = '' } = 
 export function tableToXlsx(table, filename, opts = {}) {
   const rows = [...table.querySelectorAll('tr')].map((tr) => {
     const bold = tr.parentElement.tagName === 'THEAD' || tr.classList.contains('section') || tr.classList.contains('total');
-    return [...tr.children].flatMap((td) => {
+    return [...tr.children].filter((td) => !td.classList.contains('sel')).flatMap((td) => {
       const cell = { text: td.innerText.replace(/\s+/g, ' ').trim(), num: td.classList.contains('num') && td.tagName === 'TD', bold: bold || td.tagName === 'TH' };
       const span = Number(td.getAttribute('colspan') || 1);
       return [cell, ...Array.from({ length: span - 1 }, () => ({ text: '' }))];

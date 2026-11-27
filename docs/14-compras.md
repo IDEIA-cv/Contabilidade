@@ -39,6 +39,12 @@ Código: `src/Purchases.php` (regras), `assets/js/views/purchases.js` (ecrãs). 
 - **Ficha do fornecedor** (`#/c/<empresa>/terceiro/<id>`): por pagar, vencido, compras e pagamentos do ano. Separadores: faturas por pagar, movimentos e extrato (da contabilidade), documentos de compra.
 - O painel avisa quando há faturas de fornecedores vencidas ou a vencer nos próximos 7 dias.
 
+## Exportar documentos em ZIP
+
+Na lista, marque as caixas dos documentos (a seleção mantém-se ao mudar de página e limpa-se quando os filtros mudam) e use **Exportar N em ZIP**. Sem nada marcado, o botão **Exportar ZIP** exporta todos os documentos que cumprem os filtros (com confirmação). Máximo de 1000 documentos de cada vez (`DocExport::MAX_DOCS`).
+
+O ZIP de compras tem `documentos.csv`, `linhas.csv` (com conta e código de IVA) e, numa pasta por tipo, os anexos guardados no lançamento de cada documento.
+
 ## Esquema (v7)
 
 - `purchase_docs`: tipo, série/número interno, estado (rascunho, registado, anulado), `supplier_doc`, datas, fornecedor, origem (NF), meio de pagamento, totais, `entry_id`, motivo de anulação.

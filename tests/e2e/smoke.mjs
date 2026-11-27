@@ -104,6 +104,32 @@ console.log('ok', '16-excel:', dl.suggestedFilename());
 
 // vendas: ecrãs da empresa de demonstração
 await visit(`${c}/vendas`, '18-vendas', 'table#list tbody tr[data-id]');
+// exportar em ZIP: dois documentos selecionados, depois todos os filtrados
+{
+  const boxes = await page.$$('table#list [data-sel]');
+  await boxes[0].check();
+  await boxes[1].check();
+  await page.waitForSelector('#sel-zip >> text=Exportar 2 em ZIP');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#sel-zip')]);
+  if (!/^documentos_vendas_.*\.zip$/.test(dl.suggestedFilename())) errors.push('[zip] nome: ' + dl.suggestedFilename());
+  const buf = readFileSync(await dl.path());
+  if (buf.subarray(0, 2).toString() !== 'PK') errors.push('[zip] ficheiro não é ZIP');
+  await page.screenshot({ path: `${OUT}18-vendas-selecao.png`, fullPage: false });
+  console.log('ok', '18-vendas-zip', dl.suggestedFilename(), buf.length, 'bytes');
+  await page.click('#sel-clear');
+  await page.click('#sel-zip');
+  await page.waitForSelector('.modal button.primary');
+  const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('.modal button.primary')]);
+  if (!dl2.suggestedFilename().endsWith('.zip')) errors.push('[zip] filtrados');
+}
+// tema escuro escolhido à mão, e de volta a automático
+await page.selectOption('#theme-select', 'dark');
+if ((await page.getAttribute('html', 'data-theme')) !== 'dark') errors.push('[tema] escuro não aplicado');
+await page.reload();
+await page.waitForSelector('table#list');
+if ((await page.getAttribute('html', 'data-theme')) !== 'dark') errors.push('[tema] não ficou guardado');
+await page.screenshot({ path: `${OUT}18-vendas-tema-escuro.png`, fullPage: false });
+await page.selectOption('#theme-select', 'auto');
 await visit(`${c}/vendas?pay=aberto`, '18-vendas-por-receber', 'table#list');
 await visit(`${c}/artigos`, '19-artigos', '#rows tr[data-id]');
 await visit(`${c}/dividas`, '19-dividas', 'table#debtors tbody tr');
@@ -143,9 +169,13 @@ await page.setInputFiles('#rec-file', new URL('./fixtures/efatura-recebidos.zip'
 await page.check('#rec-register');
 await page.click('#rec-preview');
 await page.waitForSelector('#rec-import');
-if (!(await page.innerText('#rec-out')).includes('2 a importar')) errors.push('[recebidos] pré-visualização: ' + (await page.innerText('#rec-out')));
-await page.click('#rec-import');
-await page.waitForSelector('#rec-out .alert.good');
+{
+  const txt = await page.innerText('#rec-out');
+  if (txt.includes('2 a importar')) {
+    await page.click('#rec-import');
+    await page.waitForSelector('#rec-out .alert.good');
+  } else if (!txt.includes('2 já existem')) errors.push('[recebidos] pré-visualização: ' + txt); // já importados numa execução anterior
+}
 await page.screenshot({ path: `${OUT}20-efatura-recebidos-importados.png`, fullPage: true });
 console.log('ok', '20-efatura-recebidos-importados');
 await visit(`${c}/efatura/conferencia`, '20-efatura-conferencia', '#conf tbody tr');

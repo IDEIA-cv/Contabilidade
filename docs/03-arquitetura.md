@@ -28,9 +28,9 @@ Não há framework nem dependências: PHP 8 com PDO SQLite no servidor e JavaScr
 | `src/Import/` | `Csv` (modelos, leitura, validação) e `ImportFailed` |
 | `database/schema.sql` | Esquema SQLite |
 | `database/sncrf.php` | Plano de contas base |
-| `assets/js/` | `main.js` (estado, rotas, cromado), `api.js`, `util.js`, `charts.js`, `xlsx.js` (exportação Excel sem bibliotecas) |
+| `assets/js/` | `main.js` (estado, rotas, cromado), `api.js`, `util.js`, `charts.js`, `xlsx.js` (exportação Excel sem bibliotecas), `selection.js` (seleção de documentos e exportação ZIP), `theme.js` (tema escolhido no rodapé do menu, carregado no `<head>`) |
 | `assets/js/views/` | Um módulo por ecrã: `home`, `dashboard`, `entries`, `accounts`, `parties`, `bank`, `reports`, `vat`, `stats`, `imports`, `settings` |
-| `assets/css/app.css` | Tema (modo claro e escuro), layout, impressão |
+| `assets/css/app.css` | Tema: automático (segue o sistema), claro ou escuro (`data-theme` em `<html>`, guardado em `localStorage` `ideia.theme`); layout, impressão |
 | `tools/` | Utilitários de linha de comando (`seed-demo.php`) |
 | `tests/` | Testes unitários (`run.php`, `unit/`), fixtures e teste no browser (`e2e/smoke.mjs`) |
 | `data/` | Ficheiros das empresas (ignorado pelo Git) |

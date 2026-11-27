@@ -4,6 +4,7 @@ import { setCrumbs, go, cpath, state } from '../main.js';
 import { invalidateRefs } from './entries.js';
 import { esc, money, toCents, today, fmtDate, toast, modal, confirmDialog, formData, debounce, pager, bindPager } from '../util.js';
 import { tableToXlsx } from '../xlsx.js';
+import { selHead, selCell, selBox, bindSelection } from '../selection.js';
 import { payDialog as payPurchase, meta as purchasesMeta } from './purchases.js';
 
 let META = null;
@@ -90,25 +91,25 @@ async function renderList({ view, query }) {
       </form>
       <div class="toolbar" style="margin-top:10px;justify-content:space-between">
         <span class="muted small">${res.total} documento(s)${f.type === 'faturas' || f.pay ? ` · faturado ${money(res.invoiced)} · por receber ${money(res.open)}` : ''}</span>
-        <span class="toolbar">${filtered ? '<button id="clear">Limpar filtros</button>' : ''}<button id="xlsx">Excel</button></span>
+        <span class="toolbar">${filtered ? '<button id="clear">Limpar filtros</button>' : ''}<button id="xlsx">Excel</button>${selBox}</span>
       </div>
     </div>
     <div class="card">${pager(res.total, res.offset, res.limit, 'documentos')}
       <div class="table-wrap"><table id="list"><caption class="sr-only">Documentos de venda</caption>
-        <thead><tr><th>Documento</th><th>Data</th><th>Cliente</th><th class="num">Total</th><th class="num">Por receber</th><th>Estado</th></tr></thead>
+        <thead><tr>${selHead}<th>Documento</th><th>Data</th><th>Cliente</th><th class="num">Total</th><th class="num">Por receber</th><th>Estado</th></tr></thead>
         <tbody>${res.rows.map((r) => {
           const [sl, sc] = STATUS[r.status];
           const open = r.open_cents !== null ? Number(r.open_cents) : null;
           const overdue = open > 0 && r.due_date && r.due_date < today();
           const payBadge = open === null ? '' : open <= 0 ? '<span class="badge good">Pago</span>' : overdue ? '<span class="badge bad">Vencido</span>' : '<span class="badge warn">Por pagar</span>';
-          return `<tr class="clickable" data-id="${r.id}">
+          return `<tr class="clickable" data-id="${r.id}">${selCell(r.id, r.doc_no || T[r.type].name)}
             <td><a href="#/${cpath('vendas/' + r.id)}">${esc(r.doc_no || T[r.type].name + ' (rascunho)')}</a><div class="small muted">${esc(T[r.type].name)}${r.derived ? ' → ' + esc(r.derived) : ''}</div></td>
             <td>${fmtDate(r.date)}${r.due_date && open > 0 ? `<div class="small ${overdue ? 'neg' : 'muted'}">vence ${fmtDate(r.due_date)}</div>` : ''}</td>
             <td>${r.third_party ? `<a href="#/${cpath('cliente/' + r.third_party)}">${esc(r.customer)}</a>` : esc(r.customer || 'Consumidor final')}${r.nif ? `<div class="small muted mono">${esc(r.nif)}</div>` : ''}</td>
             <td class="num">${r.type === 'NC' ? '-' : ''}${money(r.total_cents)}</td>
             <td class="num">${open !== null ? money(open) : ''}</td>
             <td><span class="badge ${sc}">${sl}</span> ${payBadge}</td></tr>`;
-        }).join('') || `<tr><td colspan="6" class="empty">${filtered ? 'Nenhum documento com estes filtros.' : 'Ainda não há documentos. Comece por <b>Nova fatura</b> ou <b>Novo orçamento</b>.'}</td></tr>`}</tbody>
+        }).join('') || `<tr><td colspan="7" class="empty">${filtered ? 'Nenhum documento com estes filtros.' : 'Ainda não há documentos. Comece por <b>Nova fatura</b> ou <b>Novo orçamento</b>.'}</td></tr>`}</tbody>
       </table></div>${pager(res.total, res.offset, res.limit, 'documentos')}</div>`;
 
   const setQuery = (patch) => {
@@ -126,6 +127,7 @@ async function renderList({ view, query }) {
   view.querySelectorAll('.kpi[data-href]').forEach((k) => { k.onclick = () => go(cpath('vendas' + k.dataset.href)); });
   view.querySelectorAll('tr[data-id]').forEach((tr) => { tr.onclick = (e) => { if (e.target.tagName !== 'A') go(cpath('vendas/' + tr.dataset.id)); }; });
   view.querySelector('#xlsx').onclick = () => tableToXlsx(view.querySelector('#list'), `vendas_${today()}.xlsx`, { sheet: 'Vendas', title: `Vendas — ${state.info.name}` });
+  bindSelection(view, { key: 'vendas', action: 'sales.export_zip', filters: Object.fromEntries(Object.entries(f).filter(([k, v]) => k !== 'offset' && v)), total: res.total });
   bindPager(view, (offset) => setQuery({ offset }));
   if (f.q) { const q = form.querySelector('[name=q]'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
 }
