@@ -28,7 +28,7 @@ Não há framework nem dependências: PHP 8 com PDO SQLite no servidor e JavaScr
 | `src/Import/` | `Csv` (modelos, leitura, validação) e `ImportFailed` |
 | `database/schema.sql` | Esquema SQLite |
 | `database/sncrf.php` | Plano de contas base |
-| `assets/js/` | `main.js` (estado, rotas, cromado), `api.js`, `util.js`, `charts.js` |
+| `assets/js/` | `main.js` (estado, rotas, cromado), `api.js`, `util.js`, `charts.js`, `xlsx.js` (exportação Excel sem bibliotecas) |
 | `assets/js/views/` | Um módulo por ecrã: `home`, `dashboard`, `entries`, `accounts`, `parties`, `reports`, `vat`, `stats`, `imports`, `settings` |
 | `assets/css/app.css` | Tema (modo claro e escuro), layout, impressão |
 | `tools/` | Utilitários de linha de comando (`seed-demo.php`) |
@@ -43,6 +43,7 @@ Não há framework nem dependências: PHP 8 com PDO SQLite no servidor e JavaScr
 | `Config` | Lê `config.php` com valores por omissão; `override()` para testes e ferramentas |
 | `Db` | Envolve o PDO: `all/one/value/run/insert`, `transaction()`, `meta()/setMeta()`, `audit()`; cria o esquema num ficheiro novo |
 | `Companies` | Lista, cria, abre, cópia (`VACUUM INTO`) e restauro de empresas; valida o identificador |
+| `Attachments` | Documentos anexos aos lançamentos (guardados no ficheiro da empresa) |
 | `Money` | Converte texto ↔ centavos (aceita `1.234,56`, `1 234,56`, `1234.56`, `(50)`) e formata |
 | `Ledger` | Plano de contas, diários, códigos de IVA, exercícios, terceiros, lançamentos (guardar, validar, estornar), cadeia de hash |
 | `Reports` | Saldos por conta folha, balancete, razão, diário, balanço, DR |
@@ -68,6 +69,7 @@ As classes de domínio são `final` com métodos estáticos que recebem a ligaç
 - **Estado** em `state` (`company`, `year`, `info`). O exercício escolhido fica em `localStorage` por empresa.
 - **Cromado**: seletor de empresa e de exercício, emblema de rascunhos, migalhas.
 - Gráficos clicáveis levam ao detalhe (lançamentos do mês, extrato da conta), segundo o princípio "do número ao documento".
+- **Exportação Excel**: `xlsx.js` converte qualquer tabela num `.xlsx` verdadeiro (OOXML + ZIP sem compressão, CRC32 próprio), com valores numéricos, formato `#,##0.00`, cabeçalhos a negrito e título. Funciona offline e não precisa de extensões do PHP.
 - Estilos de impressão escondem a navegação: qualquer relatório imprime-se ou guarda-se em PDF pelo browser.
 
 ## Concorrência e transações

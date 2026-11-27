@@ -9,6 +9,9 @@ return [
     // Pasta das cópias de segurança automáticas.
     'backup_dir' => __DIR__ . '/data/backups',
 
+    // Cópia automática diária ao abrir a empresa (só se houve alterações). Mantém as últimas 14 por empresa.
+    'auto_backup' => true,
+
     // Por segurança a API só responde a pedidos do próprio computador (127.0.0.1 / ::1).
     // Mude para true apenas numa rede local de confiança.
     'allow_remote' => false,

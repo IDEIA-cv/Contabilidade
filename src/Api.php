@@ -20,7 +20,7 @@ final class Api
         'ping', 'companies.list', 'portfolio', 'company.info', 'accounts.list', 'thirdparties.list', 'entries.list', 'entries.get',
         'reports.trial', 'reports.ledger', 'reports.journal', 'reports.balance', 'reports.income', 'vat.settlement',
         'stats.dashboard', 'stats.ratios', 'stats.costs', 'stats.top', 'stats.open', 'stats.forecast', 'stats.budget', 'stats.custom',
-        'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'import.template',
+        'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'import.template', 'attachments.list', 'attachments.download',
     ];
 
     public static function handle(): void
@@ -126,6 +126,7 @@ final class Api
             case 'portfolio':
                 return Stats::portfolio();
             case 'company.info':
+                Companies::autoBackup(basename($db->path, '.ideia'));
                 return [
                     'id' => basename($db->path, '.ideia'),
                     'name' => $db->meta('company_name'),
@@ -179,7 +180,20 @@ final class Api
             case 'entries.list':
                 return Ledger::listEntries($db, $in);
             case 'entries.get':
-                return Ledger::getEntry($db, self::int($in, 'id', 0));
+                $e = Ledger::getEntry($db, self::int($in, 'id', 0));
+                $e['attachments'] = Attachments::list($db, (int) $e['id']);
+                return $e;
+            case 'attachments.list':
+                return Attachments::list($db, self::int($in, 'entry_id', 0));
+            case 'attachments.upload':
+                [, $name, $content] = self::upload();
+                return Attachments::add($db, self::int($in, 'entry_id', 0), $name, $content);
+            case 'attachments.download':
+                [$content, $name, $mime] = Attachments::get($db, self::int($in, 'id', 0));
+                return new Download($content, $name, $mime, !empty($in['inline']) && (str_starts_with($mime, 'image/') || $mime === 'application/pdf'));
+            case 'attachments.delete':
+                Attachments::delete($db, self::int($in, 'id', 0));
+                return true;
             case 'entries.save':
                 return Ledger::saveEntry($db, $in);
             case 'entries.validate':

@@ -16,15 +16,15 @@ Dar às micro, pequenas e médias empresas de Cabo Verde (e aos gabinetes de con
 | Empresas | Criar, listar (carteira com alertas), abrir cópia `.ideia`, várias empresas no mesmo computador |
 | Plano de contas | Plano base SNCRF (classes 1–8), contas novas com hierarquia automática pelo código, só contas de movimento recebem lançamentos |
 | Terceiros | Clientes, fornecedores e outros, com validação do NIF de 9 dígitos |
-| Lançamentos | Rascunho → validado; numeração sequencial por diário e exercício; estorno em vez de apagar; códigos de IVA por linha |
+| Lançamentos | Rascunho → validado; numeração sequencial por diário e exercício; estorno em vez de apagar; códigos de IVA por linha; documentos anexos (PDF, imagens, XML…) |
 | Integridade | Cadeia SHA-256 dos lançamentos validados, verificável no ecrã Empresa; registo de auditoria |
 | Exercícios | Criar, bloquear período (após declarações), fechar (apuramento 6/7 → 811 → 818) e abrir o seguinte (saldos de abertura, resultado para 56) |
-| Relatórios | Balancete por nível, extrato (razão), diário, balanço, demonstração dos resultados por naturezas com comparação ao ano anterior; exportação CSV e impressão/PDF |
+| Relatórios | Balancete por nível, extrato (razão), diário, balanço, demonstração dos resultados por naturezas com comparação ao ano anterior; exportação Excel (.xlsx), CSV e impressão/PDF |
 | IVA | Apuramento por período (2432/2433/2434), mapa por código e por terceiro, lançamento automático de apuramento (2436/2437) |
 | Importação | SAF-T CV/PT com pré-visualização e mapeamento de contas; CSV de contas, terceiros, saldos e lançamentos; tudo-ou-nada |
 | Exportação | SAF-T CV de contabilidade (C) |
 | Estatísticas | Painel com KPIs e gráficos clicáveis, rácios, estrutura de gastos, clientes/fornecedores com antiguidade de saldos, orçamento vs real, previsão, indicadores com fórmulas próprias, relatório de gestão imprimível |
-| Cópias | Cópia verificada (`VACUUM INTO` + `integrity_check`), descarga e restauro |
+| Cópias | Cópia verificada (`VACUUM INTO` + `integrity_check`), cópia automática diária com rotação, descarga e restauro |
 
 ## Fora do âmbito desta versão
 

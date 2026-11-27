@@ -41,6 +41,7 @@ Copie `config.sample.php` para `config.php` (este ficheiro não vai para o Git) 
 |-------|-------------|-------------|
 | `data_dir` | `./data` | Pasta onde ficam os ficheiros `.ideia` das empresas |
 | `backup_dir` | `./data/backups` | Pasta das cópias de segurança |
+| `auto_backup` | `true` | Cópia automática diária ao abrir a empresa, só se houve alterações; mantém as 14 mais recentes (`<id>_<data>_auto.ideia`). As cópias manuais nunca são apagadas |
 | `allow_remote` | `false` | Se `false`, a API só responde a pedidos de `127.0.0.1`/`::1` |
 | `currency` | `CVE` | Moeda (informativa nesta versão) |
 | `country` | `CV` | País |

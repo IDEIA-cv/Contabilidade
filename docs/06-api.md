@@ -34,7 +34,7 @@ curl -X POST -H 'X-Requested-With: IDEIA' -H 'Content-Type: application/json' \
 
 | Ação | Método | Parâmetros |
 |------|--------|-----------|
-| `company.info` | GET | — (nome, NIF, morada, regime, ficheiro, exercícios, diários, códigos de IVA, nº de rascunhos) |
+| `company.info` | GET | — (faz a cópia automática diária, se devida; devolve nome, NIF, morada, regime, ficheiro, exercícios, diários, códigos de IVA, nº de rascunhos) |
 | `company.update` | POST | `name`, `nif`, `address`, `city`, `regime` |
 | `accounts.list` | GET | — (com saldo, nível e indicação de movimento) |
 | `accounts.save` | POST | `code`, `name`, `active` |
@@ -55,11 +55,15 @@ curl -X POST -H 'X-Requested-With: IDEIA' -H 'Content-Type: application/json' \
 | Ação | Método | Parâmetros |
 |------|--------|-----------|
 | `entries.list` | GET | `year`, `journal`, `status`, `account`, `from`, `to` (datas), `q`, `limit`, `offset` |
-| `entries.get` | GET | `id` (com linhas) |
+| `entries.get` | GET | `id` (com linhas e anexos) |
 | `entries.save` | POST | `id?`, `date`, `journal`, `description`, `document`, `lines[]`, `validate` (bool) |
 | `entries.validate` | POST | `id` |
 | `entries.delete` | POST | `id` (só rascunhos) |
 | `entries.reverse` | POST | `id`, `date?` |
+| `attachments.list` | GET | `entry_id` |
+| `attachments.upload` | POST | ficheiro (`file`), `entry_id` |
+| `attachments.download` | GET | `id`, `inline=1` (abre PDF/imagem no browser) |
+| `attachments.delete` | POST | `id` (só em rascunhos) |
 
 Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `debit_cents`/`credit_cents`, `third_party` (id), `description`, `vat_code`, `vat_base` ou `vat_base_cents`.
 

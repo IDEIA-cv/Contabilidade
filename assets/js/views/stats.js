@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { state, go, cpath, setCrumbs } from '../main.js';
 import { barChart, hbars } from '../charts.js';
 import { esc, money, pct, MONTHS, MONTHS_FULL, signClass, toast, modal, tableToCsv, fmtDate } from '../util.js';
+import { tableToXlsx } from '../xlsx.js';
 
 const TABS = [['racios', 'Rácios'], ['gastos', 'Gastos'], ['terceiros', 'Clientes e fornecedores'], ['orcamento', 'Orçamento'], ['previsao', 'Previsão'], ['indicadores', 'Indicadores próprios'], ['relatorio', 'Relatório de gestão']];
 
@@ -40,7 +41,7 @@ async function racios(el) {
 async function gastos(el) {
   const c = await api.get('stats.costs', { year: state.year });
   el.innerHTML = `<div class="grid cols-2"><div class="card"><h2>Gastos por natureza <span class="muted small">total ${money(c.total)}</span></h2><div id="hb"></div></div>
-    <div class="card"><h2>Detalhe <button class="icon-btn small" id="csv">CSV</button></h2><div class="table-wrap"><table id="t">
+    <div class="card"><h2>Detalhe <span><button class="icon-btn small" id="xlsx">Excel</button> <button class="icon-btn small" id="csv">CSV</button></span></h2><div class="table-wrap"><table id="t">
       <thead><tr><th>Conta</th><th>Nome</th><th class="num">Valor</th><th class="num">% do total</th></tr></thead><tbody>
       ${c.groups.map((g) => `<tr class="section"><td class="mono">${esc(g.code)}</td><td>${esc(g.name)}</td><td class="num">${money(g.value)}</td><td class="num">${pct(g.pct)}</td></tr>
         ${g.detail.map((d) => `<tr class="clickable" data-acc="${esc(d.code)}"><td class="mono indent-1">${esc(d.code)}</td><td>${esc(d.name)}</td><td class="num">${money(d.value)}</td><td class="num">${pct(c.total ? d.value / c.total * 100 : 0)}</td></tr>`).join('')}`).join('')
@@ -48,6 +49,7 @@ async function gastos(el) {
   hbars(el.querySelector('#hb'), c.groups.map((g) => ({ label: `${g.code} ${g.name}`, value: g.value, sub: pct(g.pct), code: g.code })), { onClick: (it) => go(cpath('relatorios/razao?account=' + it.code)) });
   el.querySelectorAll('tr[data-acc]').forEach((tr) => { tr.onclick = () => go(cpath('relatorios/razao?account=' + tr.dataset.acc)); });
   el.querySelector('#csv').onclick = () => tableToCsv(el.querySelector('#t'), `gastos_${state.year}.csv`);
+  el.querySelector('#xlsx').onclick = () => tableToXlsx(el.querySelector('#t'), `gastos_${state.year}.xlsx`, { sheet: 'Gastos', title: `${state.info.name} · Estrutura de gastos ${state.year}` });
 }
 
 async function terceiros(el) {

@@ -5,13 +5,13 @@ Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF
 ## Funcionalidades (v0.1)
 
 - Plano de contas SNCRF, clientes e fornecedores (NIF), vários exercícios e várias empresas
-- Lançamentos com rascunho, validação, numeração sequencial, estorno e **cadeia de integridade SHA-256**
-- Balancete, extrato de conta, diário, balanço e demonstração dos resultados (com ano anterior), em CSV ou PDF
+- Lançamentos com rascunho, validação, numeração sequencial, estorno, documentos anexos e **cadeia de integridade SHA-256**
+- Balancete, extrato de conta, diário, balanço e demonstração dos resultados (com ano anterior), em Excel, CSV ou PDF
 - Apuramento do IVA com mapas por código e por cliente/fornecedor
 - Fecho do exercício e abertura do seguinte
 - **Importação** do histórico por SAF-T (Primavera, PHC, Sage…) e por folhas Excel/CSV; **exportação** SAF-T CV
 - **Estatísticas**: painel, rácios, gastos, antiguidade de saldos, orçamento, previsão, indicadores próprios, relatório de gestão
-- Cópias de segurança verificadas e restauro
+- Cópias de segurança verificadas (automáticas todos os dias) e restauro
 
 ## Começar
 

@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { state, go, cpath, setCrumbs, refreshInfo } from '../main.js';
 import { esc, money, monthOptions, tableToCsv, confirmDialog, toast, MONTHS_FULL } from '../util.js';
+import { tableToXlsx } from '../xlsx.js';
 
 export async function render({ view, query }) {
   setCrumbs('Apuramento do IVA');
@@ -21,16 +22,17 @@ export async function render({ view, query }) {
       <div class="kpi"><div class="label">Resultado ${label}</div><div class="value">${money(Math.abs(r.resultado))}</div></div>
     </div>
     <div class="grid cols-2">
-      <div class="card"><h2>Por código de IVA <button class="icon-btn small" data-csv="t1">CSV</button></h2><div class="table-wrap"><table id="t1">
+      <div class="card"><h2>Por código de IVA <span><button class="icon-btn small" data-xlsx="t1">Excel</button> <button class="icon-btn small" data-csv="t1">CSV</button></span></h2><div class="table-wrap"><table id="t1">
         <thead><tr><th>Código</th><th>Descrição</th><th class="num">Taxa</th><th class="num">Base</th><th class="num">IVA</th></tr></thead>
         <tbody>${r.by_code.map((c) => `<tr><td class="mono">${esc(c.vat_code)}</td><td>${esc(c.name)}</td><td class="num">${(c.rate_bp / 100).toFixed(0)}%</td><td class="num">${money(c.base)}</td><td class="num">${money(c.vat)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Sem linhas com código de IVA.</td></tr>'}</tbody></table></div>
         <p class="muted small">A base vem do campo "Base IVA" das linhas. Preencha-o nos lançamentos para obter este mapa.</p></div>
-      <div class="card"><h2>Por cliente / fornecedor <button class="icon-btn small" data-csv="t2">CSV</button></h2><div class="table-wrap"><table id="t2">
+      <div class="card"><h2>Por cliente / fornecedor <span><button class="icon-btn small" data-xlsx="t2">Excel</button> <button class="icon-btn small" data-csv="t2">CSV</button></span></h2><div class="table-wrap"><table id="t2">
         <thead><tr><th>NIF</th><th>Nome</th><th>Tipo</th><th class="num">Base</th><th class="num">IVA</th></tr></thead>
         <tbody>${r.by_party.map((p) => `<tr><td class="mono">${esc(p.nif || '')}</td><td>${esc(p.name)}</td><td>${p.kind === 'liquidado' ? 'Vendas' : 'Compras'}</td><td class="num">${money(p.base)}</td><td class="num">${money(p.vat)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Sem dados por terceiro.</td></tr>'}</tbody></table></div></div>
     </div>
     <div class="alert info">Confirme os valores com a declaração no portal da DNRE antes de submeter. O lançamento de apuramento salda as contas de IVA contra 2436 (a pagar) ou 2437 (a recuperar).</div>`;
   view.querySelectorAll('#tb select').forEach((s) => { s.onchange = () => { const f = view.querySelector('[name=from]').value, t = view.querySelector('[name=to]').value; go(cpath(`iva?from=${f}&to=${t}`)); }; });
+  view.querySelectorAll('[data-xlsx]').forEach((b) => { b.onclick = () => tableToXlsx(view.querySelector('#' + b.dataset.xlsx), `iva_${b.dataset.xlsx}_${state.year}.xlsx`, { sheet: 'IVA', title: `${state.info.name} · Apuramento do IVA ${state.year}` }); });
   view.querySelectorAll('[data-csv]').forEach((b) => { b.onclick = () => tableToCsv(view.querySelector('#' + b.dataset.csv), `iva_${b.dataset.csv}_${state.year}.csv`); });
   view.querySelector('#post').onclick = async () => {
     if (!(await confirmDialog('Gerar apuramento do IVA', `Será criado e validado um lançamento no último dia de ${MONTHS_FULL[q.to - 1]} com o resultado de ${money(r.resultado)}.`, 'Gerar'))) return;

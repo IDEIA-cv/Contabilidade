@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { state, go, cpath, setCrumbs } from '../main.js';
 import { esc, money, fmtDate, monthOptions, tableToCsv, signClass, MONTHS_FULL } from '../util.js';
+import { tableToXlsx } from '../xlsx.js';
 
 const TITLES = { balancete: 'Balancete', razao: 'Extrato de conta', diario: 'Diário', balanco: 'Balanço', dr: 'Demonstração dos resultados por naturezas' };
 
@@ -18,7 +19,7 @@ export async function render({ view, params, query }) {
         ${usesFrom ? `<label>De<select name="from">${monthOptions(q.from)}</select></label>` : ''}
         <label>${usesFrom ? 'Até' : 'Data'}<select name="to">${monthOptions(q.to)}</select></label>
         ${type === 'balancete' ? `<label>Nível<select name="level"><option value="">Todos</option>${[1, 2, 3, 4].map((l) => `<option ${String(q.level) === String(l) ? 'selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
-        <button id="csv">Exportar Excel (CSV)</button><button onclick="window.print()">Imprimir / PDF</button>
+        <button id="xlsx">Exportar Excel</button><button id="csv">CSV</button><button onclick="window.print()">Imprimir / PDF</button>
       </div></div>
     <div class="print-head"><b>${esc(state.info.name)}</b> · NIF ${esc(state.info.nif || '')} · ${TITLES[type]} · ${state.year}</div>
     <div class="card" id="out"><div class="loading">A calcular…</div></div>`;
@@ -31,6 +32,10 @@ export async function render({ view, params, query }) {
     };
   });
   view.querySelector('#csv').onclick = () => { const t = out.querySelector('table'); if (t) tableToCsv(t, `${type}_${state.year}.csv`); };
+  view.querySelector('#xlsx').onclick = () => {
+    const t = out.querySelector('table');
+    if (t) tableToXlsx(t, `${type}_${state.year}.xlsx`, { sheet: TITLES[type], title: `${state.info.name} · NIF ${state.info.nif || ''} · ${TITLES[type]} · ${state.year}` });
+  };
   const y = state.year;
 
   if (type === 'balancete') {

@@ -229,7 +229,8 @@ final class Ledger
         $limit = min(1000, max(1, (int) ($f['limit'] ?? 200)));
         $offset = max(0, (int) ($f['offset'] ?? 0));
         $sql = 'SELECT e.id, e.fiscal_year, e.journal, e.number, e.date, e.description, e.document, e.status, e.source,
-                       e.total_cents, e.reverses, e.reversed_by
+                       e.total_cents, e.reverses, e.reversed_by,
+                       (SELECT COUNT(*) FROM entry_attachments a WHERE a.entry_id = e.id) AS attachments
                 FROM entries e WHERE ' . implode(' AND ', $where) .
                " ORDER BY e.date DESC, e.id DESC LIMIT $limit OFFSET $offset";
         $rows = $db->all($sql, $p);

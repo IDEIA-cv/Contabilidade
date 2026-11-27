@@ -104,6 +104,8 @@ input.num { text-align: right; }
 
 table { border-collapse: collapse; width: 100%; }
 .table-wrap { overflow-x: auto; }
+.att-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.att-row:last-child { border-bottom: 0; }
 th, td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--surface-2); position: sticky; top: 0; }
 tbody tr:hover { background: var(--surface-2); }

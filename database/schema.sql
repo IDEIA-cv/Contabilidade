@@ -119,6 +119,19 @@ CREATE TABLE IF NOT EXISTS import_log (
     content   BLOB
 );
 
+-- Documentos anexos aos lançamentos (esquema v2). O conteúdo fica dentro do ficheiro da empresa, para a cópia ser completa.
+CREATE TABLE IF NOT EXISTS entry_attachments (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_id   INTEGER NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+    filename   TEXT NOT NULL,
+    mime       TEXT NOT NULL,
+    size       INTEGER NOT NULL,
+    sha256     TEXT NOT NULL,
+    content    BLOB NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS ix_attachments_entry ON entry_attachments(entry_id);
+
 -- Vista de movimentos validados (base de todos os relatórios e estatísticas)
 CREATE VIEW IF NOT EXISTS v_movements AS
 SELECT l.id AS line_id, e.id AS entry_id, e.fiscal_year, e.journal, e.number, e.date,

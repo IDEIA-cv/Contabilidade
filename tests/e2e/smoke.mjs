@@ -2,7 +2,7 @@
 // Uso: BASE=http://127.0.0.1:8765 COMPANY=empresa-demonstracao-lda node tests/e2e/smoke.mjs
 import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8765';
 const COMPANY = process.env.COMPANY || 'empresa-demonstracao-lda';
@@ -60,7 +60,25 @@ await page.click('#validate');
 const t = page.locator('.toast.good', { hasText: 'Lançamento validado' });
 await t.waitFor({ timeout: 10000 });
 console.log('ok', '12-lancamento-validado:', await t.innerText());
-await visit(page.url().split('#/')[1].split('/lancamento')[0] + '/relatorios/balancete', '13-balancete-nova');
+const cNew = page.url().split('#/')[1].split('/lancamento')[0];
+
+// anexar um documento ao lançamento validado
+await visit(`${cNew}/lancamentos`, '13-lancamentos-nova', 'tbody#rows tr[data-id]');
+await page.click('tbody#rows tr[data-id]');
+await page.waitForSelector('#att-file', { state: 'attached' });
+await page.setInputFiles('#att-file', { name: 'fatura-teste.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 teste e2e') });
+await page.waitForSelector('#att-list a[target=_blank]');
+console.log('ok', '14-anexo:', await page.innerText('#att-list a[target=_blank]'));
+await page.screenshot({ path: `${OUT}14-anexo.png`, fullPage: true });
+
+// exportar o balancete para Excel
+await visit(`${cNew}/relatorios/balancete`, '15-balancete-nova', '#out table');
+const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#xlsx')]);
+const xlsxPath = `${OUT}balancete.xlsx`;
+await dl.saveAs(xlsxPath);
+const head = readFileSync(xlsxPath).subarray(0, 2).toString();
+if (head !== 'PK') errors.push('[xlsx] ficheiro exportado não é um ZIP/XLSX');
+console.log('ok', '16-excel:', dl.suggestedFilename());
 
 await browser.close();
 if (errors.length) {

@@ -111,21 +111,61 @@ final class Companies
     }
 
     /** Cópia consistente do ficheiro (VACUUM INTO). Devolve o caminho da cópia. */
-    public static function backup(string $id, ?string $targetDir = null): string
+    /** Número de cópias automáticas mantidas por empresa (as manuais nunca são apagadas). */
+    public const AUTO_KEEP = 14;
+
+    /**
+     * Cópia automática: no máximo uma por dia, e só se houve alterações desde a última cópia.
+     * Nunca faz falhar o pedido em curso; devolve o ficheiro criado ou null.
+     */
+    public static function autoBackup(string $id): ?string
+    {
+        if (!Config::get('auto_backup', true)) {
+            return null;
+        }
+        try {
+            $db = self::open($id);
+            $last = $db->value("SELECT MAX(ts) FROM audit_log WHERE action = 'copia.seguranca'");
+            if ($last && strtotime((string) $last . ' UTC') > time() - 86400) {
+                return null;
+            }
+            $changed = $db->value("SELECT MAX(ts) FROM audit_log WHERE action <> 'copia.seguranca'");
+            if ($last && (!$changed || $changed <= $last)) {
+                return null;
+            }
+            $file = self::backup($id, null, true);
+            $dir = dirname($file);
+            $autos = glob($dir . '/' . $id . '_*_auto.ideia') ?: [];
+            rsort($autos);
+            foreach (array_slice($autos, self::AUTO_KEEP) as $old) {
+                @unlink($old);
+            }
+            return $file;
+        } catch (\Throwable $e) {
+            error_log('[IDEIA] cópia automática falhou: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    public static function backup(string $id, ?string $targetDir = null, bool $auto = false): string
     {
         $db = self::open($id);
         $dir = $targetDir ?? (string) Config::get('backup_dir', self::dataDir() . '/backups');
         if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
             throw new UserError("Não foi possível criar a pasta de cópias: {$dir}");
         }
-        $target = $dir . '/' . $id . '_' . date('Ymd_His') . '.ideia';
+        $base = $dir . '/' . $id . '_' . date('Ymd_His');
+        $target = $base . ($auto ? '_auto' : '') . '.ideia';
+        for ($n = 2; is_file($target); $n++) {
+            $target = $base . '-' . $n . ($auto ? '_auto' : '') . '.ideia'; // duas cópias no mesmo segundo
+        }
         $db->pdo->exec('VACUUM INTO ' . $db->pdo->quote($target));
         $check = new Db($target);
         if ($check->value('PRAGMA integrity_check') !== 'ok') {
             @unlink($target);
             throw new UserError('A cópia de segurança falhou a verificação de integridade.');
         }
-        $db->audit('copia.seguranca', ['file' => basename($target)]);
+        $db->audit('copia.seguranca', ['file' => basename($target), 'automatica' => $auto]);
         return $target;
     }
 

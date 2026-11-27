@@ -37,7 +37,7 @@ async function list({ view, query }) {
     const tb = view.querySelector('#rows');
     tb.innerHTML = r.rows.map((e) => `<tr class="clickable" data-id="${e.id}">
         <td>${fmtDate(e.date)}</td><td class="mono">${esc(e.journal)}${e.number ? ' / ' + e.number : ''}</td>
-        <td>${esc(e.document || '')}</td><td>${esc(e.description)}${e.reversed_by ? ' <span class="badge">estornado</span>' : ''}</td>
+        <td>${esc(e.document || '')}${Number(e.attachments) ? ` <span class="badge" title="${e.attachments} documento(s) anexo(s)">📎 ${e.attachments}</span>` : ''}</td><td>${esc(e.description)}${e.reversed_by ? ' <span class="badge">estornado</span>' : ''}</td>
         <td class="small muted">${esc(e.source)}</td>
         <td>${e.status === 'validado' ? '<span class="badge good">Validado</span>' : '<span class="badge warn">Rascunho</span>'}</td>
         <td class="num">${money(e.total_cents)}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nenhum lançamento encontrado.</td></tr>';
@@ -99,6 +99,11 @@ async function editor({ view, params, query }) {
         <tbody id="lines"></tbody></table></div>
       <div class="balance-bar" id="balance"></div>
       ${readonly ? '' : '<button id="add-line">+ Linha</button>'}
+    </div>
+    <div class="card" id="att-card"><h2>Documentos anexos <span class="muted small">PDF, imagem, XML, Excel ou Word · até 10 MB</span></h2>
+      <div id="att-list"></div>
+      <div class="toolbar no-print" style="margin-top:8px"><label class="btn">Anexar documento<input type="file" id="att-file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.webp,.xml,.csv,.txt,.xlsx,.xls,.docx,.doc"></label>
+        <span class="muted small">${readonly ? 'Pode acrescentar documentos a um lançamento validado, mas não retirá-los.' : 'Os documentos escolhidos antes de guardar são anexados quando gravar o lançamento.'}</span></div>
     </div>
     <div class="toolbar no-print" style="justify-content:flex-end">
       ${readonly ? `${e.reversed_by ? '' : '<button id="reverse" class="danger">Estornar</button>'}<button onclick="window.print()">Imprimir</button>`
@@ -173,8 +178,39 @@ async function editor({ view, params, query }) {
     });
     return { ...head, id, lines };
   };
+  // ---------------- anexos
+  let attachments = e.attachments || [];
+  const pending = [];
+  const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+  const renderAtt = () => {
+    const el = view.querySelector('#att-list');
+    el.innerHTML = attachments.map((a) => `<div class="att-row"><a href="${api.href('attachments.download', { id: a.id, inline: 1 })}" target="_blank" rel="noopener">${esc(a.filename)}</a>
+        <span class="muted small">${kb(Number(a.size))} · ${esc(a.created_at)}</span>
+        <a class="small" href="${api.href('attachments.download', { id: a.id })}">descarregar</a>
+        ${readonly ? '' : `<button class="icon-btn small danger" data-del-att="${a.id}">retirar</button>`}</div>`).join('')
+      + pending.map((f, i) => `<div class="att-row"><span>${esc(f.name)}</span><span class="badge warn">por gravar</span><span class="muted small">${kb(f.size)}</span><button class="icon-btn small" data-del-pending="${i}">retirar</button></div>`).join('')
+      || '<div class="muted small">Sem documentos anexos.</div>';
+    el.querySelectorAll('[data-del-att]').forEach((b) => { b.onclick = async () => {
+      try { await api.post('attachments.delete', { id: Number(b.dataset.delAtt) }); attachments = attachments.filter((a) => a.id !== Number(b.dataset.delAtt)); renderAtt(); } catch (err) { toast(err.message, 'bad'); }
+    }; });
+    el.querySelectorAll('[data-del-pending]').forEach((b) => { b.onclick = () => { pending.splice(Number(b.dataset.delPending), 1); renderAtt(); }; });
+  };
+  const uploadAll = async (entryId, files) => {
+    for (const f of files) {
+      try { attachments.push(await api.upload('attachments.upload', f, { entry_id: entryId })); } catch (err) { toast(`${f.name}: ${err.message}`, 'bad'); }
+    }
+  };
+  view.querySelector('#att-file').onchange = async (ev) => {
+    const files = [...ev.target.files];
+    ev.target.value = '';
+    if (id) { await uploadAll(id, files); } else { pending.push(...files); }
+    renderAtt();
+  };
+  renderAtt();
+
   const save = async (validate) => {
     const r = await api.post('entries.save', { ...collect(), validate });
+    if (pending.length) await uploadAll(r.id, pending.splice(0));
     toast(validate ? `Lançamento validado: ${r.journal} / ${r.number}` : 'Rascunho guardado.', 'good');
     await refreshInfo();
     if (validate && !id) go(cpath(`lancamento/novo?journal=${r.journal}&date=${r.date}`));

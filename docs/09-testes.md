@@ -15,9 +15,10 @@ php tests/run.php
 |----------|-------|
 | `MoneyTest.php` | Conversão de formatos de valores e formatação |
 | `LedgerTest.php` | Plano de contas, validação, numeração, estorno, cadeia de hash e deteção de adulteração, balancete, balanço equilibrado, DR, IVA, fecho e abertura |
+| `AttachmentsBackupTest.php` | Anexos (binário intacto, duplicados, tipos recusados, proteção em validados), migração v1→v2, cópia automática diária |
 | `ImportStatsTest.php` | SAF-T (pré-visualização, conflitos, importação com abertura), CSV (erros e tudo-ou-nada), exportação SAF-T, painel, rácios, orçamento, fórmulas |
 
-Estado atual: **18 testes, todos a passar**.
+Estado atual: **22 testes, todos a passar**.
 
 ## Teste no browser (Playwright)
 
@@ -27,7 +28,7 @@ php tools/seed-demo.php /pasta/de/teste      # empresa de demonstração
 node tests/e2e/smoke.mjs                     # BASE e COMPANY configuráveis por variáveis de ambiente
 ```
 
-O teste percorre **todos os ecrãs** (25), cria uma empresa nova, faz e valida um lançamento e abre o balancete. Falha se houver erros na consola do browser, exceções de JavaScript, respostas 5xx da API ou alertas de erro no ecrã. Guarda capturas em `tests/e2e/output/` (ignorado pelo Git).
+O teste percorre **todos os ecrãs** (25), cria uma empresa nova, faz e valida um lançamento, anexa-lhe um PDF e exporta o balancete para Excel (verifica que o ficheiro é um XLSX). Falha se houver erros na consola do browser, exceções de JavaScript, respostas 5xx da API ou alertas de erro no ecrã. Guarda capturas em `tests/e2e/output/` (ignorado pelo Git).
 
 Requer Node.js e o pacote `playwright` com Chromium disponível.
 

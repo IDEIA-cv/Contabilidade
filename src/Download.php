@@ -6,14 +6,16 @@ namespace Ideia;
 /** Resposta de ficheiro para descarregar (em vez de JSON). */
 final class Download
 {
-    public function __construct(public string $content, public string $filename, public string $type)
+    public function __construct(public string $content, public string $filename, public string $type, public bool $inline = false)
     {
     }
 
     public function send(): void
     {
         header('Content-Type: ' . $this->type);
-        header('Content-Disposition: attachment; filename="' . str_replace('"', '', $this->filename) . '"');
+        $ascii = preg_replace('/[^\x20-\x7e]/', '_', str_replace('"', '', $this->filename));
+        header('Content-Disposition: ' . ($this->inline ? 'inline' : 'attachment') . '; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($this->filename));
+        header('X-Content-Type-Options: nosniff');
         header('Content-Length: ' . strlen($this->content));
         header('Cache-Control: no-store');
         echo $this->content;

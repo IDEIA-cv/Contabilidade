@@ -52,6 +52,9 @@ Linhas com débito **ou** crédito em centavos (≥ 0; nunca os dois na mesma li
 ### `budgets`
 Orçamento mensal por conta (qualquer nível: `62` orçamenta todos os FSE). Valor com o sinal natural (gastos e rendimentos positivos).
 
+### `entry_attachments` (v2)
+Documentos anexos aos lançamentos (PDF, imagens, XML, Excel, Word; até 10 MB cada). O conteúdo fica **dentro do ficheiro `.ideia`** (BLOB), por isso viaja com as cópias. Guarda nome, tipo, tamanho e SHA-256 (impede anexar o mesmo ficheiro duas vezes). Num lançamento validado podem acrescentar-se anexos mas não retirá-los; os anexos não entram no hash do lançamento.
+
 ### `audit_log`
 Registo de operações (`empresa.criada`, `conta.criada`, `lancamento.validado`, `lancamento.apagado`, `exercicio.fechado`, `periodo.bloqueado`, `importacao.saft`, `importacao.csv`, `saft.exportado`, `copia.seguranca`…), com detalhes em JSON.
 
@@ -72,4 +75,9 @@ Junta linhas, cabeçalho e tipo de diário **só dos lançamentos validados**. T
 
 ## Versões do esquema
 
-`Db::SCHEMA_VERSION` (atualmente `1`) é gravado em `meta.schema_version`. Alterações futuras devem acrescentar migrações aplicadas em `Db` ao abrir um ficheiro com versão inferior, e nunca alterar dados de lançamentos validados.
+`Db::SCHEMA_VERSION` (atualmente `2`) é gravado em `meta.schema_version`. Ao abrir um ficheiro de versão inferior, `Db::migrate()` aplica as migrações em falta; um ficheiro de versão superior é recusado ("atualize a aplicação"). As migrações nunca alteram dados de lançamentos validados.
+
+| Versão | Alteração |
+|--------|-----------|
+| 1 | Esquema inicial |
+| 2 | Tabela `entry_attachments` (documentos anexos) |

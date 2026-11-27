@@ -10,7 +10,7 @@ use PDO;
  */
 final class Db
 {
-    public const SCHEMA_VERSION = 1;
+    public const SCHEMA_VERSION = 2;
 
     public PDO $pdo;
     public string $path;
@@ -44,7 +44,12 @@ final class Db
         if ($v > self::SCHEMA_VERSION) {
             throw new UserError('Este ficheiro foi criado por uma versão mais recente da aplicação. Atualize a aplicação.');
         }
-        // Futuras migrações: if ($v < 2) { ...; $this->setMeta('schema_version', '2'); }
+        if ($v < 2) {
+            // v2: documentos anexos. O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo é seguro.
+            $this->pdo->exec((string) file_get_contents(IDEIA_ROOT . '/database/schema.sql'));
+            $this->setMeta('schema_version', '2');
+        }
+        // Próximas migrações: if ($v < 3) { ...; $this->setMeta('schema_version', '3'); }
     }
 
     public function meta(string $key): ?string
