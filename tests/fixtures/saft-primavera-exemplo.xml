@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ficheiro sintético para testes: estrutura SAF-T PT 1.04 como a produzida por ERPs portugueses. Dados fictícios. -->
+<AuditFile xmlns="urn:OECD:StandardAuditFile-Tax:PT_1.04_01">
+  <Header>
+    <AuditFileVersion>1.04_01</AuditFileVersion>
+    <CompanyID>200000002</CompanyID>
+    <TaxRegistrationNumber>200000002</TaxRegistrationNumber>
+    <TaxAccountingBasis>C</TaxAccountingBasis>
+    <CompanyName>Empresa Exemplo Migração Lda</CompanyName>
+    <FiscalYear>2024</FiscalYear>
+    <StartDate>2024-01-01</StartDate>
+    <EndDate>2024-12-31</EndDate>
+    <CurrencyCode>CVE</CurrencyCode>
+    <ProductID>ERP Exemplo/Fornecedor</ProductID>
+    <ProductVersion>10.0</ProductVersion>
+  </Header>
+  <MasterFiles>
+    <GeneralLedgerAccounts>
+      <Account><AccountID>1</AccountID><AccountDescription>Meios financeiros</AccountDescription><OpeningDebitBalance>250000.00</OpeningDebitBalance><OpeningCreditBalance>0.00</OpeningCreditBalance><ClosingDebitBalance>255000.00</ClosingDebitBalance><ClosingCreditBalance>0.00</ClosingCreditBalance><GroupingCategory>GR</GroupingCategory></Account>
+      <Account><AccountID>12</AccountID><AccountDescription>Depósitos à ordem</AccountDescription><OpeningDebitBalance>250000.00</OpeningDebitBalance><OpeningCreditBalance>0.00</OpeningCreditBalance><ClosingDebitBalance>255000.00</ClosingDebitBalance><ClosingCreditBalance>0.00</ClosingCreditBalance><GroupingCategory>GA</GroupingCategory><GroupingCode>1</GroupingCode></Account>
+      <Account><AccountID>1211</AccountID><AccountDescription>BCA conta 1</AccountDescription><OpeningDebitBalance>250000.00</OpeningDebitBalance><OpeningCreditBalance>0.00</OpeningCreditBalance><ClosingDebitBalance>255000.00</ClosingDebitBalance><ClosingCreditBalance>0.00</ClosingCreditBalance><GroupingCategory>GM</GroupingCategory><GroupingCode>12</GroupingCode></Account>
+      <Account><AccountID>51</AccountID><AccountDescription>Capital</AccountDescription><OpeningDebitBalance>0.00</OpeningDebitBalance><OpeningCreditBalance>250000.00</OpeningCreditBalance><ClosingDebitBalance>0.00</ClosingDebitBalance><ClosingCreditBalance>250000.00</ClosingCreditBalance><GroupingCategory>GM</GroupingCategory></Account>
+      <Account><AccountID>62</AccountID><AccountDescription>FSE</AccountDescription><OpeningDebitBalance>0.00</OpeningDebitBalance><OpeningCreditBalance>0.00</OpeningCreditBalance><ClosingDebitBalance>5000.00</ClosingDebitBalance><ClosingCreditBalance>0.00</ClosingCreditBalance><GroupingCategory>GM</GroupingCategory></Account>
+      <Account><AccountID>7211</AccountID><AccountDescription>Consultoria</AccountDescription><OpeningDebitBalance>0.00</OpeningDebitBalance><OpeningCreditBalance>0.00</OpeningCreditBalance><ClosingDebitBalance>0.00</ClosingDebitBalance><ClosingCreditBalance>10000.00</ClosingCreditBalance><GroupingCategory>GM</GroupingCategory></Account>
+    </GeneralLedgerAccounts>
+    <Customer><CustomerID>CLI001</CustomerID><AccountID>2111</AccountID><CustomerTaxID>987654321</CustomerTaxID><CompanyName>Hotel Exemplo SA</CompanyName><BillingAddress><AddressDetail>Santa Maria</AddressDetail><City>Sal</City><Country>CV</Country></BillingAddress><SelfBillingIndicator>0</SelfBillingIndicator></Customer>
+  </MasterFiles>
+  <GeneralLedgerEntries>
+    <NumberOfEntries>2</NumberOfEntries>
+    <TotalDebit>15000.00</TotalDebit>
+    <TotalCredit>15000.00</TotalCredit>
+    <Journal>
+      <JournalID>10</JournalID>
+      <Description>Vendas</Description>
+      <Transaction>
+        <TransactionID>2024-03-01 10 1</TransactionID><Period>3</Period><TransactionDate>2024-03-01</TransactionDate><SourceID>adm</SourceID>
+        <Description>Consultoria março</Description><DocArchivalNumber>FT A/1</DocArchivalNumber><TransactionType>N</TransactionType><GLPostingDate>2024-03-01</GLPostingDate>
+        <CustomerID>CLI001</CustomerID>
+        <Lines>
+          <DebitLine><RecordID>1</RecordID><AccountID>1211</AccountID><SourceDocumentID>FT A/1</SourceDocumentID><SystemEntryDate>2024-03-01T10:00:00</SystemEntryDate><Description>Recebimento</Description><DebitAmount>10000.00</DebitAmount></DebitLine>
+          <CreditLine><RecordID>2</RecordID><AccountID>7211</AccountID><SourceDocumentID>FT A/1</SourceDocumentID><SystemEntryDate>2024-03-01T10:00:00</SystemEntryDate><Description>Consultoria</Description><CreditAmount>10000.00</CreditAmount></CreditLine>
+        </Lines>
+      </Transaction>
+    </Journal>
+    <Journal>
+      <JournalID>20</JournalID>
+      <Description>Bancos</Description>
+      <Transaction>
+        <TransactionID>2024-04-01 20 1</TransactionID><Period>4</Period><TransactionDate>2024-04-01</TransactionDate><SourceID>adm</SourceID>
+        <Description>Pagamento de serviços</Description><DocArchivalNumber>PG 1</DocArchivalNumber><TransactionType>N</TransactionType><GLPostingDate>2024-04-01</GLPostingDate>
+        <Lines>
+          <DebitLine><RecordID>1</RecordID><AccountID>62</AccountID><SourceDocumentID>PG 1</SourceDocumentID><SystemEntryDate>2024-04-01T10:00:00</SystemEntryDate><Description>Serviços</Description><DebitAmount>5000.00</DebitAmount></DebitLine>
+          <CreditLine><RecordID>2</RecordID><AccountID>1211</AccountID><SourceDocumentID>PG 1</SourceDocumentID><SystemEntryDate>2024-04-01T10:00:00</SystemEntryDate><Description>Pagamento</Description><CreditAmount>5000.00</CreditAmount></CreditLine>
+        </Lines>
+      </Transaction>
+    </Journal>
+  </GeneralLedgerEntries>
+</AuditFile>

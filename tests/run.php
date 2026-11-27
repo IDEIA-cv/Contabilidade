@@ -41,6 +41,8 @@ function throws(callable $fn, string $contains = ''): void
     throw new RuntimeException('era esperada uma exceção');
 }
 
+require __DIR__ . '/helpers.php';
+
 $filter = $argv[1] ?? '';
 $passed = 0;
 $failed = 0;
