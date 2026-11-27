@@ -6,19 +6,22 @@ Código: `src/Sales.php` (regras), `src/SalesPrint.php` (impressão A4), `assets
 
 ## Tipos de documento
 
-| Código | Documento | Cliente obrigatório | Lançamento contabilístico | Tipo na e-Fatura (futuro) | Prazo por omissão |
+| Código | Documento | Cliente obrigatório | Lançamento contabilístico | Tipo na e-Fatura | Prazo por omissão |
 |---|---|---|---|---|---|
 | OR | Orçamento | sim | não | — | validade 30 dias |
 | PF | Fatura pró-forma | sim | não | — | validade 15 dias |
 | GE | Guia de entrega | sim | não | DTE | — |
-| GT | Guia de transporte | sim | não | DTE | — |
+| GT | Guia de transporte | sim | não | DTE (numeração comum com GE) | — |
 | FT | Fatura | sim | sim (cliente a débito) | FTE | vencimento 30 dias |
-| FR | Fatura-recibo | não (consumidor final) | sim (caixa/banco a débito) | FRE | — |
+| FR | Fatura-recibo | NIF obrigatório (ficha ou NIF sem ficha) | sim (caixa/banco a débito) | FRE | — |
+| TV | Talão de venda | não (consumidor final); nome e NIF a partir de 20 000 ECV | sim (caixa/banco a débito) | TVE | — |
 | ND | Nota de débito | sim | sim | NDE | vencimento 30 dias |
 | NC | Nota de crédito | da fatura de origem | sim (movimentos ao contrário) | NCE | — |
 | RC | Recibo | sim | sim (caixa/banco a débito, cliente a crédito) | RCE | — |
 
-NC e RC não se criam diretamente. A nota de crédito parte de uma fatura emitida (**Emitir nota de crédito**) e o recibo de **Registar pagamento** numa fatura ou nota de débito.
+NC, ND e RC não se criam diretamente. As notas partem de uma fatura emitida (**Emitir nota de crédito** / **Emitir nota de débito**) e exigem o motivo de emissão (artigo 65.º do CIVA). O recibo nasce de **Registar pagamento** numa fatura ou nota de débito.
+
+Isenções e unidades usam as listas oficiais da e-Fatura (códigos). Com a e-Fatura ativa, cada documento fiscal recebe IUD e código QR na emissão. Ver [15-efatura](15-efatura.md).
 
 ## Numeração
 
@@ -51,12 +54,12 @@ Arredondamento ao centavo, metade para cima. A mesma função existe no servidor
 
 ## Lançamento automático
 
-Na emissão de FT, FR, ND, NC e RC é criado e validado um lançamento, ligado ao documento por `entry_id`.
+Na emissão de FT, FR, TV, ND, NC e RC é criado e validado um lançamento, ligado ao documento por `entry_id`.
 
 | Documento | Diário | Débito | Crédito |
 |---|---|---|---|
 | FT / ND | VEN | conta corrente do cliente (`third_parties.account`, por omissão 211) | rendimentos por conta do artigo (71x/72x) + IVA liquidado (conta do código de IVA, 2433) |
-| FR | VEN | caixa (111) ou banco (121), conforme o meio de pagamento | igual à FT |
+| FR, TV | VEN | caixa (111) ou banco (121), conforme o meio de pagamento | igual à FT |
 | NC | VEN | rendimentos + IVA (base negativa no mapa do IVA) | cliente |
 | RC | CXA (numerário) ou BCO | caixa / banco | cliente |
 
@@ -93,16 +96,15 @@ Tabela `items`: código (automático P0001/S0001 se vazio), descrição, tipo (p
 - Os rascunhos e os documentos anulados levam uma marca de água.
 - Os dados da empresa para os documentos editam-se em **Empresa e cópias**: telefone, email, IBAN, rodapé e logótipo (PNG/JPG até 300 KB, guardado no ficheiro da empresa).
 
-## Esquema (v5 e v6)
+## Esquema (v5, v6 e v8)
 
-Tabelas `item_families` (v6), `items` (com `family_id` desde a v6), `doc_series`, `sales_docs`, `sales_doc_lines`, `sales_settlements` (recibo → faturas liquidadas). Ver [modelo de dados](04-modelo-de-dados.md).
+Na v8 `sales_docs` ganhou `iud`, `efatura_message`, `efatura_at`, `efatura_mode` e `issue_reason`. Tabelas `item_families` (v6), `items` (com `family_id` desde a v6), `doc_series`, `sales_docs`, `sales_doc_lines`, `sales_settlements` (recibo → faturas liquidadas). Ver [modelo de dados](04-modelo-de-dados.md).
 
 ## Desempenho
 
 5 000 faturas e 2 500 recibos foram emitidos em 19 s (cerca de 2,5 ms cada, com lançamento contabilístico). A lista, a lista de dívidas, o resumo e a verificação da cadeia demoram 10 a 25 ms.
 
-## Falta (depende da DNRE)
+## Falta
 
-- Geração do XML do DFE com IUD, assinatura, envio e fila de contingência.
-- Secção `SourceDocuments/SalesInvoices` no SAF-T CV, quando houver o XSD oficial.
-- Validação dos códigos de motivo de isenção oficiais. Hoje são texto, com sugestões.
+- Homologação do envio pelo Middleware com uma conta de teste da DNRE.
+- Secção `SourceDocuments/SalesInvoices` no SAF-T CV (o XSD 1.01_01 já está em `resources/efatura/xsd`).

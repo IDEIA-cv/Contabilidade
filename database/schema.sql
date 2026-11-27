@@ -237,7 +237,12 @@ CREATE TABLE IF NOT EXISTS sales_docs (
     vat_cents       INTEGER NOT NULL DEFAULT 0,
     total_cents     INTEGER NOT NULL DEFAULT 0,
     entry_id        INTEGER REFERENCES entries(id),    -- lançamento contabilístico gerado
-    efatura_status  TEXT,                              -- pendente / comunicado (documentos fiscais)
+    efatura_status  TEXT,                              -- e-Fatura: pendente / autorizado / rejeitado / erro / excluido
+    iud             TEXT,                              -- e-Fatura (v8): identificador único do DFE (45 carateres)
+    efatura_message TEXT,                              -- última resposta / erro da e-Fatura
+    efatura_at      TEXT,                              -- data/hora da última tentativa
+    efatura_mode    INTEGER,                           -- 1 online, 2 offline (contingência)
+    issue_reason    TEXT,                              -- NC/ND: motivo de emissão (IssueReasonCode)
     hash            TEXT,
     prev_hash       TEXT,
     cancel_reason   TEXT,

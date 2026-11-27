@@ -5,15 +5,6 @@ use Ideia\Reports;
 use Ideia\Vat;
 use Ideia\Ledger;
 
-function salesSetup(): array
-{
-    $db = demoCompany();
-    $cli = (int) $db->value("SELECT id FROM third_parties WHERE name = 'Cliente Praia'");
-    $prod = Sales::saveItem($db, ['name' => 'Cimento 50 kg', 'kind' => 'P', 'price' => '850,00', 'vat_code' => 'NOR']);
-    $serv = Sales::saveItem($db, ['name' => 'Transporte', 'kind' => 'S', 'price' => '2 000,00', 'vat_code' => 'ISE', 'exemption' => Sales::EXEMPTIONS[0]]);
-    return [$db, $cli, $prod, $serv];
-}
-
 return [
     'artigos: código automático, isenção obrigatória e inativar quando já usado' => function () {
         [$db, $cli, $prod, $serv] = salesSetup();
@@ -84,7 +75,7 @@ return [
         same('rascunho', $nc['status']);
         $lines = $nc['lines'];
         $lines[0]['qty_milli'] = 1000;
-        $nc = Sales::save($db, ['id' => $nc['id'], 'date' => '2025-04-12', 'origin_id' => $ft['id'], 'lines' => $lines, 'issue' => true]);
+        $nc = Sales::save($db, ['id' => $nc['id'], 'date' => '2025-04-12', 'origin_id' => $ft['id'], 'lines' => $lines, 'issue' => true, 'issue_reason' => '2']);
         same(97750, (int) $nc['total_cents']);
         same(-2250, Sales::openAmount($db, (int) $ft['id']), 'crédito a favor do cliente');
         throws(fn() => Sales::cancel($db, (int) $ft['id'], 'erro'), 'Anule-os primeiro');
@@ -106,11 +97,13 @@ return [
         same((int) $or['id'], (int) $ft['origin_id']);
         same(600000, (int) $ft['total_cents']);
         throws(fn() => Sales::derive($db, (int) $or['id'], 'NC', 'convert'), 'converter');
-        $fr = Sales::save($db, ['type' => 'FR', 'date' => '2025-04-02', 'payment_method' => 'NU', 'issue' => true, 'lines' => [['item_id' => $prod['id']]]]);
-        same('FR 2025/1', $fr['doc_no']);
+        throws(fn() => Sales::save($db, ['type' => 'FR', 'date' => '2025-04-02', 'payment_method' => 'NU', 'issue' => true, 'lines' => [['item_id' => $prod['id']]]]), 'talão de venda');
+        $fr = Sales::save($db, ['type' => 'TV', 'date' => '2025-04-02', 'payment_method' => 'NU', 'issue' => true, 'lines' => [['item_id' => $prod['id']]]]);
+        same('TV 2025/1', $fr['doc_no']);
         same('Consumidor final', $fr['customer_name'] ?? 'Consumidor final');
         $e = Ledger::getEntry($db, (int) $fr['entry_id']);
-        same('111', $e['lines'][0]['account'], 'fatura-recibo em numerário entra em caixa');
+        same('111', $e['lines'][0]['account'], 'talão de venda em numerário entra em caixa');
+        throws(fn() => Sales::save($db, ['type' => 'TV', 'date' => '2025-04-02', 'issue' => true, 'lines' => [['item_id' => $prod['id'], 'qty' => '25']]]), 'identificar o cliente');
         $s = Sales::summary($db, 2025);
         same(97750, $s['invoiced']);
         same(1, $s['drafts']);
@@ -170,7 +163,7 @@ return [
     },
     'famílias de artigos: sugerem IVA e conta, filtro, apagar deixa artigos sem família, migração v5' => function () {
         $db = demoCompany();
-        $f = Sales::saveFamily($db, ['name' => 'Formação', 'kind' => 'S', 'vat_code' => 'ISE', 'exemption' => Sales::EXEMPTIONS[0], 'account' => '722']);
+        $f = Sales::saveFamily($db, ['name' => 'Formação', 'kind' => 'S', 'vat_code' => 'ISE', 'exemption' => '3', 'account' => '722']);
         throws(fn() => Sales::saveFamily($db, ['name' => 'formação']), 'Já existe');
         throws(fn() => Sales::saveFamily($db, ['name' => 'X', 'vat_code' => 'ISE']), 'isenção');
         $i = Sales::saveItem($db, ['name' => 'Curso de Excel', 'family_id' => $f['id'], 'price' => '20000']);

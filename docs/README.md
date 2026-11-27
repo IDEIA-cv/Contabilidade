@@ -19,7 +19,7 @@ Esta pasta reúne toda a documentação técnica. Leia pela ordem abaixo se est�
 | 11 | [Reconciliação bancária](11-reconciliacao-bancaria.md) | Importação de extratos, conciliação e mapa |
 | 12 | [Vendas e documentos comerciais](12-vendas.md) | Faturas, orçamentos, guias, recibos, numeração, dívidas de clientes |
 | 14 | [Compras e dívidas a fornecedores](14-compras.md) | Faturas de fornecedores, pagamentos, dívidas a fornecedores, mapa de pagamentos |
-| 15 | [e-Fatura](15-efatura.md) | Notas técnicas da e-Fatura (DNRE) e configuração da ligação |
+| 15 | [Fatura eletrónica](15-efatura.md) | Regras da e-Fatura (DNRE), IUD, XML, contingência, Middleware e menu e-Fatura |
 | 13 | [Avaliação de qualidade](13-avaliacao-qualidade.md) | Notas por categoria (software e UI/UX) e próximos passos |
 | — | [Decisões de arquitetura (ADR)](adr/) | Porque se escolheu cada solução |
 

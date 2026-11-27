@@ -10,7 +10,7 @@ use PDO;
  */
 final class Db
 {
-    public const SCHEMA_VERSION = 7;
+    public const SCHEMA_VERSION = 8;
 
     public PDO $pdo;
     public string $path;
@@ -44,8 +44,9 @@ final class Db
         if ($v > self::SCHEMA_VERSION) {
             throw new UserError('Este ficheiro foi criado por uma versão mais recente da aplicação. Atualize a aplicação.');
         }
-        if ($v < 7) {
-            // v2: anexos; v3: reconciliação bancária; v4: índices; v5: vendas; v6: famílias de artigos; v7: compras.
+        if ($v < 8) {
+            // v2: anexos; v3: reconciliação bancária; v4: índices; v5: vendas; v6: famílias de artigos; v7: compras;
+            // v8: e-Fatura (IUD, estado da comunicação, motivo das notas).
             // O esquema só usa CREATE ... IF NOT EXISTS, por isso reaplicá-lo acrescenta apenas o que falta.
             $this->pdo->exec((string) file_get_contents(IDEIA_ROOT . '/database/schema.sql'));
             // colunas novas em tabelas que já existiam
@@ -53,8 +54,16 @@ final class Db
             if (!in_array('family_id', $cols, true)) {
                 $this->pdo->exec('ALTER TABLE items ADD COLUMN family_id INTEGER REFERENCES item_families(id)');
             }
+            $cols = array_column($this->all('PRAGMA table_info(sales_docs)'), 'name');
+            foreach (['iud' => 'TEXT', 'efatura_message' => 'TEXT', 'efatura_at' => 'TEXT', 'efatura_mode' => 'INTEGER', 'issue_reason' => 'TEXT'] as $c => $t) {
+                if (!in_array($c, $cols, true)) {
+                    $this->pdo->exec("ALTER TABLE sales_docs ADD COLUMN $c $t");
+                }
+            }
             $this->setMeta('schema_version', (string) self::SCHEMA_VERSION);
         }
+        // índice criado aqui (e não no schema.sql) porque a coluna iud só existe depois da migração v8
+        $this->pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_sales_iud ON sales_docs(iud) WHERE iud IS NOT NULL');
         // Próximas migrações (que alterem tabelas existentes): if ($v < 4) { ...; $this->setMeta('schema_version', '4'); }
     }
 

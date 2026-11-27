@@ -12,6 +12,7 @@ use Ideia\Bank;
 use Ideia\Closing;
 use Ideia\Companies;
 use Ideia\Config;
+use Ideia\Efatura;
 use Ideia\Ledger;
 use Ideia\Purchases;
 use Ideia\Sales;
@@ -138,12 +139,14 @@ $db->setMeta('company_phone', '+238 260 00 00');
 $db->setMeta('company_email', 'geral@demonstracao.cv');
 $db->setMeta('company_bank', 'CV64 0001 0000 1234 5678 9101 2');
 $db->setMeta('sales_footer', 'Capital social 3 000 000 ECV · Conservatória do Registo Comercial da Praia');
+// e-Fatura em modo de teste (LED e código de software fictícios): os documentos fiscais recebem IUD e ficam na fila
+Efatura::saveSettings($db, ['enabled' => '1', 'since' => '2025-11-01', 'repo' => '3', 'led' => '1', 'software_code' => 'IDEIADEMO']);
 $famServ = Sales::saveFamily($db, ['name' => 'Consultoria e formação', 'kind' => 'S', 'account' => '721'])['id'];
 $famProd = Sales::saveFamily($db, ['name' => 'Material e licenças', 'kind' => 'P', 'vat_code' => 'NOR', 'account' => '711'])['id'];
 $it = [];
 foreach ([
     ['S', 'Consultoria de gestão (hora)', 'H', '6.500,00', 'NOR', null],
-    ['S', 'Formação em contabilidade (dia)', 'DIA', '45.000,00', 'ISE', Sales::EXEMPTIONS[0]],
+    ['S', 'Formação em contabilidade (dia)', 'DIA', '45.000,00', 'ISE', '3'],
     ['P', 'Manual de procedimentos impresso', 'UN', '2.500,00', 'NOR', null],
     ['P', 'Licença de software anual', 'UN', '38.000,00', 'NOR', null],
     ['S', 'Deslocação fora da ilha', 'UN', '12.000,00', 'NOR', null],
@@ -158,8 +161,15 @@ $ft = Sales::save($db, ['id' => $ft['id'], 'date' => '2025-11-10', 'lines' => $f
 Sales::pay($db, (int) $ft['id'], ['date' => '2025-11-20', 'amount' => '100.000,00', 'payment_method' => 'NU']);
 Sales::save($db, ['type' => 'FT', 'date' => '2025-11-12', 'third_party' => $clients[2], 'issue' => true, 'lines' => [['item_id' => $it[1], 'qty' => '3']]]);
 Sales::save($db, ['type' => 'FT', 'date' => '2025-11-14', 'third_party' => $clients[1], 'issue' => true, 'lines' => [['item_id' => $it[3], 'qty' => '4']]]);
-Sales::save($db, ['type' => 'FR', 'date' => '2025-11-15', 'payment_method' => 'NU', 'issue' => true, 'lines' => [['item_id' => $it[2], 'qty' => '2']]]);
+Sales::save($db, ['type' => 'TV', 'date' => '2025-11-15', 'payment_method' => 'NU', 'issue' => true, 'lines' => [['item_id' => $it[2], 'qty' => '2']]]);
 Sales::save($db, ['type' => 'GE', 'date' => '2025-11-14', 'third_party' => $clients[1], 'issue' => true, 'delivery_place' => 'Armazém Achada Grande', 'lines' => [['item_id' => $it[3], 'qty' => '4']]]);
+Sales::save($db, ['type' => 'FR', 'date' => '2025-11-17', 'third_party' => $clients[3], 'payment_method' => 'TB', 'issue' => true, 'lines' => [['item_id' => $it[0], 'qty' => '3']]]);
+$ftLic = Sales::list($db, ['type' => 'FT', 'party' => $clients[1]])['rows'][0];
+$nc = Sales::derive($db, (int) $ftLic['id'], 'NC', 'credit');
+Sales::save($db, ['id' => $nc['id'], 'date' => '2025-11-21', 'issue_reason' => '2', 'notes' => 'Devolução de uma licença não utilizada',
+    'lines' => [['item_id' => $it[3], 'qty' => '1']], 'issue' => true]);
+Sales::save($db, ['type' => 'GT', 'date' => '2025-11-21', 'third_party' => $clients[0], 'issue' => true, 'delivery_place' => 'Hotel Atlântico, Santa Maria, Sal',
+    'lines' => [['item_id' => $it[2], 'qty' => '10']]]);
 Sales::save($db, ['type' => 'PF', 'date' => '2025-11-25', 'third_party' => $clients[3], 'lines' => [['item_id' => $it[0], 'qty' => '8']]]);
 
 // compras de novembro: faturas de fornecedores, pagamento parcial, despesa paga e nota de crédito

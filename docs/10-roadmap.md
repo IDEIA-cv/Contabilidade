@@ -21,6 +21,10 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 - **Compras e dívidas a fornecedores** (pedido de 27/11/2026): faturas de fornecedores, despesas pagas, notas de crédito, pagamentos de uma ou várias faturas, dívidas por antiguidade, mapa de pagamentos e ficha do fornecedor. Ver [14-compras](14-compras.md).
 - Tipos de artigo criados pelo utilizador, com entrada própria no menu.
 
+## Feito — versão 0.5
+
+- **Fatura eletrónica** (documentos oficiais recebidos a 27/11/2026): IUD e código QR, XML de todos os tipos validado com o XSD oficial, listas oficiais de isenções e unidades, talão de venda (TVE), NIF obrigatório na fatura-recibo, numeração comum das guias, motivo e origem das notas, impressão com aviso de contingência, menu **Fatura eletrónica** (estado e envio, configuração do Middleware, documentação oficial). Ver [15-efatura](15-efatura.md).
+
 ## Próximo — validação (antes de qualquer cliente real)
 
 | Tarefa | Porquê |
@@ -30,14 +34,14 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 | Recolher SAF-T reais e anonimizados do Primavera, PHC, Sage e exportações do Vendus | Os testes usam um ficheiro sintético |
 | Confirmar a licença open-source (o plano propõe GPL-3.0 para a aplicação e Apache-2.0 para as bibliotecas de e-Fatura e SAF-T) | Necessário antes de divulgar |
 | Piloto com 2 ou 3 gabinetes de contabilidade | Validar fluxos reais |
+| Homologação da e-Fatura com conta de teste e Middleware instalado | Confirmar a resposta do serviço e o fluxo completo de envio |
 
 ## Fase 2 — e-Fatura e faturação (depende da DNRE)
 
-A emissão de documentos já existe (v0.3). Falta transformá-los em DFE válidos e comunicá-los, o que só arranca com as especificações e credenciais de teste da DNRE (portão da Fase 2 no plano). Os documentos emitidos até lá ficam com `efatura_status = 'pendente'` para poderem ser tratados.
+A geração dos DFE e o envio pelo Middleware existem desde a v0.5. Falta a homologação com credenciais de teste e o resto da fase:
 
 
 - Leitura dos DFE (documentos fiscais eletrónicos) emitidos e recebidos, para conferência com a contabilidade e lançamento automático de compras/vendas.
-- Geração de DFE (XML com IUD), assinatura e envio pela API da DNRE, com **fila de contingência** offline e reenvio quando houver internet.
 - Mapa de conferência IVA: e-Fatura vs contabilidade.
 - Requer: documentação técnica e credenciais de teste da DNRE; certificado digital.
 

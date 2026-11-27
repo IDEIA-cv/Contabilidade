@@ -132,6 +132,18 @@ await page.click('.modal button.primary');
 await page.waitForSelector('.badge.good >> text=Pago');
 await page.screenshot({ path: `${OUT}19-compra-paga.png`, fullPage: true });
 console.log('ok', '19-compra-registada-e-paga');
+// e-Fatura: fila (verificação com o XSD), configuração e documentação oficial
+await visit(`${c}/efatura?status=`, '20-efatura', '#ef-docs tbody tr[data-id]');
+await page.click('[data-check]');
+await page.waitForSelector('#out .alert');
+if (!(await page.innerText('#out')).includes('cumpre o XSD')) errors.push('[efatura] XML não cumpre o XSD: ' + (await page.innerText('#out')));
+await visit(`${c}/efatura/configurar`, '20-efatura-config', '#cfg [name=led]');
+await visit(`${c}/efatura/documentacao`, '20-efatura-docs', '.steps');
+{
+  const href = await page.$eval('.doc-list a[href*="efatura.doc"]', (a) => a.href);
+  const r = await page.request.get(href);
+  if (r.status() !== 200 || !(r.headers()['content-type'] || '').includes('pdf')) errors.push('[efatura] manual não descarrega');
+}
 await visit(`${c}/cliente/1?tab=extrato&from=2025-01-01&to=2025-12-31`, '19-cliente-extrato', '#t-st');
 {
   const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#print-st')]);

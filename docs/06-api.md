@@ -89,7 +89,7 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 
 | Ação | Método | Parâmetros |
 |------|--------|-----------|
-| `sales.meta` | GET | — tipos de documento, conversões possíveis, meios de pagamento, motivos de isenção |
+| `sales.meta` | GET | — tipos de documento, conversões possíveis, meios de pagamento, motivos de isenção (código => menção), unidades comuns, motivos das notas, limite do talão, `efatura` (ativa) |
 | `items.list` | GET | `q?`, `kind?` (P/S), `family?` (id ou `none`), `active?` (1, 0, all) |
 | `items.save` | POST | `id?`, `code?` (automático), `name`, `kind`, `unit`, `price` ou `price_cents`, `vat_code`, `exemption?`, `account?`, `barcode?`, `family_id?`, `active?` |
 | `items.delete` | POST | `id` — apaga se nunca usado, senão inativa |
@@ -98,7 +98,7 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 | `items.family_delete` | POST | `id` — os artigos ficam sem família |
 | `sales.list` | GET | `type?` (código ou `faturas`), `status?`, `pay?` (aberto, vencido, pago), `party?`, `q?`, `from?`, `to?`, `limit`, `offset` |
 | `sales.get` | GET | `id` |
-| `sales.save` | POST | `id?`, `type`, `date`, `due_date?`, `third_party?`, `customer_name?`/`customer_nif?` (FR sem ficha), `reference?`, `notes?`, `payment_method?`, `delivery_place?`, `origin_id?`, `lines[]`, `issue?` |
+| `sales.save` | POST | `id?`, `type`, `date`, `due_date?`, `third_party?`, `customer_name?`/`customer_nif?` (FR e TV sem ficha), `reference?`, `notes?`, `payment_method?`, `delivery_place?`, `origin_id?`, `issue_reason?` (NC, ND), `lines[]`, `issue?` |
 | `sales.issue` | POST | `id` — atribui número, hash e lançamento |
 | `sales.cancel` | POST | `id`, `reason` |
 | `sales.delete` | POST | `id` (só rascunhos) |
@@ -113,7 +113,22 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 | `sales.series` / `sales.verify` | GET | — numeração por série / verificação da cadeia |
 | `company.logo` | POST | ficheiro (`file`) ou `remove=1` |
 
-Linhas: `item_id?`, `description`, `qty` (texto, ex. `"1,5"`) ou `qty_milli`, `price` ou `price_cents`, `discount` (%) ou `discount_bp`, `vat_code`, `exemption?`, `account?`.
+Linhas: `item_id?`, `description`, `qty` (texto, ex. `"1,5"`) ou `qty_milli`, `price` ou `price_cents`, `discount` (%) ou `discount_bp`, `vat_code`, `exemption?` (código oficial, 1–21), `unit?` (código UN/ECE, ex. `EA`, `KGM`), `account?`.
+
+## e-Fatura
+
+| Ação | Método | Parâmetros / resposta |
+|---|---|---|
+| `efatura.overview` | GET | — configuração (sem a chave), o que falta, contagens por estado, repositórios, motivos de contingência, documentos oficiais, ligações, extensões PHP |
+| `efatura.codes` | GET | — listas oficiais: isenções, unidades, motivos das notas |
+| `efatura.save` | POST | `enabled`, `since`, `repo` (1/2/3), `led`, `software_code`, `transmitter_nif`, `contingency_reason`, `mw_url`, `mw_key?`, `mw_key_clear?`, `mw_verify` |
+| `efatura.test` | POST | — `{ok, message}` do pedido ao Middleware |
+| `efatura.documents` | GET | `status?`, `from?`, `to?` — documentos fiscais com estado, IUD e resposta; `counts`; `since` |
+| `efatura.check` | GET | `id` — `{ok, errors[]}` (dados em falta ou erros do XSD) |
+| `efatura.xml` | GET | `id` — descarrega `<IUD>.xml` (sem assinatura) |
+| `efatura.send` | POST | `ids[]` ou `pending=1` — resultado por documento (`status`, `message`) |
+| `efatura.exclude` | POST | `ids[]`, `exclude` (true = não comunicar, false = repor na fila) |
+| `efatura.doc` | GET | `id` (manual, certificado, motivos, unidades) — ficheiro oficial |
 
 ## Compras
 

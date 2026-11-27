@@ -1,96 +1,118 @@
-# 15. e-Fatura (DNRE): notas de preparação
+# 15. Fatura eletrónica (e-Fatura, DNRE)
 
-Notas recolhidas em 27/11/2026 de https://www.efatura.cv/docs/about/e-fatura/, dos guias em https://www.efatura.cv/guide/ e da primeira parte do **Manual Técnico da Fatura Eletrónica v11.0** (14/03/2025). Ainda falta ler: secções 7.19 a 7.21 (contingência, assinatura, tipos de dados), 9 (versão XML, namespace), 10 (API) e 11 (Middleware), e o XSD de 27/05/2024.
+A aplicação gera os documentos fiscais eletrónicos (DFE) de Cabo Verde e comunica-os à e-Fatura através do **Middleware** oficial da DNRE. Esta página resume as regras retiradas dos documentos oficiais e explica como estão implementadas (versão 0.5, esquema v8).
 
-## O que é
+## Fontes
 
-- Todos os sujeitos passivos credenciados emitem documentos fiscais eletrónicos (DFE), assinados pelo emitente e autorizados pela administração tributária em tempo real, de forma síncrona e por HTTPS.
-- A representação impressa (DFA) tem de levar o IUD e um QR Code.
+Os ficheiros oficiais estão em `resources/efatura/` e podem ser abertos na aplicação, no menu **Fatura eletrónica → Documentação oficial**:
 
-## Tipos de documento (código DTC-E)
+| Ficheiro | Conteúdo |
+|---|---|
+| `docs/manual-tecnico-fatura-eletronica-v11.0.pdf` | Manual técnico v11.0 (14/03/2025): modelo de dados, IUD, contingência, DFA, API, Middleware |
+| `docs/pedido-certificado-digital-tipos-de-documentos.pdf` | Tipos de documento a indicar no pedido do certificado |
+| `docs/lista-motivos-nao-liquidacao-imposto.xlsx` | 21 motivos de isenção (código, descrição, menção obrigatória) |
+| `docs/codigos-unidades-medidas.xls` | Unidades de medida (UN/ECE Rec. 20) |
+| `xsd/EnvelopedSignature.xsd` e `xsd/common/*.xsd` | XSD oficial de 27/05/2024 (namespace `urn:cv:efatura:xsd:v1.0`) |
+| `xsd/XML Fields Map.txt`, `xsd/Read Me.txt` | Mapa de campos e notas da DNRE |
+| `xsd/saftcv1.01_01.xsd` | XSD do SAF-T CV 1.01_01 |
 
-| Código | DFE | Sigla | Na aplicação |
-|---|---|---|---|
-| 1 | Fatura eletrónica | FTE | FT |
-| 2 | Fatura-recibo eletrónica | FRE | FR |
-| 3 | Talão de venda eletrónico | TVE | (novo) |
-| 4 | Recibo eletrónico | RCE | RC |
-| 5 | Nota de crédito eletrónica | NCE | NC |
-| 6 | Nota de débito eletrónica | NDE | ND |
-| 7 | Documento de transporte eletrónico | DTE | GE, GT |
-| 8 | Nota de devolução | DVE | (novo) |
-| 9 | Nota de lançamento | NLE | (novo) |
+As listas foram convertidas para `database/efatura-codes.php` (isenções, unidades comuns com nome em português e as 1824 unidades não obsoletas).
 
-## IUD (identificador único, 45 caracteres)
+Páginas oficiais: [e-Fatura](https://www.efatura.cv/docs/about/e-fatura/), [guias](https://www.efatura.cv/guide/), [Plataforma Eletrónica](https://pe.efatura.cv). Apoio da DNRE: helpdesk@efatura.cv, Linha Verde 8006666.
 
-`CV` (2) + repositório (1) + ano AA (2) + mês (2) + dia (2) + NIF (9) + LED (5) + tipo (2) + n.º do documento (9) + código aleatório (10) + dígito de controlo Luhn (1).
+## Arquitetura escolhida
 
-- Repositório: 1 = Principal, 2 = Homologação, 3 = Teste.
-- (NIF, ano, LED, tipo, n.º) tem de ser único.
+```
+Aplicação ──XML sem assinatura (validado com o XSD)──► Middleware (no computador do contribuinte) ──assinado, OAuth──► e-Fatura
+```
 
-## LED, série e numeração
+- O **Middleware** (downloads em `update.efatura.cv/{win,mac,linux}/mw-client/mwcore-efatura.zip`) usa os certificados importados na Plataforma Eletrónica, assina com XMLDSig/XAdES-BES (RSA-SHA256) e trata da autenticação OAuth.
+- A aplicação gera o XML, valida-o com `DOMDocument::schemaValidate` contra o XSD oficial, junta-o num ZIP (Deflate) com o nome `<IUD>.xml` e envia-o em `POST {middleware}/v1/dfe` (campo multipart `file`), com os cabeçalhos `cv-ef-mw-core-transmitter-key` (chave de 64 carateres gerada no Middleware) e `cv-ef-repository-code`.
+- Não guardamos certificados nem palavras-passe da DNRE. A chave do Middleware fica na base da empresa (`meta.efatura_mw_key`) e nunca é devolvida pela API.
+- A ligação direta à API (`services.efatura.cv`, OAuth com PKCE) e a assinatura própria não estão implementadas: o Middleware é a via recomendada pela DNRE para software de faturação local.
 
-- **LED** ("Lógica de Emissão de DFE"): até 5 dígitos, registado previamente na plataforma (pe.efatura.cv) antes de emitir.
-- Série: até 20 caracteres `A-Z a-z 0-9 - _`.
-- N.º: inteiro de 1 a 999 999 999.
-- A sequência e o recomeço anual não são validados na transmissão (diferido). A aplicação já os garante.
+## Tipos de documento
 
-## Assinatura e certificados
+| Na aplicação | DFE | Código | Elemento XML | Notas |
+|---|---|---|---|---|
+| FT Fatura | FTE | 1 | `Invoice` | vencimento e NIB em `Payments` |
+| FR Fatura-recibo | FRE | 2 | `InvoiceReceipt` | **exige NIF do cliente** |
+| TV Talão de venda (novo) | TVE | 3 | `SalesReceipt` | consumidor final; identificação obrigatória a partir de 20 000 ECV |
+| RC Recibo | RCE | 4 | `Receipt` | referências às faturas pagas |
+| NC Nota de crédito | NCE | 5 | `CreditNote` | motivo e fatura de origem obrigatórios |
+| ND Nota de débito | NDE | 6 | `DebitNote` | motivo e fatura de origem obrigatórios (nasce de uma fatura) |
+| GE Guia de entrega / GT Guia de transporte | DTE | 7 | `Transport` | **numeração comum** (ver abaixo) |
 
-- Certificado da hierarquia ICP-CV, chave RSA, hash SHA-256. O elemento `Signature` é obrigatório.
-- O emitente precisa de um "Certificado Digital Qualificado de Representação Coletiva / Selo Eletrónico".
-- O transmissor precisa de um "Certificado Digital Qualificado de Autenticação Web (SSL-EV)".
-- O formato exato do envelope (XAdES?) ainda não foi confirmado.
+Orçamentos e pro-formas não são DFE. As notas de devolução (DVE) e de lançamento (NLE) não existem ainda na aplicação.
+
+## IUD e código QR
+
+IUD de 45 carateres: `CV` + repositório (1) + AAMMDD (6) + NIF (9) + LED (5) + tipo (2) + número (9) + código aleatório (10) + dígito de controlo Luhn calculado sobre os 42 algarismos depois de `CV`. Verificado com o exemplo do manual (`CV1200520123456789000112345678901112345678904`).
+
+- É atribuído na emissão (`Efatura::assignIud`) quando a e-Fatura está ativa, e guardado em `sales_docs.iud` (índice único).
+- Repositórios: 1 Produção, 2 Homologação, 3 Teste. O IUD inclui o repositório: documentos emitidos em Teste não servem em Produção.
+- O código QR (gerador próprio em `src/Qr.php`, sem dependências) aponta para `https://pe.efatura.cv/dfe/view/<IUD>`.
+
+A chave de unicidade da DNRE é (NIF, ano, LED, tipo, número), sem a série. Por isso a guia de transporte usa o contador das guias de entrega (`Sales::SHARED_COUNTER`): GE 2026/1, GT 2026/2, GE 2026/3. Ficheiros com séries GT antigas já separadas mantêm-nas.
+
+## Regras de dados aplicadas na emissão
+
+- Emitente com NIF, nome, morada, email e telefone (Empresa e cópias). O que falta aparece no menu e-Fatura.
+- Adquirente (`ReceiverParty`) com NIF, nome e morada, exceto no talão de venda abaixo de 20 000 ECV.
+- Isenções: código da lista oficial (`TaxTypeCode="NA"` + `TaxExemptionReasonCode`). Artigos, tipos de artigo e linhas guardam o código; os textos antigos conhecidos são convertidos.
+- Unidades: código UN/ECE (`EA` unidade, `KGM`, `HUR`, `E48` serviço…). Abreviaturas antigas (UN, KG, H, SERV…) são convertidas; unidades desconhecidas são recusadas nos documentos fiscais.
+- Motivo das notas (`IssueReasonCode`): artigo 65.º do CIVA (2, 3, 4, 6, 7, 8, 9), DD débito de despesas, DRP desconto por rappel, conforme o tipo.
+- Referências: `FiscalDocument` com o IUD do documento de origem, ou `IsOldDocument="true"` com `tipo/ano/série/número` para documentos sem IUD.
+- Meios de pagamento (UN/ECE 4461): numerário 10, transferência 31, cartão 48, cheque 20, outro 1.
+- XML sem comentários, sem espaços supérfluos e sem prefixos de namespace, como recomenda a DNRE.
 
 ## Modos de emissão e contingência
 
-- **Online** (1): data e hora até 1 h à frente e até 24 h atrás da hora do sistema.
-- **Offline** (2) e **contingência (OFF)**: até 7 dias atrás.
-  - Em OFF usa-se o IUC (Identificador Único de Contingência) e um motivo.
-  - O cliente recebe obrigatoriamente um DFA com "EMITIDO EM CONTINGÊNCIA OFFLINE / Pendente de Autorização".
-  - Estes documentos não dão direito a dedução até serem autorizados.
-- O prazo de envio após contingência está na secção 7.19, ainda não lida.
+- **Online (1)**: o documento é enviado até 24 horas depois da data/hora de emissão.
+- **Offline (2)**: enviado mais tarde (até 7 dias), com o bloco `Contingency` (LED, data, hora e motivo: 4 sem Internet, 1 serviço indisponível, 5 carimbo temporal, 0 outro).
+- Se o Middleware não responder, o documento continua **por comunicar** e passa a modo offline.
+- Enquanto não estiver autorizado, a impressão mostra "EMITIDO EM CONTINGÊNCIA OFFLINE / Pendente de Autorização" e o aviso "Este documento não confere direito a dedução de imposto, enquanto o documento associado não for transmitido e autorizado pela Administração Fiscal" (manual, 6.13). Com IUD, imprime sempre o QR, o IUD e "Consulta DFE em efatura.cv".
 
-## QR Code
+## Estados na aplicação (`sales_docs.efatura_status`)
 
-URL `https://pe.efatura.cv/dfe/view/<IUD>`. Pode ser consultado sem autenticação durante 1 h após a autorização.
+| Estado | Significado |
+|---|---|
+| `pendente` | Por comunicar |
+| `autorizado` | Aceite pela e-Fatura |
+| `rejeitado` | Recusado (mensagem da DNRE em `efatura_message`) |
+| `erro` | Não foi possível gerar ou validar o XML (dados em falta) |
+| `excluido` | Não comunicar (anterior à data de início, ou marcado pelo utilizador) |
 
-## Outros códigos
+## Menu "Fatura eletrónica"
 
-- **TaxTypeCode**: NA, IVA, IS, IR.
-- **TaxExemptionReasonCode**: da "Lista de Motivos de Não Liquidação de Imposto" (xlsx no site).
-- **UnitCode**: da "Lista de Unidades de Medidas" (xls).
-- **LineTypeCode**: N, C, D, I.
-- **ReceiptTypeCode**: 1 Comercial, 2 Serviço, 3 Comercial e Serviço, 4 Renda.
-- O código do software tem de estar registado no SFECV.
-- O emitente tem de ter email e telefone.
+- **Estado e envio**: contagens por estado, lista filtrável, verificação de cada documento com o XSD, descarga do XML, envio dos selecionados ou de todos os pendentes, "Não comunicar" e "Repor na fila".
+- **Configuração**: ativar, data de início, repositório, LED, código do software (até 10 letras ou algarismos, padrão do XSD), NIF do transmissor, motivo de contingência, endereço e chave do Middleware, verificação do certificado HTTPS, "Testar ligação".
+- **Documentação oficial**: ficheiros locais, páginas oficiais, downloads do Middleware e os passos de adesão.
+- Na página de cada documento de venda: estado, IUD, resposta, "Verificar com o XSD oficial", "Descarregar XML" e "Enviar à e-Fatura".
 
-## Adesão (guia adesao-pe)
+## Passos para o contribuinte
 
-1. Registo em https://pe.efatura.cv/register com NIF, email e telemóvel iguais aos do cadastro fiscal.
-2. Confirmação por email.
-3. Palavra-passe temporária por SMS.
-4. Mudança da palavra-passe.
-5. Pedido de certificados no menu "Certificado Digital".
-6. Testes em **homologação**.
-7. Passagem automática a produção.
+1. Registo na Plataforma Eletrónica com NIF, email e telemóvel do cadastro fiscal.
+2. Pedido de certificados (menu "Certificado Digital") com os tipos FTE, FRE, TVE, RCE, NCE, NDE, DTE.
+3. Registo do LED e do software; anotar o número do LED e o código do software.
+4. Instalar o Middleware, configurar transmissor e emitente, copiar a chave de transmissor.
+5. Na aplicação: completar os dados da empresa, preencher a configuração com o repositório **Teste**, ativar e testar a ligação.
+6. Homologação: emitir e enviar documentos de teste. Depois mudar para **Produção** e indicar a data de início.
 
-A API usa OAuth (scopes listados na secção 10.1 do manual). Apoio: helpdesk@efatura.cv, Linha Verde 8006666.
+## Código
 
-## Ficheiros oficiais
+| Ficheiro | Papel |
+|---|---|
+| `src/Efatura.php` | Configuração, códigos oficiais, IUD, `buildXml`, `validate`, fila, `send` pelo Middleware, `test` |
+| `src/Qr.php` | Código QR (modo byte, ECC M, versões 1–10) em SVG |
+| `src/Sales.php` | Talão de venda, NIF na FR, contador comum das guias, motivo e origem das notas, códigos de isenção e unidades, IUD na emissão |
+| `src/SalesPrint.php` | IUD, QR e avisos de contingência na impressão |
+| `assets/js/views/efatura.js` | Menu e-Fatura |
+| `tests/unit/EfaturaTest.php` | IUD, códigos, configuração, XML de todos os tipos validado com o XSD, envio simulado (autorizado, rejeitado, sem ligação), impressão, migração v7→v8 |
 
-- Manual v11.0: https://www.efatura.cv/assets/files/manual-tecnico-da-fatura-eletronica-v11.0-be67e62c7fb34552fbcc8eeea966e217.pdf
-- XSD e-Fatura (27/05/2024): https://www.efatura.cv/assets/files/2024-05-27-XML-XSD-497f4b5a8e89ac2a3f766bb0cb85f9d9.zip
-- XSD SAF-T CV 1.01_01: https://www.efatura.cv/assets/files/saftcv1.01_01.xsd-4578ec7766d4820beb36ad57c7db399c.zip
-- Motivos de isenção: https://www.efatura.cv/assets/files/Lista-de-Motivos-de-Nao-Liquidacao-de-Imposto-7745511b183179e6e111a9e3f1b559f4.xlsx
-- Unidades: https://www.efatura.cv/assets/files/codigos-de-unidades-de-medidas-827b26a9ab0b39dae05ffd6aaa48d021.xls
+## Limitações conhecidas
 
-## O que a aplicação pode fazer já, sem credenciais
-
-1. Configurar o LED e o repositório (teste/homologação/produção) em Empresa.
-2. Gerar o IUD com dígito Luhn na emissão e imprimir o QR Code no documento.
-3. Usar as listas oficiais de motivos de isenção e de unidades.
-4. Gerar o XML do DFE validado contra o XSD (assim que o XSD estiver na pasta do projeto).
-5. Fila de envio com estados (por comunicar, enviado, autorizado, rejeitado) e modo de contingência.
-
-O envio real (assinatura com o certificado e chamada OAuth) só pode ser testado com conta em homologação.
+- O formato exato da resposta do Middleware (`succeeded`/`messages`) foi deduzido da documentação da API; a interpretação (`Efatura::parseResponse`) pode precisar de ajuste na homologação.
+- A consulta de DFE recebidos (`GET /v1/dfe`) e a conferência com as compras ainda não existem.
+- O modo OFF (sem sistema, com IUC) não se aplica: a aplicação está sempre disponível localmente.
+- Clientes estrangeiros: o NIF é enviado tal como está, com o país da ficha; convém confirmar na homologação.

@@ -19,11 +19,12 @@ php tests/run.php
 | `BankTest.php` | Leitura de extratos (cabeçalho do banco, Windows-1252, débito/crédito ou montante), duplicados, conciliação automática e manual, mapa, criação de lançamento, apagar extrato |
 | `SalesTest.php` | Artigos, cálculo de linhas (desconto, IVA, isenção), numeração por tipo/série e ordem das datas, lançamento e IVA, recibos parciais, notas de crédito, anulação, conversão, dívidas por antiguidade, extrato de cliente e de fornecedor (contabilidade), famílias de artigos e migração v5→v6, impressão |
 | `PurchasesTest.php` | Faturas de fornecedor (validações, lançamento, IVA dedutível, conta sugerida), pagamentos parciais e de várias faturas, nota de crédito, anulação, despesa paga, dívidas por antiguidade, mapa de pagamentos, ficha e extrato, migração v6→v7 |
+| `EfaturaTest.php` | IUD e dígito Luhn (exemplo do manual), códigos oficiais de isenção e unidades, configuração, XML de FT, FR, TV, RC, NC, ND, GE e GT validado com o XSD oficial, numeração comum das guias, documentos anteriores à adesão, envio simulado pelo Middleware (autorizado, rejeitado, sem ligação), QR e aviso de contingência na impressão, migração v7→v8 |
 | `ApiAuthTest.php` | Regras da API (POST, cabeçalho, rede local), palavra-passe (bloqueio da API, entrada, bloqueio por tentativas, retirar), diagnóstico |
 | `PagingTest.php` | Extrato e diário paginados iguais à versão completa |
 | `ImportStatsTest.php` | SAF-T (pré-visualização, conflitos, importação com abertura), CSV (erros e tudo-ou-nada), exportação SAF-T, painel, rácios, orçamento, fórmulas |
 
-Estado atual: **40 testes, todos a passar**.
+Estado atual: **47 testes, todos a passar**.
 
 ## Teste no browser (Playwright)
 
@@ -33,7 +34,7 @@ php tools/seed-demo.php /pasta/de/teste      # empresa de demonstração
 node tests/e2e/smoke.mjs                     # BASE e COMPANY configuráveis por variáveis de ambiente
 ```
 
-O teste percorre **todos os ecrãs** (25), cria uma empresa nova, faz e valida um lançamento, anexa-lhe um PDF importa um extrato bancário, cria o lançamento da comissão a partir do extrato e confirma diferença zero na reconciliação, e exporta o balancete para Excel (verifica que o ficheiro é um XLSX). Falha se houver erros na consola do browser, exceções de JavaScript, respostas 5xx da API ou alertas de erro no ecrã. Guarda capturas em `tests/e2e/output/` (ignorado pelo Git).
+O teste percorre **todos os ecrãs** (28, incluindo o menu e-Fatura com verificação do XML pelo XSD e descarga do manual), cria uma empresa nova, faz e valida um lançamento, anexa-lhe um PDF importa um extrato bancário, cria o lançamento da comissão a partir do extrato e confirma diferença zero na reconciliação, e exporta o balancete para Excel (verifica que o ficheiro é um XLSX). Falha se houver erros na consola do browser, exceções de JavaScript, respostas 5xx da API ou alertas de erro no ecrã. Guarda capturas em `tests/e2e/output/` (ignorado pelo Git).
 
 Requer Node.js e o pacote `playwright` com Chromium disponível.
 

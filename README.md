@@ -5,6 +5,7 @@ Software de contabilidade **open-source** para empresas de **Cabo Verde** (SNCRF
 ## Funcionalidades (v0.3)
 
 - **Vendas**: artigos (produtos e serviços), faturas, faturas-recibo, orçamentos, pro-formas, guias de entrega e de transporte, notas de crédito e de débito, recibos — numeração automática por tipo e série, impressão A4/PDF, lançamento contabilístico automático (a comunicação e-Fatura à DNRE será ligada quando houver credenciais)
+- **Fatura eletrónica (e-Fatura)**: IUD e código QR, XML validado com o XSD oficial da DNRE, talão de venda, contingência e envio pelo Middleware; documentação oficial incluída
 - **Compras**: faturas de fornecedores, despesas pagas, notas de crédito de fornecedores e pagamentos, com lançamento automático; dívidas a fornecedores por antiguidade e mapa de pagamentos
 - **Artigos** com famílias definidas por si (IVA e conta sugeridos)
 - **Extrato de conta corrente** de clientes e fornecedores (movimentos da contabilidade), em Excel ou PDF

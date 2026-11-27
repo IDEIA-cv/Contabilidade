@@ -27,6 +27,7 @@ final class Api
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
         'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
         'purchases.meta', 'purchases.list', 'purchases.get', 'purchases.creditors', 'purchases.schedule', 'purchases.supplier', 'purchases.summary', 'purchases.last_account',
+        'efatura.overview', 'efatura.documents', 'efatura.xml', 'efatura.check', 'efatura.doc', 'efatura.codes',
     ];
 
     public static function handle(): void
@@ -214,7 +215,9 @@ final class Api
 
             // ---------------------------------------------------------------- vendas
             case 'sales.meta':
-                return ['types' => Sales::TYPES, 'convert' => Sales::CONVERT, 'payment_methods' => Sales::PAYMENT_METHODS, 'exemptions' => Sales::EXEMPTIONS];
+                return ['types' => Sales::TYPES, 'convert' => Sales::CONVERT, 'payment_methods' => Sales::PAYMENT_METHODS,
+                    'exemptions' => Sales::exemptions(), 'units' => Efatura::codes()['units_common'], 'issue_reasons' => Efatura::ISSUE_REASONS,
+                    'tv_id_limit' => Sales::TV_ID_LIMIT, 'efatura' => Efatura::enabled($db)];
             case 'items.list':
                 return Sales::items($db, $in);
             case 'items.families':
@@ -265,6 +268,57 @@ final class Api
             case 'sales.print':
                 $html = SalesPrint::html($db, self::int($in, 'id', 0));
                 return new Download($html, 'documento.html', 'text/html; charset=utf-8', true);
+
+            // ---------------------------------------------------------------- e-Fatura
+            case 'efatura.overview':
+                return [
+                    'settings' => Efatura::settings($db), 'readiness' => Efatura::readiness($db), 'enabled' => Efatura::enabled($db),
+                    'counts' => Efatura::documents($db, ['status' => '__none__'])['counts'],
+                    'repositories' => Efatura::REPOSITORIES, 'contingency_reasons' => Efatura::CONTINGENCY_REASONS,
+                    'docs' => array_map(static fn($d) => ['title' => $d[1], 'size' => (int) @filesize(IDEIA_ROOT . '/resources/efatura/docs/' . $d[0]), 'file' => $d[0]], Efatura::DOCS),
+                    'links' => Efatura::LINKS, 'middleware' => Efatura::MIDDLEWARE_DOWNLOADS,
+                    'php' => ['curl' => function_exists('curl_init'), 'zip' => class_exists(\ZipArchive::class), 'dom' => class_exists(\DOMDocument::class)],
+                ];
+            case 'efatura.codes':
+                return ['exemptions' => Efatura::codes()['exemptions'], 'units' => Efatura::codes()['units'], 'units_common' => Efatura::codes()['units_common'],
+                    'issue_reasons' => Efatura::ISSUE_REASONS];
+            case 'efatura.save':
+                return Efatura::saveSettings($db, $in);
+            case 'efatura.test':
+                return Efatura::test($db);
+            case 'efatura.documents':
+                return Efatura::documents($db, $in);
+            case 'efatura.check':
+                $id = self::int($in, 'id', 0);
+                try {
+                    $errors = Efatura::validate(Efatura::buildXml($db, $id));
+                } catch (UserError $e) {
+                    return ['ok' => false, 'errors' => array_values(array_filter(array_map(static fn($l) => trim($l, " •\t"), explode("\n", $e->getMessage()))))];
+                }
+                return ['ok' => !$errors, 'errors' => $errors];
+            case 'efatura.xml':
+                $id = self::int($in, 'id', 0);
+                $xml = Efatura::buildXml($db, $id);
+                $iud = (string) $db->value('SELECT iud FROM sales_docs WHERE id = ?', [$id]);
+                return new Download($xml, $iud . '.xml', 'application/xml');
+            case 'efatura.send':
+                $ids = array_map('intval', (array) ($in['ids'] ?? []));
+                if (!$ids && !empty($in['pending'])) {
+                    $ids = array_column(array_filter(Efatura::documents($db, ['status' => 'pendente'])['rows'], static fn($r) => $r['status'] === 'emitido'), 'id');
+                }
+                if (!$ids) {
+                    throw new UserError('Não há documentos para enviar.');
+                }
+                return Efatura::send($db, $ids);
+            case 'efatura.exclude':
+                return ['changed' => Efatura::exclude($db, array_map('intval', (array) ($in['ids'] ?? [])), !isset($in['exclude']) || !in_array($in['exclude'], [false, 0, '0', 'false'], true))];
+            case 'efatura.doc':
+                $key = (string) ($in['id'] ?? '');
+                if (!isset(Efatura::DOCS[$key])) {
+                    throw new UserError('Documento não encontrado.');
+                }
+                [$file, , $mime] = Efatura::DOCS[$key];
+                return new Download((string) file_get_contents(IDEIA_ROOT . '/resources/efatura/docs/' . $file), $file, $mime, $mime === 'application/pdf');
 
             // ---------------------------------------------------------------- compras
             case 'purchases.meta':

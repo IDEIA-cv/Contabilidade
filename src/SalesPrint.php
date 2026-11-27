@@ -37,7 +37,7 @@ final class SalesPrint
                 $disc = (int) $l['discount_bp'] ? rtrim(rtrim(number_format($l['discount_bp'] / 100, 2, ',', ''), '0'), ',') . '%' : '';
                 $rate = rtrim(rtrim(number_format($l['vat_rate_bp'] / 100, 2, ',', ''), '0'), ',') . '%';
                 $rows .= '<tr><td class=mono>' . $e($l['code']) . '</td><td>' . $e($l['description']) . '</td>'
-                    . "<td class=num>{$qty}</td><td>{$e($l['unit'])}</td>"
+                    . "<td class=num>{$qty}</td><td>{$e(Efatura::unitShort($l['unit']))}</td>"
                     . ($guide ? '' : "<td class=num>{$m($l['price_cents'])}</td><td class=num>{$disc}</td><td class=num>{$rate}</td><td class=num>{$m($l['net_cents'])}</td>")
                     . '</tr>';
             }
@@ -48,12 +48,13 @@ final class SalesPrint
         $vat = '';
         foreach ($d['vat_summary'] as $v) {
             $rate = rtrim(rtrim(number_format($v['vat_rate_bp'] / 100, 2, ',', ''), '0'), ',') . '%';
-            $vat .= "<tr><td>{$rate}</td><td class=num>{$m($v['base'])}</td><td class=num>{$m($v['vat'])}</td><td>{$e($v['exemption'])}</td></tr>";
+            $vat .= "<tr><td>{$rate}</td><td class=num>{$m($v['base'])}</td><td class=num>{$m($v['vat'])}</td><td>{$e(self::exemption($v['exemption']))}</td></tr>";
         }
         $showTotals = !in_array($d['type'], ['GE', 'GT'], true);
         $totals = $showTotals ? ($d['type'] === 'RC'
             ? "<table class=totals><tr class=grand><td>Total recebido</td><td class=num>{$m($d['total_cents'])} ECV</td></tr></table>"
             : '<table class=totals>'
+                . '<tr><td>N.º de itens</td><td class=num>' . count($d['lines']) . '</td></tr>'
                 . ($d['discount_cents'] ? "<tr><td>Descontos</td><td class=num>{$m($d['discount_cents'])}</td></tr>" : '')
                 . "<tr><td>Total sem IVA</td><td class=num>{$m($d['net_cents'])}</td></tr>"
                 . "<tr><td>IVA</td><td class=num>{$m($d['vat_cents'])}</td></tr>"
@@ -80,8 +81,21 @@ final class SalesPrint
             $d['status'] === 'anulado' => '<div class=stamp>ANULADO</div>',
             default => '',
         };
-        $notice = $info['efatura'] && $d['status'] === 'emitido' && $d['efatura_status'] === 'pendente'
-            ? '<p class=notice>Documento ainda não comunicado à DNRE (e-Fatura).</p>' : '';
+        // e-Fatura: IUD e código QR (DFA); enquanto não autorizado, aviso de contingência (manual técnico, 6.13)
+        $efatura = '';
+        $contingency = '';
+        $notice = '';
+        if ($info['efatura'] && $d['status'] === 'emitido' && $d['iud']) {
+            $qr = Qr::svg(Efatura::qrUrl($d['iud']), 3, 'Código QR do documento na e-Fatura');
+            $efatura = "<div class=efatura>{$qr}<div><b>Consulta DFE em efatura.cv</b><br><span class=mono>{$e($d['iud'])}</span></div></div>";
+            if ($d['efatura_status'] !== 'autorizado' && $d['efatura_status'] !== 'excluido') {
+                $offline = (int) ($d['efatura_mode'] ?? 0) === 2 || Efatura::issueModeFor($d) === 2;
+                $contingency = '<div class=contingency>' . ($offline ? 'EMITIDO EM CONTINGÊNCIA OFFLINE<br>' : '') . 'Pendente de Autorização</div>';
+                $notice = '<p class=notice>Este documento não confere direito a dedução de imposto, enquanto o documento associado não for transmitido e autorizado pela Administração Fiscal.</p>';
+            }
+        } elseif ($info['efatura'] && $d['status'] === 'emitido' && $d['efatura_status'] === 'pendente') {
+            $notice = '<p class=notice>Documento ainda não comunicado à DNRE (e-Fatura).</p>';
+        }
         if (in_array($d['type'], ['OR', 'PF'], true)) {
             $notice .= '<p class=notice>Este documento não serve de fatura.</p>';
         }
@@ -121,6 +135,10 @@ final class SalesPrint
   .totals td { border: 0; padding: 3px 4px; } .totals .grand td { font-size: 16px; font-weight: 700; border-top: 1.5px solid #1c2430; padding-top: 8px; }
   .notes { margin-top: 18px; white-space: pre-wrap; }
   .notice { color: #5b6675; font-size: 11px; margin: 4px 0; }
+  .efatura { display: flex; gap: 12px; align-items: center; margin-top: 16px; font-size: 11px; }
+  .efatura svg { width: 96px; height: 96px; flex: none; }
+  .efatura .mono { font-size: 10px; word-break: break-all; }
+  .contingency { text-align: center; font-weight: 700; letter-spacing: .03em; margin: 0 0 12px; padding: 6px; border: 1.5px dashed #b54708; color: #b54708; border-radius: 6px; }
   footer { margin-top: 28px; padding-top: 8px; border-top: 1px solid #e3e7ec; color: #5b6675; font-size: 10px; display: flex; justify-content: space-between; gap: 16px; }
   .stamp { position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%) rotate(-18deg); font-size: 46px; font-weight: 800; color: rgba(200,40,40,.18); border: 6px solid rgba(200,40,40,.18); padding: 8px 24px; border-radius: 12px; white-space: nowrap; pointer-events: none; }
   @media print { body { background: #fff; } .page { box-shadow: none; margin: 0; padding: 0; max-width: none; min-height: 0; } .bar { display: none; } }
@@ -135,6 +153,7 @@ final class SalesPrint
       <br>{$e(implode(' · ', array_filter([$company['phone'], $company['email']])))}</div>
     <div class="doc"><h1>{$e($d['type_name'])}</h1><div class="no">{$e($d['doc_no'] ?: 'Rascunho')}</div><div>Original</div></div>
   </header>
+  $contingency
   <div class="parties">
     <div class="box"><small>Cliente</small><br><b>{$e($customer['name'] ?: 'Consumidor final')}</b><br>NIF {$e($customer['nif'] ?: '—')}<br>{$e($customer['address'])}</div>
     <div class="meta" style="flex-direction:column;align-items:flex-end">$metaHtml</div>
@@ -142,11 +161,19 @@ final class SalesPrint
   $table
   <div class="bottom">$vatTable $totals</div>
   <div class="notes">{$e($d['notes'])}</div>
+  $efatura
   $notice
   <footer><div>{$e($company['footer'])}{$e($company['bank'] ? ' · IBAN/NIB ' . $company['bank'] : '')}</div><div>{$e($hash ? $hash . ' · ' : '')}Processado por IDEIA Contabilidade</div></footer>
 </div>
 </body></html>
 HTML;
+    }
+
+    /** Motivo de isenção para impressão: código oficial e menção obrigatória. */
+    private static function exemption(?string $value): string
+    {
+        $code = Efatura::exemptionCode($value);
+        return $code ? $code . ' — ' . Efatura::codes()['exemptions'][$code][1] : (string) $value;
     }
 
     /** Extrato de conta corrente e faturas por pagar de um cliente, para imprimir ou enviar em PDF. */

@@ -16,9 +16,9 @@ Avaliação pedida pelo responsável do projeto: nota de 0 a 10 por categoria, c
 | Documentação | 9 | **9** | Novo [12-vendas](12-vendas.md) e este documento; API, modelo de dados e roadmap atualizados. |
 | Acessibilidade | 8 | **8,5** | 0 violações WCAG A/AA (axe) nas 17 páginas, incluindo as de vendas; ligações sublinhadas em listas. |
 | Instalação e suporte | 6 | **8** | Diagnóstico automático na página inicial: versão do PHP, SQLite, permissões das pastas de dados e cópias (com o comando exato para o Mac), fileinfo, tamanho de envio. |
-| Conformidade fiscal (e-Fatura, SAF-T) | 4 | **6** | Numeração sequencial por série sem saltos e por ordem de datas, hash encadeado, dados do cliente congelados, correção só por nota de crédito. **Não chega a 8 sem a DNRE**: falta a comunicação e-Fatura e o XSD do SAF-T. |
+| Conformidade fiscal (e-Fatura, SAF-T) | 4 | **8** | Numeração sequencial por série sem saltos e por ordem de datas, hash encadeado, dados do cliente congelados, correção só por nota de crédito. v0.5: IUD e QR, XML de todos os tipos validado com o XSD oficial da DNRE, listas oficiais, talão de venda, contingência, envio pelo Middleware. Para passar de 8 falta a homologação real e o SAF-T de faturação. |
 
-Média das categorias que dependem do projeto: **8,5**. A conformidade fiscal fica em 6 até haver especificações e credenciais da DNRE. O caminho está em [10-roadmap](10-roadmap.md).
+Média das categorias que dependem do projeto: **8,5**. A conformidade fiscal subiu para 8 com a e-Fatura (v0.5); a homologação com a DNRE é o passo seguinte. O caminho está em [10-roadmap](10-roadmap.md).
 
 ## UI e UX (utilizadores com conhecimento técnico médio ou baixo)
 

@@ -34,3 +34,12 @@ function demoCompany(string $name = 'Teste Lda'): Db
     return $db;
 }
 
+/** Empresa de teste com um cliente, um produto (IVA 15%) e um serviço isento. */
+function salesSetup(): array
+{
+    $db = demoCompany();
+    $cli = (int) $db->value("SELECT id FROM third_parties WHERE name = 'Cliente Praia'");
+    $prod = \Ideia\Sales::saveItem($db, ['name' => 'Cimento 50 kg', 'kind' => 'P', 'price' => '850,00', 'vat_code' => 'NOR']);
+    $serv = \Ideia\Sales::saveItem($db, ['name' => 'Transporte', 'kind' => 'S', 'price' => '2 000,00', 'vat_code' => 'ISE', 'exemption' => '3']);
+    return [$db, $cli, $prod, $serv];
+}

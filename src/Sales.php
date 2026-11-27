@@ -8,7 +8,7 @@ namespace Ideia;
  * de crédito, recibos). Numeração automática sem saltos por tipo e série, cadeia de hash por série, e lançamento
  * contabilístico automático dos documentos com efeito nas contas.
  *
- * A comunicação à DNRE (e-Fatura) ainda não está ligada: os documentos fiscais ficam com efatura_status = 'pendente'.
+ * Os documentos fiscais ficam na fila da e-Fatura (efatura_status = 'pendente'); a comunicação faz-se em Efatura.
  */
 final class Sales
 {
@@ -23,6 +23,7 @@ final class Sales
         'GT' => ['name' => 'Guia de transporte', 'plural' => 'Guias de transporte', 'party' => true, 'accounting' => false, 'sign' => 0, 'efatura' => 'DTE', 'due' => 0, 'due_label' => ''],
         'FT' => ['name' => 'Fatura', 'plural' => 'Faturas', 'party' => true, 'accounting' => true, 'sign' => 1, 'efatura' => 'FTE', 'due' => 30, 'due_label' => 'Vencimento'],
         'FR' => ['name' => 'Fatura-recibo', 'plural' => 'Faturas-recibo', 'party' => false, 'accounting' => true, 'sign' => 1, 'efatura' => 'FRE', 'due' => 0, 'due_label' => ''],
+        'TV' => ['name' => 'Talão de venda', 'plural' => 'Talões de venda', 'party' => false, 'accounting' => true, 'sign' => 1, 'efatura' => 'TVE', 'due' => 0, 'due_label' => ''],
         'ND' => ['name' => 'Nota de débito', 'plural' => 'Notas de débito', 'party' => true, 'accounting' => true, 'sign' => 1, 'efatura' => 'NDE', 'due' => 30, 'due_label' => 'Vencimento'],
         'NC' => ['name' => 'Nota de crédito', 'plural' => 'Notas de crédito', 'party' => true, 'accounting' => true, 'sign' => -1, 'efatura' => 'NCE', 'due' => 0, 'due_label' => ''],
         'RC' => ['name' => 'Recibo', 'plural' => 'Recibos', 'party' => true, 'accounting' => true, 'sign' => 0, 'efatura' => 'RCE', 'due' => 0, 'due_label' => ''],
@@ -30,22 +31,51 @@ final class Sales
 
     /** Para que tipos se pode converter cada documento. */
     public const CONVERT = [
-        'OR' => ['FT', 'FR', 'PF', 'GE'],
-        'PF' => ['FT', 'FR', 'GE'],
-        'GE' => ['FT', 'FR'],
-        'GT' => ['FT', 'FR'],
-        'FT' => ['GE', 'GT'],
+        'OR' => ['FT', 'FR', 'TV', 'PF', 'GE'],
+        'PF' => ['FT', 'FR', 'TV', 'GE'],
+        'GE' => ['FT', 'FR', 'TV'],
+        'GT' => ['FT', 'FR', 'TV'],
+        'FT' => ['GE', 'GT', 'ND'],
+        'FR' => ['ND'],
+        'TV' => ['ND'],
     ];
 
     public const PAYMENT_METHODS = ['NU' => 'Numerário', 'TB' => 'Transferência bancária', 'CC' => 'Cartão', 'CH' => 'Cheque', 'OU' => 'Outro'];
 
-    /** Motivos de isenção mais usados (texto livre também é aceite). */
-    public const EXEMPTIONS = [
-        'Isento nos termos do artigo 9.º do RIVA',
-        'Não sujeito — operação fora do âmbito do IVA',
-        'Exportação de bens — isenção (artigo 14.º do RIVA)',
-        'Regime especial dos pequenos contribuintes (REMPE)',
-    ];
+    /** Tipos cujo pagamento é no ato (meio de pagamento obrigatório; lançamento a débito de caixa/banco). */
+    public const PAID_ON_ISSUE = ['FR', 'TV'];
+
+    /** Tipos que partilham um contador: a e-Fatura numera as guias (DTE) numa só sequência por ano. */
+    public const SHARED_COUNTER = ['GT' => 'GE'];
+
+    /** Talão de venda: a partir deste total (centavos) o adquirente tem de ser identificado. */
+    public const TV_ID_LIMIT = 2000000;
+
+    /** Códigos de motivo de isenção (lista oficial da DNRE). @return array<string,string> código => menção */
+    public static function exemptions(): array
+    {
+        return array_map(static fn($e) => $e[1], Efatura::codes()['exemptions']);
+    }
+
+    /** Normaliza o motivo de isenção para o código oficial; lança erro se não for reconhecido. */
+    private static function exemptionOrFail(string $value, string $where = ''): string
+    {
+        $code = Efatura::exemptionCode($value);
+        if ($code === null) {
+            throw new UserError('Escolha o motivo de isenção da lista oficial da e-Fatura' . ($where !== '' ? " ({$where})" : '') . '.');
+        }
+        return $code;
+    }
+
+    /** Normaliza a unidade para o código oficial (UN/ECE); lança erro se não for reconhecida. */
+    private static function unitOrFail(string $value, string $default): string
+    {
+        $code = Efatura::unitCode($value !== '' ? $value : $default);
+        if ($code === '') {
+            throw new UserError("A unidade \"{$value}\" não está na lista oficial de unidades de medida. Escolha uma da lista (ex.: EA unidade, KGM quilograma, HUR hora).");
+        }
+        return $code;
+    }
 
     // ================================================================== famílias de artigos
 
@@ -69,8 +99,11 @@ final class Sales
         $exemption = trim((string) ($d['exemption'] ?? ''));
         if ($vat !== '') {
             $v = self::saleVat($db, $vat);
-            if ((int) $v['rate_bp'] === 0 && $exemption === '') {
-                throw new UserError('Indique o motivo de isenção do IVA.');
+            if ((int) $v['rate_bp'] === 0) {
+                if ($exemption === '') {
+                    throw new UserError('Indique o motivo de isenção do IVA.');
+                }
+                $exemption = self::exemptionOrFail($exemption);
             }
         }
         $account = preg_replace('/\D/', '', (string) ($d['account'] ?? '')) ?: null;
@@ -172,14 +205,17 @@ final class Sales
         $vat = (string) (($d['vat_code'] ?? '') ?: 'NOR');
         $vatRow = self::saleVat($db, $vat);
         $exemption = trim((string) ($d['exemption'] ?? ''));
-        if ((int) $vatRow['rate_bp'] === 0 && $exemption === '') {
-            throw new UserError('Indique o motivo de isenção do IVA.');
+        if ((int) $vatRow['rate_bp'] === 0) {
+            if ($exemption === '') {
+                throw new UserError('Indique o motivo de isenção do IVA.');
+            }
+            $exemption = self::exemptionOrFail($exemption);
         }
         $account = preg_replace('/\D/', '', (string) ($d['account'] ?? '')) ?: ($kind === 'S' ? '721' : '711');
         self::requireRevenueAccount($db, $account);
         $row = [
             'code' => $code, 'name' => $name, 'kind' => $kind,
-            'unit' => strtoupper(trim((string) ($d['unit'] ?? ''))) ?: ($kind === 'S' ? 'SERV' : 'UN'),
+            'unit' => self::unitOrFail(trim((string) ($d['unit'] ?? '')), $kind === 'S' ? 'E48' : 'EA'),
             'price_cents' => $price, 'vat_code' => $vat, 'exemption' => (int) $vatRow['rate_bp'] === 0 ? $exemption : null,
             'account' => $account, 'barcode' => trim((string) ($d['barcode'] ?? '')) ?: null, 'family_id' => $family ? (int) $family['id'] : null,
             'active' => isset($d['active']) && in_array($d['active'], [false, 0, '0', 'false'], true) ? 0 : 1,
@@ -241,7 +277,7 @@ final class Sales
         $p = [];
         $type = (string) ($f['type'] ?? '');
         if ($type === 'faturas') {
-            $where[] = "d.type IN ('FT','FR','ND','NC')";
+            $where[] = "d.type IN ('FT','FR','TV','ND','NC')";
         } elseif ($type !== '') {
             self::typeInfo($type);
             $where[] = 'd.type = ?';
@@ -284,7 +320,7 @@ final class Sales
         $offset = max(0, (int) ($f['offset'] ?? 0));
         $sums = $db->one(
             "SELECT COUNT(*) AS n,
-                    COALESCE(SUM(CASE WHEN d.status = 'emitido' AND d.type IN ('FT','FR','ND') THEN d.total_cents
+                    COALESCE(SUM(CASE WHEN d.status = 'emitido' AND d.type IN ('FT','FR','TV','ND') THEN d.total_cents
                                       WHEN d.status = 'emitido' AND d.type = 'NC' THEN -d.total_cents ELSE 0 END), 0) AS invoiced,
                     COALESCE(SUM(CASE WHEN d.status = 'emitido' AND d.type IN ('FT','ND') THEN ($open) ELSE 0 END), 0) AS open
              $base",
@@ -405,22 +441,33 @@ final class Sales
                 throw new UserError('Cliente não encontrado.');
             }
             if ($info['party'] && !$party && !($type === 'NC' && !empty($d['origin_id']))) {
-                throw new UserError('Escolha o cliente. ' . ($type === 'FT' ? 'Para vendas a consumidor final use uma fatura-recibo.' : ''));
+                throw new UserError('Escolha o cliente. ' . ($type === 'FT' ? 'Para vendas a consumidor final use um talão de venda.' : ''));
             }
             $method = (string) ($d['payment_method'] ?? '');
-            if (in_array($type, ['FR', 'RC'], true)) {
+            if (in_array($type, ['FR', 'TV', 'RC'], true)) {
                 $method = $method ?: 'NU';
                 if (!isset(self::PAYMENT_METHODS[$method])) {
                     throw new UserError('Meio de pagamento inválido.');
                 }
             }
             $origin = !empty($d['origin_id']) ? (int) $d['origin_id'] : null;
-            if ($type === 'NC') {
+            if ($type === 'NC' || ($type === 'ND' && $origin)) {
                 $o = $origin ? $db->one('SELECT * FROM sales_docs WHERE id = ?', [$origin]) : null;
-                if (!$o || !in_array($o['type'], ['FT', 'FR', 'ND'], true) || $o['status'] !== 'emitido') {
-                    throw new UserError('A nota de crédito tem de indicar a fatura emitida que corrige.');
+                if (!$o || !in_array($o['type'], ['FT', 'FR', 'TV', 'ND'], true) || $o['status'] !== 'emitido') {
+                    throw new UserError($type === 'NC' ? 'A nota de crédito tem de indicar a fatura emitida que corrige.' : 'A nota de débito tem de indicar uma fatura emitida.');
                 }
                 $party = $party ?: ($o['third_party'] ? (int) $o['third_party'] : null);
+            }
+            $reason = null;
+            if (in_array($type, ['NC', 'ND'], true)) {
+                $reason = trim((string) ($d['issue_reason'] ?? ''));
+                if ($id && !array_key_exists('issue_reason', $d)) {
+                    $reason = (string) $db->value('SELECT issue_reason FROM sales_docs WHERE id = ?', [$id]);
+                }
+                if ($reason !== '' && !str_contains(Efatura::ISSUE_REASONS[$reason][1] ?? '', $type)) {
+                    throw new UserError('Motivo de emissão inválido para ' . self::TYPES[$type]['name'] . '.');
+                }
+                $reason = $reason ?: null;
             }
 
             $lines = [];
@@ -470,6 +517,7 @@ final class Sales
                 'notes' => trim((string) ($d['notes'] ?? '')) ?: null,
                 'origin_id' => $origin, 'payment_method' => $method ?: null,
                 'delivery_place' => trim((string) ($d['delivery_place'] ?? '')) ?: null,
+                'issue_reason' => $reason,
                 'net_cents' => $totals['net'], 'discount_cents' => $totals['discount'], 'vat_cents' => $totals['vat'], 'total_cents' => $totals['total'],
             ];
             if ($row['customer_nif'] !== null && strlen($row['customer_nif']) !== 9) {
@@ -535,13 +583,24 @@ final class Sales
             if ($rate === 0 && $fiscal && $exemption === '') {
                 throw new UserError("Indique o motivo de isenção do IVA na linha \"{$desc}\".");
             }
+            if ($rate === 0 && $exemption !== '') {
+                $exemption = $fiscal ? self::exemptionOrFail($exemption, "linha \"{$desc}\"") : (Efatura::exemptionCode($exemption) ?? $exemption);
+            }
+            $unitIn = trim((string) (($l['unit'] ?? '') ?: ($item['unit'] ?? '')));
+            $unit = Efatura::unitCode($unitIn);
+            if ($unit === '') {
+                if ($fiscal) {
+                    throw new UserError("A unidade \"{$unitIn}\" da linha \"{$desc}\" não está na lista oficial de unidades de medida.");
+                }
+                $unit = $unitIn;
+            }
             $account = preg_replace('/\D/', '', (string) (($l['account'] ?? '') ?: ($item['account'] ?? ''))) ?: (($item['kind'] ?? 'P') === 'S' ? '721' : '711');
             self::requireRevenueAccount($db, $account);
             [$net, $discount, $vatAmount] = self::lineAmounts($qty, $price, $disc, $rate);
             $out[] = [
                 'item_id' => $itemId, 'code' => ($l['code'] ?? '') !== '' ? (string) $l['code'] : ($item['code'] ?? null),
                 'description' => $desc, 'qty_milli' => $qty,
-                'unit' => (string) (($l['unit'] ?? '') ?: ($item['unit'] ?? 'UN')),
+                'unit' => $unit,
                 'price_cents' => $price, 'discount_bp' => $disc, 'vat_code' => $vatCode, 'vat_rate_bp' => $rate,
                 'exemption' => $rate === 0 ? ($exemption ?: null) : null, 'account' => $account,
                 'net_cents' => $net, 'vat_cents' => $vatAmount,
@@ -581,10 +640,12 @@ final class Sales
             if ($info['efatura'] !== null && $d['date'] > date('Y-m-d')) {
                 throw new UserError('Um documento fiscal não pode ter data futura.');
             }
+            self::checkBeforeIssue($db, $d);
             $series = substr($d['date'], 0, 4);
-            $s = $db->one('SELECT * FROM doc_series WHERE type = ? AND series = ?', [$d['type'], $series]);
+            $counter = self::counterType($db, $d['type'], $series);
+            $s = $db->one('SELECT * FROM doc_series WHERE type = ? AND series = ?', [$counter, $series]);
             if ($s && $s['last_date'] && $d['date'] < $s['last_date']) {
-                throw new UserError("Já foi emitido um documento \"{$info['name']}\" com data " . self::dmy($s['last_date'])
+                throw new UserError("Já foi emitido um documento \"" . ($counter !== $d['type'] ? 'Guia' : $info['name']) . "\" com data " . self::dmy($s['last_date'])
                     . '. A numeração tem de seguir a ordem das datas: use essa data ou uma posterior.');
             }
             $number = (int) ($s['last_number'] ?? 0) + 1;
@@ -593,24 +654,62 @@ final class Sales
             $prev = (string) ($s['last_hash'] ?? '');
             $hash = hash('sha256', implode(';', [$d['date'], $issuedAt, $docNo, (string) $d['total_cents'], $d['customer_nif'] ?? $d['party_nif'] ?? '', $prev]));
             if ($s) {
-                $db->run('UPDATE doc_series SET last_number = ?, last_date = ?, last_hash = ? WHERE type = ? AND series = ?', [$number, $d['date'], $hash, $d['type'], $series]);
+                $db->run('UPDATE doc_series SET last_number = ?, last_date = ?, last_hash = ? WHERE type = ? AND series = ?', [$number, $d['date'], $hash, $counter, $series]);
             } else {
-                $db->insert('doc_series', ['type' => $d['type'], 'series' => $series, 'last_number' => $number, 'last_date' => $d['date'], 'last_hash' => $hash]);
+                $db->insert('doc_series', ['type' => $counter, 'series' => $series, 'last_number' => $number, 'last_date' => $d['date'], 'last_hash' => $hash]);
             }
             $db->run(
                 "UPDATE sales_docs SET status = 'emitido', series = ?, number = ?, doc_no = ?, issued_at = ?, hash = ?, prev_hash = ?, efatura_status = ?,
                         customer_name = COALESCE(?, customer_name), customer_nif = COALESCE(?, customer_nif), customer_address = ?
                  WHERE id = ?",
-                [$series, $number, $docNo, $issuedAt, $hash, $prev ?: null, $info['efatura'] ? 'pendente' : null,
+                [$series, $number, $docNo, $issuedAt, $hash, $prev ?: null, $info['efatura'] ? self::initialEfaturaStatus($db, $d['date']) : null,
                  $d['party_name'], $d['party_nif'], trim(implode(', ', array_filter([$d['party_address'], $d['party_city']]))) ?: null, $id]
             );
             if ($info['accounting']) {
                 $entry = self::post($db, self::get($db, $id));
                 $db->run('UPDATE sales_docs SET entry_id = ? WHERE id = ?', [$entry['id'], $id]);
             }
+            if ($info['efatura'] && Efatura::enabled($db)) {
+                Efatura::assignIud($db, $id);
+            }
             $db->audit('venda.emitida', ['id' => $id, 'doc' => $docNo, 'total' => $d['total_cents']]);
             return self::get($db, $id);
         });
+    }
+
+    /** Regras da e-Fatura verificadas antes de emitir (identificação do adquirente, motivo e origem das notas). */
+    private static function checkBeforeIssue(Db $db, array $d): void
+    {
+        $nif = (string) ($d['party_nif'] ?? '') ?: (string) ($d['customer_nif'] ?? '');
+        if ($d['type'] === 'FR' && $nif === '') {
+            throw new UserError('A fatura-recibo exige o NIF do cliente. Para vendas a consumidor final sem NIF use um talão de venda.');
+        }
+        if ($d['type'] === 'TV' && (int) $d['total_cents'] >= self::TV_ID_LIMIT && ($nif === '' || trim((string) ($d['party_name'] ?? $d['customer_name'] ?? '')) === '')) {
+            throw new UserError('Num talão de venda de ' . Money::format(self::TV_ID_LIMIT) . ' ECV ou mais é obrigatório identificar o cliente (nome e NIF).');
+        }
+        if (in_array($d['type'], ['NC', 'ND'], true) && empty($d['issue_reason'])) {
+            throw new UserError('Escolha o motivo de emissão da ' . mb_strtolower(self::TYPES[$d['type']]['name']) . ' (artigo 65.º do CIVA).');
+        }
+        if ($d['type'] === 'ND' && empty($d['origin_id'])) {
+            throw new UserError('A nota de débito tem de indicar a fatura a que se refere.');
+        }
+    }
+
+    /** Contador usado por um tipo: as guias de transporte usam o das guias de entrega (salvo séries antigas já separadas). */
+    private static function counterType(Db $db, string $type, string $series): string
+    {
+        $shared = self::SHARED_COUNTER[$type] ?? null;
+        if ($shared && !$db->value('SELECT 1 FROM doc_series WHERE type = ? AND series = ?', [$type, $series])) {
+            return $shared;
+        }
+        return $type;
+    }
+
+    /** Estado inicial na e-Fatura: documentos anteriores à data de adesão não são comunicados. */
+    private static function initialEfaturaStatus(Db $db, string $date): string
+    {
+        $since = (string) $db->meta('efatura_since');
+        return Efatura::enabled($db) && $since !== '' && $date < $since ? 'excluido' : 'pendente';
     }
 
     private static function dmy(string $iso): string
@@ -640,7 +739,7 @@ final class Sales
         } else {
             $credit = $d['type'] === 'NC'; // nota de crédito: movimentos ao contrário
             $side = static fn(int $v, bool $isDebit) => ($isDebit xor $credit) ? ['debit_cents' => $v, 'credit_cents' => 0] : ['debit_cents' => 0, 'credit_cents' => $v];
-            $debitAcc = $d['type'] === 'FR' ? self::cashAccount($db, $d['payment_method']) : $clientAcc;
+            $debitAcc = in_array($d['type'], self::PAID_ON_ISSUE, true) ? self::cashAccount($db, $d['payment_method']) : $clientAcc;
             $lines[] = ['account' => $debitAcc, 'third_party' => $party] + $side((int) $d['total_cents'], true);
             // rendimentos por conta (e por código de IVA nas linhas isentas, para o mapa do IVA)
             $rev = [];
@@ -718,7 +817,7 @@ final class Sales
         if ($mode === 'convert' && !in_array($type, self::CONVERT[$src['type']] ?? [], true)) {
             throw new UserError("Não é possível converter {$src['type_name']} em " . self::TYPES[$type]['name'] . '.');
         }
-        if ($type === 'NC' && (!in_array($src['type'], ['FT', 'FR', 'ND'], true) || $src['status'] !== 'emitido')) {
+        if (in_array($type, ['NC', 'ND'], true) && (!in_array($src['type'], ['FT', 'FR', 'TV', 'ND'], true) || $src['status'] !== 'emitido')) {
             throw new UserError('As notas de crédito fazem-se a partir de uma fatura emitida.');
         }
         if ($src['type'] === 'RC' || $type === 'RC') {
@@ -870,8 +969,8 @@ final class Sales
         $open = self::openDocs($db, $party);
         return [
             'customer' => $c,
-            'invoiced' => (int) $db->value("SELECT COALESCE(SUM(CASE WHEN type = 'NC' THEN -total_cents ELSE total_cents END),0) FROM sales_docs WHERE third_party = ? AND status = 'emitido' AND type IN ('FT','FR','ND','NC') AND substr(date,1,4) = ?", [$party, (string) $year]),
-            'received' => (int) $db->value("SELECT COALESCE(SUM(total_cents),0) FROM sales_docs WHERE third_party = ? AND status = 'emitido' AND type IN ('RC','FR') AND substr(date,1,4) = ?", [$party, (string) $year]),
+            'invoiced' => (int) $db->value("SELECT COALESCE(SUM(CASE WHEN type = 'NC' THEN -total_cents ELSE total_cents END),0) FROM sales_docs WHERE third_party = ? AND status = 'emitido' AND type IN ('FT','FR','TV','ND','NC') AND substr(date,1,4) = ?", [$party, (string) $year]),
+            'received' => (int) $db->value("SELECT COALESCE(SUM(total_cents),0) FROM sales_docs WHERE third_party = ? AND status = 'emitido' AND type IN ('RC','FR','TV') AND substr(date,1,4) = ?", [$party, (string) $year]),
             'open' => array_sum(array_column($open, 'open_cents')),
             'overdue' => array_sum(array_map(static fn($d) => $d['bucket'] === 'a_vencer' ? 0 : (int) $d['open_cents'], $open)),
             'open_docs' => $open,
@@ -885,6 +984,9 @@ final class Sales
         $rows = $db->all('SELECT * FROM doc_series ORDER BY series DESC, type');
         foreach ($rows as &$r) {
             $r['name'] = self::TYPES[$r['type']]['name'] ?? $r['type'];
+            if (isset(array_flip(self::SHARED_COUNTER)[$r['type']]) && !$db->value('SELECT 1 FROM doc_series WHERE type = ? AND series = ?', [array_flip(self::SHARED_COUNTER)[$r['type']], $r['series']])) {
+                $r['name'] = 'Guias de entrega e de transporte';
+            }
         }
         return $rows;
     }
@@ -897,7 +999,14 @@ final class Sales
         foreach ($db->all('SELECT type, series FROM doc_series') as $s) {
             $prev = '';
             $expected = 1;
-            foreach ($db->all("SELECT * FROM sales_docs WHERE type = ? AND series = ? AND number IS NOT NULL ORDER BY number", [$s['type'], $s['series']]) as $d) {
+            $types = [$s['type']];
+            foreach (self::SHARED_COUNTER as $t => $shared) {
+                if ($shared === $s['type'] && !$db->value('SELECT 1 FROM doc_series WHERE type = ? AND series = ?', [$t, $s['series']])) {
+                    $types[] = $t;
+                }
+            }
+            $in = implode(',', array_fill(0, count($types), '?'));
+            foreach ($db->all("SELECT * FROM sales_docs WHERE type IN ($in) AND series = ? AND number IS NOT NULL ORDER BY number", [...$types, $s['series']]) as $d) {
                 $count++;
                 if ((int) $d['number'] !== $expected++) {
                     $errors[] = "Falta o número " . ($expected - 1) . " na série {$s['type']} {$s['series']}.";
@@ -918,7 +1027,7 @@ final class Sales
     {
         $open = self::openSql();
         return [
-            'invoiced' => (int) $db->value("SELECT COALESCE(SUM(CASE WHEN type = 'NC' THEN -total_cents ELSE total_cents END),0) FROM sales_docs WHERE status = 'emitido' AND type IN ('FT','FR','ND','NC') AND substr(date,1,4) = ?", [(string) $year]),
+            'invoiced' => (int) $db->value("SELECT COALESCE(SUM(CASE WHEN type = 'NC' THEN -total_cents ELSE total_cents END),0) FROM sales_docs WHERE status = 'emitido' AND type IN ('FT','FR','TV','ND','NC') AND substr(date,1,4) = ?", [(string) $year]),
             'open' => (int) $db->value("SELECT COALESCE(SUM($open),0) FROM sales_docs d WHERE d.status = 'emitido' AND d.type IN ('FT','ND')"),
             'overdue' => (int) $db->value("SELECT COALESCE(SUM($open),0) FROM sales_docs d WHERE d.status = 'emitido' AND d.type IN ('FT','ND') AND d.due_date < date('now','localtime')"),
             'drafts' => (int) $db->value("SELECT COUNT(*) FROM sales_docs WHERE status = 'rascunho'"),

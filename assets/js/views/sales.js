@@ -9,9 +9,18 @@ import { payDialog as payPurchase, meta as purchasesMeta } from './purchases.js'
 let META = null;
 async function meta() { return (META ??= await api.get('sales.meta')); }
 
-/** Tipos que se criam diretamente (NC e RC nascem de uma fatura). */
-const CREATABLE = ['FT', 'FR', 'OR', 'PF', 'GE', 'GT', 'ND'];
-const QUICK = [['FT', 'Nova fatura'], ['FR', 'Nova fatura-recibo'], ['OR', 'Novo orçamento']];
+/** Tipos que se criam diretamente (NC, ND e RC nascem de uma fatura). */
+const CREATABLE = ['FT', 'TV', 'FR', 'OR', 'PF', 'GE', 'GT'];
+const QUICK = [['FT', 'Nova fatura'], ['TV', 'Novo talão de venda'], ['OR', 'Novo orçamento']];
+/** Pagos no ato: meio de pagamento e cliente opcional (com nome/NIF sem ficha). */
+const PAID_NOW = ['FR', 'TV'];
+const EF_STATUS = { pendente: ['Por comunicar', 'info'], autorizado: ['Autorizado', 'good'], rejeitado: ['Rejeitado', 'bad'], erro: ['Com erros', 'bad'], excluido: ['Não comunicar', ''] };
+
+/** Opções do motivo de isenção (lista oficial da e-Fatura: código — menção). */
+const exemptOpts = (sel) => `<option value="">Escolha o motivo de isenção…</option>${Object.entries(META.exemptions).map(([k, v]) => `<option value="${k}" ${String(sel ?? '') === k ? 'selected' : ''}>${k} — ${esc(v)}</option>`).join('')}`;
+/** Texto de um motivo de isenção guardado (código oficial ou texto antigo). */
+export const exemptText = (v) => (v && META?.exemptions?.[v] ? `${v} — ${META.exemptions[v]}` : (v || ''));
+const unitList = () => `<datalist id="dl-units">${Object.entries(META.units).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</datalist>`;
 const STATUS = { rascunho: ['Rascunho', 'warn'], emitido: ['Emitido', 'good'], anulado: ['Anulado', 'bad'] };
 
 const saleVats = () => state.info.vat_codes.filter((v) => v.kind !== 'dedutivel');
@@ -158,7 +167,9 @@ async function renderEditor({ view, query }, doc) {
   const [custs, items] = await Promise.all([customers(), api.get('items.list')]);
   const itemByLabel = Object.fromEntries(items.map((i) => [`${i.code} — ${i.name}`, i]));
   const custByLabel = Object.fromEntries(custs.map((c) => [custLabel(c), c]));
-  const d = doc || { type, date: today(), lines: [], payment_method: type === 'FR' ? 'NU' : '' };
+  const d = doc || { type, date: today(), lines: [], payment_method: PAID_NOW.includes(type) ? 'NU' : '' };
+  const paidNow = PAID_NOW.includes(type);
+  const isNote = type === 'NC' || type === 'ND';
   const curCust = custs.find((c) => String(c.id) === String(d.third_party ?? query.party));
   const vats = saleVats();
   const defVat = vats.find((v) => Number(v.rate_bp) > 0)?.code || vats[0]?.code;
@@ -170,19 +181,20 @@ async function renderEditor({ view, query }, doc) {
       <div class="toolbar"><a class="btn" href="#/${cpath('vendas')}">Voltar à lista</a></div></div>
     <datalist id="dl-items">${Object.keys(itemByLabel).map((l) => `<option value="${esc(l)}"></option>`).join('')}</datalist>
     <datalist id="dl-custs">${Object.keys(custByLabel).map((l) => `<option value="${esc(l)}"></option>`).join('')}</datalist>
-    <datalist id="dl-exempt">${META.exemptions.map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist>
     <div class="card"><div class="form" id="head">
       <label>Tipo de documento<select name="type" ${doc ? 'disabled' : ''}>${[...new Set([...CREATABLE, type])].map((t) => `<option value="${t}" ${t === type ? 'selected' : ''}>${T[t].name}</option>`).join('')}</select></label>
-      <label class="cust-field">Cliente${type === 'FR' ? ' (opcional)' : ''}
+      <label class="cust-field">Cliente${paidNow ? ' (opcional)' : ''}
         <span style="display:flex;gap:6px"><input name="customer" list="dl-custs" value="${esc(custLabel(curCust))}" placeholder="Escreva o nome ou NIF" autocomplete="off" style="flex:1">
         <button type="button" id="new-cust" title="Criar um cliente novo">+ Novo</button></span>
         <span class="small" id="cust-hint"></span></label>
-      ${type === 'FR' ? `<label>Nome do cliente (sem ficha)<input name="customer_name" value="${esc(d.customer_name || '')}" placeholder="Consumidor final"></label>
-        <label>NIF (sem ficha)<input name="customer_nif" class="mono" maxlength="9" inputmode="numeric" value="${esc(d.customer_nif || '')}"></label>` : ''}
+      ${paidNow ? `<label>Nome do cliente (sem ficha)<input name="customer_name" value="${esc(d.customer_name || '')}" placeholder="${type === 'TV' ? 'Consumidor final' : ''}"></label>
+        <label>NIF (sem ficha)<input name="customer_nif" class="mono" maxlength="9" inputmode="numeric" value="${esc(d.customer_nif || '')}">
+          <span class="small muted">${type === 'FR' ? 'A fatura-recibo exige o NIF do cliente (na ficha ou aqui). Sem NIF, use um talão de venda.' : `Obrigatório a partir de ${money(META.tv_id_limit)} ECV.`}</span></label>` : ''}
       <label>Data<input type="date" name="date" value="${esc(d.date)}"></label>
       ${info.due_label ? `<label>${esc(info.due_label)}<input type="date" name="due_date" value="${esc(d.due_date || '')}"><span class="small muted">vazio = ${info.due} dias</span></label>` : ''}
-      ${type === 'FR' ? `<label>Meio de pagamento<select name="payment_method">${Object.entries(META.payment_methods).map(([k, v]) => `<option value="${k}" ${d.payment_method === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` : ''}
+      ${paidNow ? `<label>Meio de pagamento<select name="payment_method">${Object.entries(META.payment_methods).map(([k, v]) => `<option value="${k}" ${d.payment_method === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` : ''}
       ${isGuide ? `<label>Local de entrega<input name="delivery_place" value="${esc(d.delivery_place || '')}"></label>` : ''}
+      ${isNote ? `<label class="wide">Motivo de emissão (art.º 65.º do CIVA)<select name="issue_reason"><option value="">Escolha o motivo…</option>${Object.entries(META.issue_reasons).filter(([, v]) => v[1].split(',').includes(type)).map(([k, v]) => `<option value="${k}" ${String(d.issue_reason || '') === k ? 'selected' : ''}>${esc(v[0])}</option>`).join('')}</select><span class="small muted">Obrigatório na e-Fatura.</span></label>` : ''}
       <label>Referência do cliente<input name="reference" value="${esc(d.reference || '')}" placeholder="N.º de encomenda (opcional)"></label>
     </div></div>
     <div class="card">
@@ -230,7 +242,7 @@ async function renderEditor({ view, query }, doc) {
     tr.innerHTML = `
       <td data-label="Artigo"><input name="item" list="dl-items" aria-label="Artigo" value="${esc(item ? `${item.code} — ${item.name}` : (l.code || ''))}" placeholder="Pesquisar artigo" autocomplete="off"></td>
       <td data-label="Descrição"><input name="description" aria-label="Descrição" value="${esc(l.description || '')}">
-        <input name="exemption" list="dl-exempt" aria-label="Motivo de isenção" class="exempt" placeholder="Motivo de isenção do IVA" value="${esc(l.exemption || '')}"></td>
+        <select name="exemption" aria-label="Motivo de isenção" class="exempt">${exemptOpts(l.exemption)}</select></td>
       <td data-label="Qtd."><input name="qty" aria-label="Quantidade" class="num" inputmode="decimal" value="${esc(l.qty_milli ? qtyText(l.qty_milli) : '1')}"></td>
       <td data-label="Preço s/ IVA"><input name="price" aria-label="Preço sem IVA" class="num" inputmode="decimal" value="${l.price_cents !== undefined ? money(l.price_cents) : ''}"></td>
       <td data-label="Desc. %"><input name="discount" aria-label="Desconto em percentagem" class="num" inputmode="decimal" value="${l.discount_bp ? (l.discount_bp / 100).toString().replace('.', ',') : ''}"></td>
@@ -291,7 +303,7 @@ async function renderEditor({ view, query }, doc) {
     if (h.customer && !c) throw new Error('O cliente indicado não existe. Escolha da lista ou crie com "+ Novo".');
     return {
       id: doc?.id || null, type, date: h.date, due_date: h.due_date || '', third_party: c?.id || null,
-      customer_name: h.customer_name || '', customer_nif: h.customer_nif || '', reference: h.reference, payment_method: h.payment_method || '',
+      customer_name: h.customer_name || '', customer_nif: h.customer_nif || '', reference: h.reference, payment_method: h.payment_method || '', issue_reason: h.issue_reason || '',
       delivery_place: h.delivery_place || '', notes: view.querySelector('#notes').value, origin_id: doc?.origin_id || query.origin || null,
       lines: readLines().filter((l) => l.description || l.item_id || l.price).map(({ tr, rate, ...l }) => l),
       issue,
@@ -340,10 +352,10 @@ async function renderDoc(ctx, id) {
   const overdue = open > 0 && d.due_date && d.due_date < today();
   const badges = [`<span class="badge ${sc}">${sl}</span>`];
   if (open !== null) badges.push(open <= 0 ? '<span class="badge good">Pago</span>' : `<span class="badge ${overdue ? 'bad' : 'warn'}">${overdue ? 'Vencido' : 'Por pagar'}: ${money(open)}</span>`);
-  if (d.efatura_status === 'pendente' && d.status === 'emitido') badges.push('<span class="badge info" title="A ligação à e-Fatura da DNRE será ativada quando houver credenciais">e-Fatura: por comunicar</span>');
+  if (d.efatura_status && d.status === 'emitido') { const [el, ec] = EF_STATUS[d.efatura_status] || [d.efatura_status, '']; badges.push(`<span class="badge ${ec}">e-Fatura: ${esc(el)}</span>`); }
   const isGuide = d.type === 'GE' || d.type === 'GT';
   const canPay = d.status === 'emitido' && open > 0;
-  const canCredit = d.status === 'emitido' && ['FT', 'FR', 'ND'].includes(d.type);
+  const canCredit = d.status === 'emitido' && ['FT', 'FR', 'TV', 'ND'].includes(d.type);
 
   view.innerHTML = `
     <div class="page-head"><div><h1>${esc(info.name)} ${esc(d.doc_no)}</h1><p>${badges.join(' ')}</p></div>
@@ -364,6 +376,7 @@ async function renderDoc(ctx, id) {
           ${d.payment_method ? `<dt>Pagamento</dt><dd>${esc(META.payment_methods[d.payment_method] || '')}</dd>` : ''}
           ${d.reference ? `<dt>Referência</dt><dd>${esc(d.reference)}</dd>` : ''}
           ${d.delivery_place ? `<dt>Local de entrega</dt><dd>${esc(d.delivery_place)}</dd>` : ''}
+          ${d.issue_reason ? `<dt>Motivo</dt><dd>${esc(META.issue_reasons[d.issue_reason]?.[0] || d.issue_reason)}</dd>` : ''}
           ${d.origin ? `<dt>Origem</dt><dd><a href="#/${cpath('vendas/' + d.origin.id)}">${esc(d.origin.doc_no)}</a></dd>` : ''}
           ${d.entry ? `<dt>Contabilidade</dt><dd><a href="#/${cpath('lancamento/' + d.entry.id)}">Lançamento ${esc(d.entry.journal)}/${esc(d.entry.number)}</a></dd>` : ''}
         </dl></div>
@@ -372,7 +385,7 @@ async function renderDoc(ctx, id) {
       ${d.type === 'RC' ? `<h2>Documentos pagos</h2><div class="table-wrap"><table><thead><tr><th>Documento</th><th>Data</th><th class="num">Valor do documento</th><th class="num">Recebido</th></tr></thead>
         <tbody>${d.settlements.map((s) => `<tr><td><a href="#/${cpath('vendas/' + s.invoice_id)}">${esc(s.doc_no)}</a></td><td>${fmtDate(s.date)}</td><td class="num">${money(s.total_cents)}</td><td class="num">${money(s.amount_cents)}</td></tr>`).join('')}</tbody></table></div>`
         : `<h2>Artigos</h2><div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th class="num">Qtd.</th>${isGuide ? '<th>Un.</th>' : '<th class="num">Preço</th><th class="num">Desc.</th><th>IVA</th><th class="num">Total</th>'}</tr></thead>
-        <tbody>${d.lines.map((l) => `<tr><td class="mono">${esc(l.code || '')}</td><td>${esc(l.description)}${l.exemption ? `<div class="small muted">${esc(l.exemption)}</div>` : ''}</td><td class="num">${qtyText(l.qty_milli)}</td>
+        <tbody>${d.lines.map((l) => `<tr><td class="mono">${esc(l.code || '')}</td><td>${esc(l.description)}${l.exemption ? `<div class="small muted">${esc(exemptText(l.exemption))}</div>` : ''}</td><td class="num">${qtyText(l.qty_milli)}</td>
           ${isGuide ? `<td>${esc(l.unit || '')}</td>` : `<td class="num">${money(l.price_cents)}</td><td class="num">${Number(l.discount_bp) ? pctText(l.discount_bp) : ''}</td><td>${Number(l.vat_rate_bp) ? pctText(l.vat_rate_bp) : 'Isento'}</td><td class="num">${money(l.net_cents)}</td>`}</tr>`).join('')}</tbody></table></div>`}
       ${isGuide ? '' : `<div class="toolbar" style="justify-content:flex-end"><table class="sales-totals"><tbody>
         ${Number(d.discount_cents) ? `<tr><td>Descontos</td><td class="num">${money(d.discount_cents)}</td></tr>` : ''}
@@ -380,18 +393,35 @@ async function renderDoc(ctx, id) {
         <tr class="grand"><td>Total</td><td class="num">${money(d.total_cents)} ECV</td></tr></tbody></table></div>`}
       ${d.notes ? `<p class="small" style="white-space:pre-wrap"><b>Observações:</b> ${esc(d.notes)}</p>` : ''}
     </div>
+    ${d.efatura_status && d.status === 'emitido' ? `<div class="card no-print" id="ef-card"><h2>e-Fatura</h2>
+      <dl class="dl"><dt>Estado</dt><dd>${esc((EF_STATUS[d.efatura_status] || [d.efatura_status])[0])}${d.efatura_at ? ` · ${fmtDate(d.efatura_at.slice(0, 10))} ${esc(d.efatura_at.slice(11, 16))}` : ''}</dd>
+        ${d.iud ? `<dt>IUD</dt><dd class="mono" style="word-break:break-all">${esc(d.iud)}</dd>` : ''}
+        ${d.efatura_message ? `<dt>Resposta</dt><dd class="small">${esc(d.efatura_message)}</dd>` : ''}</dl>
+      ${d.iud ? `<div class="toolbar"><button id="ef-check">Verificar com o XSD oficial</button><a class="btn" href="${api.href('efatura.xml', { id: d.id })}">Descarregar XML</a>
+        ${META.efatura && !['autorizado', 'excluido'].includes(d.efatura_status) ? '<button class="primary" id="ef-send">Enviar à e-Fatura</button>' : ''}<a href="#/${cpath('efatura')}" class="small">Página e-Fatura</a></div><div id="ef-out"></div>`
+        : `<p class="small muted">${META.efatura ? 'Documento anterior à adesão: sem IUD.' : `A e-Fatura não está ativa. <a href="#/${cpath('efatura')}">Configurar a e-Fatura</a>`}</p>`}</div>` : ''}
     ${d.receipts.length || d.derived.length ? `<div class="card"><h2>Documentos relacionados</h2><ul>
       ${d.receipts.map((r) => `<li><a href="#/${cpath('vendas/' + r.id)}">${esc(r.doc_no)}</a> · recibo de ${fmtDate(r.date)} · ${money(r.amount_cents)} ${r.status === 'anulado' ? '<span class="badge bad">Anulado</span>' : ''}</li>`).join('')}
       ${d.derived.map((x) => `<li><a href="#/${cpath('vendas/' + x.id)}">${esc(x.doc_no || T[x.type].name + ' (rascunho)')}</a> · ${esc(T[x.type].name)} · ${money(x.total_cents)} ${x.status !== 'emitido' ? `<span class="badge ${STATUS[x.status][1]}">${STATUS[x.status][0]}</span>` : ''}</li>`).join('')}
     </ul></div>` : ''}
     ${d.status === 'emitido' ? `<div class="card no-print"><h2>Outras ações</h2><div class="toolbar">
-      ${d.can_convert.map((t) => `<button data-convert="${t}">Converter em ${esc(T[t].name.toLowerCase())}</button>`).join('')}
+      ${d.can_convert.map((t) => `<button data-convert="${t}">${t === 'ND' ? 'Emitir nota de débito' : `Converter em ${esc(T[t].name.toLowerCase())}`}</button>`).join('')}
       ${canCredit ? '<button id="credit">Emitir nota de crédito</button>' : ''}
       ${d.type !== 'RC' ? '<button id="copy">Duplicar</button>' : ''}
       <button id="cancel" class="danger">Anular documento</button></div>
       <p class="small muted">${canCredit ? 'Para corrigir valores ou registar uma devolução, emita uma nota de crédito. Anule apenas se o documento foi emitido por engano.' : 'Anule apenas se o documento foi emitido por engano.'}</p></div>` : ''}`;
 
   view.querySelector('#print').onclick = () => openPrint(d.id);
+  view.querySelector('#ef-check')?.addEventListener('click', async () => {
+    const r = await api.get('efatura.check', { id: d.id });
+    view.querySelector('#ef-out').innerHTML = r.ok ? '<div class="alert good">O XML do documento cumpre o XSD oficial da e-Fatura.</div>'
+      : `<div class="alert bad"><b>Corrija antes de enviar:</b><ul>${r.errors.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  });
+  view.querySelector('#ef-send')?.addEventListener('click', async () => {
+    const [r] = await api.post('efatura.send', { ids: [d.id] });
+    toast(r.message, r.ok ? 'good' : 'bad');
+    renderDoc(ctx, id);
+  });
   view.querySelector('#pay')?.addEventListener('click', () => payDialog(d, () => renderDoc(ctx, id)));
   view.querySelectorAll('[data-convert]').forEach((b) => {
     b.onclick = async () => {
@@ -472,7 +502,7 @@ async function renderItems({ view, query }) {
     view.querySelector('#rows').innerHTML = list.map((r) => {
       const withVat = r.price_cents + Math.floor((r.price_cents * Number(r.rate_bp || 0) + 5000) / 10000);
       return `<tr class="clickable" data-id="${r.id}" tabindex="0"><td class="mono">${esc(r.code)}</td><td><b>${esc(r.name)}</b>${Number(r.active) ? '' : ' <span class="badge">Inativo</span>'}</td><td>${esc(r.family_name || '')}</td>
-        <td>${r.kind === 'S' ? 'Serviço' : 'Produto'}</td><td>${esc(r.unit)}</td><td class="num">${money(r.price_cents)}</td>
+        <td>${r.kind === 'S' ? 'Serviço' : 'Produto'}</td><td title="${esc(r.unit)}">${esc(META.units[r.unit] || r.unit)}</td><td class="num">${money(r.price_cents)}</td>
         <td>${Number(r.rate_bp) ? pctText(r.rate_bp) : 'Isento'}</td><td class="num">${money(withVat)}</td></tr>`;
     }).join('') || `<tr><td colspan="8" class="empty">${rows.length ? 'Nenhum artigo com estes filtros.' : 'Ainda não há artigos. Carregue em <b>Novo artigo</b>.'}</td></tr>`;
     view.querySelectorAll('tr[data-id]').forEach((tr) => {
@@ -490,12 +520,12 @@ async function renderItems({ view, query }) {
         <label>Produto ou serviço<select name="kind"><option value="P" ${r.kind !== 'S' ? 'selected' : ''}>Produto</option><option value="S" ${r.kind === 'S' ? 'selected' : ''}>Serviço</option></select></label>
         <label>Código<input name="code" class="mono" value="${esc(r.code || '')}" placeholder="automático"></label>
         <label class="wide">Descrição<input name="name" value="${esc(r.name || '')}"></label>
-        <label>Unidade<input name="unit" value="${esc(r.unit || '')}" placeholder="UN, KG, M, H…"></label>
+        <label>Unidade<input name="unit" list="dl-units" class="mono" value="${esc(r.unit || '')}" placeholder="EA unidade, KGM, HUR…" autocomplete="off"><span class="small muted">Código oficial da e-Fatura</span></label>
+        ${unitList()}
         <label>IVA<select name="vat_code">${vats.map((v) => `<option value="${esc(v.code)}" data-rate="${v.rate_bp}" ${(r.vat_code || vats.find((x) => Number(x.rate_bp))?.code) === v.code ? 'selected' : ''}>${Number(v.rate_bp) ? pctText(v.rate_bp) : 'Isento'}</option>`).join('')}</select></label>
         <label>Preço sem IVA<input name="price" class="num" inputmode="decimal" value="${r.price_cents !== undefined ? money(r.price_cents) : ''}"></label>
         <label>Preço com IVA<input name="price_vat" class="num" inputmode="decimal"><span class="small muted">pode preencher qualquer um dos dois</span></label>
-        <label class="wide exempt-row">Motivo de isenção<input name="exemption" list="dl-exempt-m" value="${esc(r.exemption || '')}"></label>
-        <datalist id="dl-exempt-m">${META.exemptions.map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist>
+        <label class="wide exempt-row">Motivo de isenção<select name="exemption">${exemptOpts(r.exemption)}</select></label>
         <details class="wide"><summary>Opções avançadas</summary><div class="form" style="margin-top:8px">
           <label>Conta de rendimentos<input name="account" class="mono" value="${esc(r.account || '')}" placeholder="711 produtos · 721 serviços"></label>
           <label>Código de barras<input name="barcode" value="${esc(r.barcode || '')}"></label>
@@ -711,8 +741,7 @@ async function familiesDialog(vats, onChange) {
         <label>Nome<input name="name" placeholder="Ex.: Bebidas"></label>
         <label>São produtos ou serviços?<select name="kind"><option value="P">Produtos</option><option value="S">Serviços</option></select></label>
         <label>IVA por omissão<select name="vat_code"><option value="">—</option>${vats.map((v) => `<option value="${esc(v.code)}" data-rate="${v.rate_bp}">${Number(v.rate_bp) ? pctText(v.rate_bp) : 'Isento'}</option>`).join('')}</select></label>
-        <label class="fam-ex">Motivo de isenção<input name="exemption" list="dl-exempt-f"></label>
-        <datalist id="dl-exempt-f">${META.exemptions.map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist>
+        <label class="fam-ex wide">Motivo de isenção<select name="exemption">${exemptOpts('')}</select></label>
         <label>Conta de rendimentos<input name="account" class="mono" placeholder="711 / 721 (opcional)"></label>
       </div>
       <div class="toolbar" style="margin-top:10px"><button class="primary" id="fam-save">Guardar tipo de artigo</button><button id="fam-clear">Limpar</button></div>`,
