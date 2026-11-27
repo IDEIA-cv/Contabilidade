@@ -1,0 +1,7 @@
+/config.php
+/data/*
+!/data/.htaccess
+!/data/index.html
+/node_modules/
+/tests/e2e/output/
+.DS_Store
