@@ -108,7 +108,30 @@ await visit(`${c}/vendas?pay=aberto`, '18-vendas-por-receber', 'table#list');
 await visit(`${c}/artigos`, '19-artigos', '#rows tr[data-id]');
 await visit(`${c}/dividas`, '19-dividas', 'table#debtors tbody tr');
 await visit(`${c}/cliente/1`, '19-cliente', '#t-open');
-await visit(`${c}/terceiro/6`, '19-fornecedor-extrato', '#t-st tbody tr');
+await visit(`${c}/terceiro/6?tab=extrato`, '19-fornecedor-extrato', '#t-st tbody tr');
+
+// compras: lista, dívidas a fornecedores, mapa de pagamentos, ficha do fornecedor, registo e pagamento
+await visit(`${c}/compras`, '19-compras', 'table#list tbody tr[data-id]');
+await visit(`${c}/dividas-fornecedores`, '19-dividas-fornecedores', 'table#creditors tbody tr');
+await visit(`${c}/pagamentos`, '19-mapa-pagamentos', 'table#sched');
+await visit(`${c}/terceiro/6`, '19-fornecedor-faturas', '#t-open');
+await visit(`${c}/compras/novo?type=FC`, '19-compra-nova', '#lines tr');
+await page.fill('[name=supplier]', await page.$eval('#dl-sups option', (o) => o.value));
+await page.dispatchEvent('[name=supplier]', 'change');
+await page.fill('[name=supplier_doc]', 'E2E-' + Date.now());
+await page.fill('[name=date]', '2025-12-01');
+await page.fill('#lines tr [name=description]', 'Compra de teste');
+await page.fill('#lines tr [name=account]', '6268 — Outros serviços');
+await page.fill('#lines tr [name=price]', '1.000,00');
+await page.click('#register');
+await page.click('.modal button.primary');
+await page.waitForSelector('#pay');
+await page.click('#pay');
+await page.fill('.modal [name=date]', '2025-12-02');
+await page.click('.modal button.primary');
+await page.waitForSelector('.badge.good >> text=Pago');
+await page.screenshot({ path: `${OUT}19-compra-paga.png`, fullPage: true });
+console.log('ok', '19-compra-registada-e-paga');
 await visit(`${c}/cliente/1?tab=extrato&from=2025-01-01&to=2025-12-31`, '19-cliente-extrato', '#t-st');
 {
   const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#print-st')]);

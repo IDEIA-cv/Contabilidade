@@ -18,11 +18,12 @@ php tests/run.php
 | `AttachmentsBackupTest.php` | Anexos (binário intacto, duplicados, tipos recusados, proteção em validados), migração v1→v2, cópia automática diária |
 | `BankTest.php` | Leitura de extratos (cabeçalho do banco, Windows-1252, débito/crédito ou montante), duplicados, conciliação automática e manual, mapa, criação de lançamento, apagar extrato |
 | `SalesTest.php` | Artigos, cálculo de linhas (desconto, IVA, isenção), numeração por tipo/série e ordem das datas, lançamento e IVA, recibos parciais, notas de crédito, anulação, conversão, dívidas por antiguidade, extrato de cliente e de fornecedor (contabilidade), famílias de artigos e migração v5→v6, impressão |
+| `PurchasesTest.php` | Faturas de fornecedor (validações, lançamento, IVA dedutível, conta sugerida), pagamentos parciais e de várias faturas, nota de crédito, anulação, despesa paga, dívidas por antiguidade, mapa de pagamentos, ficha e extrato, migração v6→v7 |
 | `ApiAuthTest.php` | Regras da API (POST, cabeçalho, rede local), palavra-passe (bloqueio da API, entrada, bloqueio por tentativas, retirar), diagnóstico |
 | `PagingTest.php` | Extrato e diário paginados iguais à versão completa |
 | `ImportStatsTest.php` | SAF-T (pré-visualização, conflitos, importação com abertura), CSV (erros e tudo-ou-nada), exportação SAF-T, painel, rácios, orçamento, fórmulas |
 
-Estado atual: **36 testes, todos a passar**.
+Estado atual: **40 testes, todos a passar**.
 
 ## Teste no browser (Playwright)
 

@@ -58,11 +58,11 @@ final class Sales
     {
         $name = trim((string) ($d['name'] ?? ''));
         if ($name === '') {
-            throw new UserError('Indique o nome da família.');
+            throw new UserError('Indique o nome do tipo de artigo.');
         }
         $id = !empty($d['id']) ? (int) $d['id'] : null;
         if ($db->value('SELECT 1 FROM item_families WHERE name = ? COLLATE NOCASE AND id IS NOT ?', [$name, $id])) {
-            throw new UserError("Já existe a família {$name}.");
+            throw new UserError("Já existe o tipo de artigo {$name}.");
         }
         $kind = ($d['kind'] ?? 'P') === 'S' ? 'S' : 'P';
         $vat = (string) ($d['vat_code'] ?? '');

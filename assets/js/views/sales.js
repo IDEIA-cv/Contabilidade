@@ -4,6 +4,7 @@ import { setCrumbs, go, cpath, state } from '../main.js';
 import { invalidateRefs } from './entries.js';
 import { esc, money, toCents, today, fmtDate, toast, modal, confirmDialog, formData, debounce, pager, bindPager } from '../util.js';
 import { tableToXlsx } from '../xlsx.js';
+import { payDialog as payPurchase, meta as purchasesMeta } from './purchases.js';
 
 let META = null;
 async function meta() { return (META ??= await api.get('sales.meta')); }
@@ -446,18 +447,18 @@ async function renderItems({ view, query }) {
   setCrumbs('Artigos');
   const vats = saleVats();
   let [rows, fams] = await Promise.all([api.get('items.list', { active: 'all' }), api.get('items.families')]);
-  const famOpts = (sel, blank = 'Sem família') => `<option value="">${blank}</option>${fams.filter((f) => Number(f.active) || String(f.id) === String(sel)).map((f) => `<option value="${f.id}" ${String(f.id) === String(sel) ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}`;
+  const famOpts = (sel, blank = 'Sem tipo') => `<option value="">${blank}</option>${fams.filter((f) => Number(f.active) || String(f.id) === String(sel)).map((f) => `<option value="${f.id}" ${String(f.id) === String(sel) ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}`;
   view.innerHTML = `
-    <div class="page-head"><div><h1>Artigos</h1><p class="muted">Produtos e serviços que vende. Ao emitir um documento, escolhe o artigo e o preço e o IVA são preenchidos.</p></div>
-      <div class="toolbar"><button id="fams">Famílias de artigos</button><button class="primary" id="new">Novo artigo</button></div></div>
+    <div class="page-head"><div><h1>Artigos</h1><p class="muted">Produtos e serviços que vende. Ao emitir um documento, escolhe o artigo e o preço e o IVA são preenchidos. Organize-os por <b>tipos de artigo</b> criados por si (ex.: Bebidas, Materiais, Formação).</p></div>
+      <div class="toolbar"><button id="fams">Tipos de artigo</button><button class="primary" id="new">Novo artigo</button></div></div>
     <div class="card"><div class="form">
       <label>Pesquisar<input id="q" placeholder="Código, descrição ou código de barras" value="${esc(query.q || '')}"></label>
-      <label>Tipo<select id="kind"><option value="">Todos</option><option value="P">Produtos</option><option value="S">Serviços</option></select></label>
-      <label>Família<select id="family"><option value="">Todas</option>${fams.map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}<option value="none">Sem família</option></select></label>
+      <label>Tipo de artigo<select id="family"><option value="">Todos</option>${fams.map((f) => `<option value="${f.id}" ${String(query.tipo || '') === String(f.id) ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}<option value="none">Sem tipo</option></select></label>
+      <label>Produto ou serviço<select id="kind"><option value="">Todos</option><option value="P">Produtos</option><option value="S">Serviços</option></select></label>
       <label>Estado<select id="active"><option value="1">Ativos</option><option value="0">Inativos</option><option value="all">Todos</option></select></label>
     </div></div>
     <div class="card"><div class="table-wrap"><table id="items"><caption class="sr-only">Artigos</caption>
-      <thead><tr><th>Código</th><th>Descrição</th><th>Família</th><th>Tipo</th><th>Unidade</th><th class="num">Preço s/ IVA</th><th>IVA</th><th class="num">Preço c/ IVA</th></tr></thead>
+      <thead><tr><th>Código</th><th>Descrição</th><th>Tipo de artigo</th><th>Produto/serviço</th><th>Unidade</th><th class="num">Preço s/ IVA</th><th>IVA</th><th class="num">Preço c/ IVA</th></tr></thead>
       <tbody id="rows"></tbody></table></div>
       <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button id="xlsx">Excel</button></div></div>`;
   const draw = () => {
@@ -485,8 +486,8 @@ async function renderItems({ view, query }) {
     const m = modal({
       title: isNew ? 'Novo artigo' : `Editar ${r.code}`,
       body: `<div class="form">
-        <label>Família<select name="family_id">${famOpts(r.family_id)}</select></label>
-        <label>Tipo<select name="kind"><option value="P" ${r.kind !== 'S' ? 'selected' : ''}>Produto</option><option value="S" ${r.kind === 'S' ? 'selected' : ''}>Serviço</option></select></label>
+        <label>Tipo de artigo<span style="display:flex;gap:6px"><select name="family_id" style="flex:1">${famOpts(r.family_id)}</select><button type="button" id="new-fam" title="Criar um tipo de artigo novo">+ Novo</button></span></label>
+        <label>Produto ou serviço<select name="kind"><option value="P" ${r.kind !== 'S' ? 'selected' : ''}>Produto</option><option value="S" ${r.kind === 'S' ? 'selected' : ''}>Serviço</option></select></label>
         <label>Código<input name="code" class="mono" value="${esc(r.code || '')}" placeholder="automático"></label>
         <label class="wide">Descrição<input name="name" value="${esc(r.name || '')}"></label>
         <label>Unidade<input name="unit" value="${esc(r.unit || '')}" placeholder="UN, KG, M, H…"></label>
@@ -527,7 +528,7 @@ async function renderItems({ view, query }) {
     q('price_vat').addEventListener('input', fromGross);
     q('vat_code').addEventListener('change', () => { fromNet(); showExempt(); });
     q('family_id').addEventListener('change', () => {
-      // a família preenche tipo, IVA, motivo de isenção e conta (só sugestão: pode alterar)
+      // o tipo de artigo preenche produto/serviço, IVA, motivo de isenção e conta (só sugestão: pode alterar)
       const f = fams.find((x) => String(x.id) === q('family_id').value);
       if (!f) return;
       q('kind').value = f.kind;
@@ -535,6 +536,11 @@ async function renderItems({ view, query }) {
       if (f.exemption) q('exemption').value = f.exemption;
       if (f.account) q('account').value = f.account;
       fromNet(); showExempt();
+    });
+    el.querySelector('#new-fam').onclick = () => quickFamily(vats, async (f) => {
+      fams = await api.get('items.families');
+      q('family_id').innerHTML = famOpts(f.id);
+      q('family_id').dispatchEvent(new Event('change'));
     });
     fromNet(); showExempt();
     q(isNew ? 'name' : 'price').focus();
@@ -545,6 +551,7 @@ async function renderItems({ view, query }) {
   view.querySelector('#active').onchange = draw;
   view.querySelector('#new').onclick = () => edit();
   view.querySelector('#fams').onclick = () => familiesDialog(vats, () => renderItems({ view, query }));
+  if (query.tipos) familiesDialog(vats, () => go(cpath('artigos')));
   view.querySelector('#xlsx').onclick = () => tableToXlsx(view.querySelector('#items'), `artigos_${today()}.xlsx`, { sheet: 'Artigos', title: `Artigos — ${state.info.name}` });
   draw();
 }
@@ -602,22 +609,25 @@ async function renderCustomer(ctx, id) {
   const account = query.account || '';
   const st = await api.get('party.statement', { id, year: y, from, to, account });
   const cu = st.party;
-  const supplier = cu.kind === 'F';
-  const c = supplier ? null : await api.get('sales.customer', { id, year: y });
+  const supplier = cu.kind === 'F' || (ctx.section === 'terceiro' && cu.kind === 'A');
+  const c = supplier ? await api.get('purchases.supplier', { id, year: y }) : await api.get('sales.customer', { id, year: y });
+  const PT = supplier ? (await purchasesMeta()).types : null;
   setCrumbs(supplier ? 'Fornecedores' : 'Clientes', cu.name);
-  const tabs = supplier ? [] : [['dividas', `Faturas por pagar (${c.open_docs.length})`], ['extrato', 'Movimentos e extrato'], ['documentos', 'Documentos de venda']];
-  const tab = supplier ? 'extrato' : (query.tab || 'dividas');
+  const tabs = [['dividas', `Faturas por pagar (${c.open_docs.length})`], ['extrato', 'Movimentos e extrato'], ['documentos', supplier ? 'Documentos de compra' : 'Documentos de venda']];
+  const tab = query.tab || 'dividas';
+  const docPath = supplier ? 'compras/' : 'vendas/';
   const link = (patch) => { const q = new URLSearchParams({ tab, from, to, account, ...patch }); [...q.keys()].forEach((k) => { if (!q.get(k)) q.delete(k); }); return `#/${cpath(`${supplier ? 'terceiro' : 'cliente'}/${id}?${q}`)}`; };
   const balLabel = supplier ? (st.closing >= 0 ? 'a pagar ao fornecedor' : 'a favor da empresa') : (st.closing >= 0 ? 'a receber do cliente' : 'a favor do cliente');
   view.innerHTML = `
     <div class="page-head"><div><h1>${esc(cu.name)}</h1><p class="muted">${supplier ? 'Fornecedor' : cu.kind === 'A' ? 'Cliente e fornecedor' : 'Cliente'}${cu.nif ? ` · NIF <span class="mono">${esc(cu.nif)}</span>` : ''}${[cu.address, cu.city].some(Boolean) ? ' · ' + esc([cu.address, cu.city].filter(Boolean).join(', ')) : ''}${cu.phone ? ' · ' + esc(cu.phone) : ''}${cu.email ? ' · ' + esc(cu.email) : ''}</p></div>
-      <div class="toolbar no-print">${supplier ? '' : `<a class="btn primary" href="#/${cpath('vendas/novo?type=FT&party=' + id)}">Nova fatura</a>`}
+      <div class="toolbar no-print">${supplier ? `<a class="btn primary" href="#/${cpath('compras/novo?type=FC&party=' + id)}">Registar fatura</a>${c.open_docs.length ? '<button id="pay-all">Pagar faturas</button>' : ''}` : `<a class="btn primary" href="#/${cpath('vendas/novo?type=FT&party=' + id)}">Nova fatura</a>`}
         <button id="print-st">Imprimir extrato${supplier ? '' : ' e dívida'}</button><a class="btn" href="#/${cpath('terceiros')}">Editar dados</a></div></div>
     <div class="kpis">
       <div class="kpi"><div class="label">Saldo em ${fmtDate(to)}</div><div class="value">${money(st.closing)}</div><div class="small muted">${balLabel} (contabilidade)</div></div>
       ${supplier ? `
-      <div class="kpi"><div class="label">Compras e outros créditos no período</div><div class="value">${money(st.credit)}</div><div class="small muted">faturas de fornecedor registadas</div></div>
-      <div class="kpi"><div class="label">Pagamentos e débitos no período</div><div class="value">${money(st.debit)}</div><div class="small muted">pagamentos, notas de crédito</div></div>` : `
+      <div class="kpi"><div class="label">Faturas por pagar</div><div class="value">${money(c.open)}</div><div class="small muted">${c.open_docs.length} fatura(s)${c.overdue ? ` · <span class="neg">${money(c.overdue)} vencido</span>` : ''}</div></div>
+      <div class="kpi"><div class="label">Compras em ${y}</div><div class="value">${money(c.purchased)}</div><div class="small muted">faturas − notas de crédito</div></div>
+      <div class="kpi"><div class="label">Pago em ${y}</div><div class="value">${money(c.paid)}</div><div class="small muted">pagamentos e despesas pagas</div></div>` : `
       <div class="kpi"><div class="label">Faturas por pagar</div><div class="value">${money(c.open)}</div><div class="small muted">${c.open_docs.length} fatura(s)${c.overdue ? ` · <span class="neg">${money(c.overdue)} vencido</span>` : ''}</div></div>
       <div class="kpi"><div class="label">Faturado em ${y}</div><div class="value">${money(c.invoiced)}</div><div class="small muted">faturas − notas de crédito</div></div>
       <div class="kpi"><div class="label">Recebido em ${y}</div><div class="value">${money(c.received)}</div><div class="small muted">recibos e faturas-recibo</div></div>`}
@@ -628,15 +638,17 @@ async function renderCustomer(ctx, id) {
   if (tab === 'dividas') {
     box.innerHTML = `<div class="card"><div class="table-wrap"><table id="t-open"><caption class="sr-only">Faturas por pagar</caption>
       <thead><tr><th>Documento</th><th>Data</th><th>Vencimento</th><th class="num">Total</th><th class="num">Em dívida</th><th>Atraso</th><th class="no-print"></th></tr></thead>
-      <tbody>${c.open_docs.map((d) => `<tr><td><a href="#/${cpath('vendas/' + d.id)}">${esc(d.doc_no)}</a></td><td>${fmtDate(d.date)}</td><td>${fmtDate(d.due_date)}</td>
+      <tbody>${c.open_docs.map((d) => `<tr><td><a href="#/${cpath(docPath + d.id)}">${esc(supplier ? d.supplier_doc || d.doc_no : d.doc_no)}</a></td><td>${fmtDate(d.date)}</td><td>${fmtDate(d.due_date)}</td>
         <td class="num">${money(d.total_cents)}</td><td class="num"><b>${money(d.open_cents)}</b></td>
         <td>${d.days_overdue > 0 ? `<span class="badge ${d.days_overdue > 90 ? 'bad' : 'warn'}">${d.days_overdue} dias</span>` : '<span class="badge">A vencer</span>'}</td>
-        <td class="no-print"><button data-pay="${d.id}">Registar pagamento</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Este cliente não tem faturas por pagar.</td></tr>'}</tbody>
+        <td class="no-print"><button data-pay="${d.id}">Registar pagamento</button></td></tr>`).join('') || `<tr><td colspan="7" class="empty">${supplier ? 'Não há faturas deste fornecedor por pagar.' : 'Este cliente não tem faturas por pagar.'}</td></tr>`}</tbody>
       ${c.open_docs.length ? `<tfoot><tr class="total"><td colspan="4">Total em dívida</td><td class="num">${money(c.open)}</td><td colspan="2"></td></tr></tfoot>` : ''}</table></div>
       ${c.open_docs.length ? '<div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button id="x-open">Excel</button></div>' : ''}
-      <p class="small muted">Faturas emitidas neste programa. Dívidas de anos anteriores ou importadas aparecem em <a href="${link({ tab: 'extrato' })}">Movimentos e extrato</a>.</p></div>`;
+      <p class="small muted">${supplier ? 'Faturas registadas em Compras' : 'Faturas emitidas neste programa'}. Dívidas de anos anteriores ou importadas aparecem em <a href="${link({ tab: 'extrato' })}">Movimentos e extrato</a>.</p></div>`;
     box.querySelectorAll('[data-pay]').forEach((b) => {
-      b.onclick = async () => payDialog(await api.get('sales.get', { id: b.dataset.pay }), () => renderCustomer(ctx, id));
+      b.onclick = async () => (supplier
+        ? payPurchase(id, [c.open_docs.find((d) => String(d.id) === b.dataset.pay)], () => renderCustomer(ctx, id))
+        : payDialog(await api.get('sales.get', { id: b.dataset.pay }), () => renderCustomer(ctx, id)));
     });
     box.querySelector('#x-open')?.addEventListener('click', () => tableToXlsx(box.querySelector('#t-open'), `faturas_por_pagar_${cu.name}.xlsx`, { sheet: 'Por pagar', title: `Faturas por pagar — ${cu.name}` }));
   } else if (tab === 'extrato') {
@@ -659,33 +671,51 @@ async function renderCustomer(ctx, id) {
     per.querySelectorAll('input, select').forEach((i) => { i.onchange = () => { location.hash = link(formData(per)); }; });
     box.querySelector('#x-st').onclick = () => tableToXlsx(box.querySelector('#t-st'), `extrato_${cu.name}_${from}_${to}.xlsx`, { sheet: 'Extrato', title: `Extrato de conta corrente — ${cu.name} — ${fmtDate(from)} a ${fmtDate(to)}` });
   } else {
-    const T = META.types;
+    const T = supplier ? PT : META.types;
+    const ST = supplier ? { rascunho: ['Rascunho', 'warn'], registado: ['Registado', 'good'], anulado: ['Anulado', 'bad'] } : STATUS;
     box.innerHTML = `<div class="card"><div class="table-wrap"><table><thead><tr><th>Documento</th><th>Data</th><th class="num">Total</th><th>Estado</th></tr></thead>
-      <tbody>${c.last_docs.map((d) => `<tr><td><a href="#/${cpath('vendas/' + d.id)}">${esc(d.doc_no || T[d.type].name + ' (rascunho)')}</a> <span class="small muted">${esc(T[d.type].name)}</span></td><td>${fmtDate(d.date)}</td><td class="num">${money(d.total_cents)}</td><td><span class="badge ${STATUS[d.status][1]}">${STATUS[d.status][0]}</span></td></tr>`).join('') || '<tr><td colspan="4" class="empty">Sem documentos.</td></tr>'}</tbody></table></div>
-      <p class="small"><a href="#/${cpath('vendas?q=' + encodeURIComponent(cu.nif || cu.name))}">Ver todos os documentos deste cliente na lista de vendas</a></p></div>`;
+      <tbody>${c.last_docs.map((d) => `<tr><td><a href="#/${cpath(docPath + d.id)}">${esc((supplier && d.supplier_doc) || d.doc_no || T[d.type].name + ' (rascunho)')}</a> <span class="small muted">${esc(T[d.type].name)}</span></td><td>${fmtDate(d.date)}</td><td class="num">${money(d.total_cents)}</td><td><span class="badge ${ST[d.status][1]}">${ST[d.status][0]}</span></td></tr>`).join('') || '<tr><td colspan="4" class="empty">Sem documentos.</td></tr>'}</tbody></table></div>
+      <p class="small"><a href="#/${cpath((supplier ? 'compras' : 'vendas') + '?q=' + encodeURIComponent(cu.nif || cu.name))}">Ver todos os documentos deste ${supplier ? 'fornecedor na lista de compras' : 'cliente na lista de vendas'}</a></p></div>`;
   }
+  view.querySelector('#pay-all')?.addEventListener('click', () => payPurchase(id, c.open_docs, () => renderCustomer(ctx, id)));
   view.querySelector('#print-st').onclick = () => window.open(api.href('party.statement_print', { id, year: y, from, to, account }), '_blank', 'noopener');
 }
 
-/** Gestão das famílias de artigos (tipos definidos pelo utilizador). */
+/** Criação rápida de um tipo de artigo a partir do formulário do artigo. */
+function quickFamily(vats, onSaved) {
+  modal({
+    title: 'Novo tipo de artigo',
+    body: `<div class="form">
+      <label class="wide">Nome<input name="name" placeholder="Ex.: Bebidas, Materiais, Formação"></label>
+      <label>São produtos ou serviços?<select name="kind"><option value="P">Produtos</option><option value="S">Serviços</option></select></label>
+      <label>IVA por omissão<select name="vat_code"><option value="">—</option>${vats.map((v) => `<option value="${esc(v.code)}">${Number(v.rate_bp) ? pctText(v.rate_bp) : 'Isento'}</option>`).join('')}</select></label></div>`,
+    actions: [{ label: 'Cancelar' }, { label: 'Criar tipo', primary: true, onClick: async (el) => {
+      const f = await api.post('items.family_save', formData(el));
+      toast('Tipo de artigo criado.', 'good');
+      onSaved(f);
+    } }],
+  });
+}
+
+/** Gestão dos tipos de artigo (famílias, definidos pelo utilizador). */
 async function familiesDialog(vats, onChange) {
   let fams = await api.get('items.families');
   const vatName = (c) => { const v = vats.find((x) => x.code === c); return v ? (Number(v.rate_bp) ? pctText(v.rate_bp) : 'Isento') : '—'; };
   const m = modal({
-    title: 'Famílias de artigos', wide: true,
-    body: `<p class="muted small">Agrupe os artigos (por exemplo Bebidas, Materiais de construção, Formação). Ao escolher a família num artigo novo, o tipo, o IVA e a conta são preenchidos.</p>
-      <div class="table-wrap"><table><thead><tr><th>Família</th><th>Tipo</th><th>IVA</th><th>Conta</th><th class="num">Artigos</th><th></th></tr></thead><tbody id="fam-rows"></tbody></table></div>
-      <h3 style="margin-top:16px" id="fam-title">Nova família</h3>
+    title: 'Tipos de artigo', wide: true,
+    body: `<p class="muted small">Crie os seus próprios tipos de artigo (por exemplo Bebidas, Materiais de construção, Formação, Manutenção). Ao escolher o tipo num artigo novo, o IVA e a conta são preenchidos.</p>
+      <div class="table-wrap"><table><thead><tr><th>Tipo de artigo</th><th>Produtos ou serviços</th><th>IVA</th><th>Conta</th><th class="num">Artigos</th><th></th></tr></thead><tbody id="fam-rows"></tbody></table></div>
+      <h3 style="margin-top:16px" id="fam-title">Novo tipo de artigo</h3>
       <div class="form" id="fam-form">
         <input type="hidden" name="id">
         <label>Nome<input name="name" placeholder="Ex.: Bebidas"></label>
-        <label>Tipo<select name="kind"><option value="P">Produtos</option><option value="S">Serviços</option></select></label>
+        <label>São produtos ou serviços?<select name="kind"><option value="P">Produtos</option><option value="S">Serviços</option></select></label>
         <label>IVA por omissão<select name="vat_code"><option value="">—</option>${vats.map((v) => `<option value="${esc(v.code)}" data-rate="${v.rate_bp}">${Number(v.rate_bp) ? pctText(v.rate_bp) : 'Isento'}</option>`).join('')}</select></label>
         <label class="fam-ex">Motivo de isenção<input name="exemption" list="dl-exempt-f"></label>
         <datalist id="dl-exempt-f">${META.exemptions.map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist>
         <label>Conta de rendimentos<input name="account" class="mono" placeholder="711 / 721 (opcional)"></label>
       </div>
-      <div class="toolbar" style="margin-top:10px"><button class="primary" id="fam-save">Guardar família</button><button id="fam-clear">Limpar</button></div>`,
+      <div class="toolbar" style="margin-top:10px"><button class="primary" id="fam-save">Guardar tipo de artigo</button><button id="fam-clear">Limpar</button></div>`,
     actions: [{ label: 'Fechar', onClick: () => { onChange(); } }],
   });
   const el = m.el;
@@ -696,18 +726,18 @@ async function familiesDialog(vats, onChange) {
   const fill = (f = {}) => {
     q('id').value = f.id || ''; q('name').value = f.name || ''; q('kind').value = f.kind || 'P';
     q('vat_code').value = f.vat_code || ''; q('exemption').value = f.exemption || ''; q('account').value = f.account || '';
-    el.querySelector('#fam-title').textContent = f.id ? `Editar ${f.name}` : 'Nova família';
+    el.querySelector('#fam-title').textContent = f.id ? `Editar ${f.name}` : 'Novo tipo de artigo';
     showEx(); q('name').focus();
   };
   const draw = () => {
     el.querySelector('#fam-rows').innerHTML = fams.map((f) => `<tr><td><b>${esc(f.name)}</b></td><td>${f.kind === 'S' ? 'Serviços' : 'Produtos'}</td><td>${vatName(f.vat_code)}</td><td class="mono">${esc(f.account || '')}</td><td class="num">${f.items}</td>
       <td><button data-edit="${f.id}">Editar</button> <button class="danger" data-del="${f.id}" aria-label="Apagar ${esc(f.name)}">Apagar</button></td></tr>`).join('')
-      || '<tr><td colspan="6" class="empty">Ainda não há famílias. Crie a primeira abaixo.</td></tr>';
+      || '<tr><td colspan="6" class="empty">Ainda não há tipos de artigo. Crie o primeiro abaixo.</td></tr>';
     el.querySelectorAll('[data-edit]').forEach((b) => { b.onclick = () => fill(fams.find((f) => String(f.id) === b.dataset.edit)); });
     el.querySelectorAll('[data-del]').forEach((b) => {
       b.onclick = async () => {
         const f = fams.find((x) => String(x.id) === b.dataset.del);
-        if (!await confirmDialog(`Apagar a família ${esc(f.name)}?`, Number(f.items) ? `Os ${f.items} artigo(s) desta família ficam sem família. Os artigos não são apagados.` : 'A família não tem artigos.', 'Apagar')) return;
+        if (!await confirmDialog(`Apagar o tipo ${esc(f.name)}?`, Number(f.items) ? `Os ${f.items} artigo(s) deste tipo ficam sem tipo. Os artigos não são apagados.` : 'Este tipo não tem artigos.', 'Apagar')) return;
         await api.post('items.family_delete', { id: f.id });
         fams = await api.get('items.families'); draw();
       };
@@ -716,7 +746,7 @@ async function familiesDialog(vats, onChange) {
   el.querySelector('#fam-save').onclick = async () => {
     try {
       await api.post('items.family_save', formData(form));
-      toast('Família guardada.', 'good');
+      toast('Tipo de artigo guardado.', 'good');
       fams = await api.get('items.families'); draw(); fill();
     } catch (e) { toast(e.message, 'bad'); }
   };

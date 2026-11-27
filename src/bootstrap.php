@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 
 define('IDEIA_ROOT', dirname(__DIR__));
-define('IDEIA_VERSION', '0.3.0');
+define('IDEIA_VERSION', '0.4.0');
 
 spl_autoload_register(static function (string $class): void {
     $prefix = 'Ideia\\';

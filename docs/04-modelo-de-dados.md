@@ -84,4 +84,5 @@ Junta linhas, cabeçalho e tipo de diário **só dos lançamentos validados**. T
 | 3 | Reconciliação bancária: `bank_statements`, `bank_lines`, `bank_matches`, `bank_match_ledger` (ver [reconciliação](11-reconciliacao-bancaria.md#dados-esquema-v3)) |
 | 4 | Índices de desempenho: `ix_entries_seq` (`entries.validated_seq`), `ix_entries_year` (`fiscal_year, status, date`), `ix_audit_action` (`audit_log.action, ts`) |
 | 5 | Vendas: `items`, `doc_series`, `sales_docs`, `sales_doc_lines`, `sales_settlements` (ver [vendas](12-vendas.md#esquema-v5-e-v6)) |
+| 7 | Compras: `purchase_docs`, `purchase_doc_lines`, `purchase_settlements` (ver [compras](14-compras.md#esquema-v7)) |
 | 6 | Famílias de artigos: tabela `item_families` e coluna `items.family_id` (primeira migração com `ALTER TABLE`, feita em `Db::migrate`) |

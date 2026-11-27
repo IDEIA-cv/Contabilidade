@@ -77,8 +77,9 @@ nav a.active { background: rgba(90,169,240,.18); color: #fff; }
 
 /* componentes */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
-.card > h2:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card > h2:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .grid { display: grid; gap: 16px; }
+.grid > * { min-width: 0; }
 .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }

@@ -26,6 +26,7 @@ final class Api
         'chain.verify', 'audit.list', 'imports.list', 'backup.download', 'saft.export', 'import.template', 'attachments.list', 'attachments.download',
         'bank.accounts', 'bank.template', 'bank.statements', 'bank.pending', 'bank.matches', 'bank.report',
         'items.list', 'items.families', 'sales.debtors', 'sales.customer', 'sales.statement', 'party.statement', 'party.statement_print', 'sales.meta', 'sales.list', 'sales.get', 'sales.print', 'sales.series', 'sales.summary', 'sales.verify',
+        'purchases.meta', 'purchases.list', 'purchases.get', 'purchases.creditors', 'purchases.schedule', 'purchases.supplier', 'purchases.summary', 'purchases.last_account',
     ];
 
     public static function handle(): void
@@ -264,6 +265,39 @@ final class Api
             case 'sales.print':
                 $html = SalesPrint::html($db, self::int($in, 'id', 0));
                 return new Download($html, 'documento.html', 'text/html; charset=utf-8', true);
+
+            // ---------------------------------------------------------------- compras
+            case 'purchases.meta':
+                return ['types' => Purchases::TYPES, 'payment_methods' => Sales::PAYMENT_METHODS,
+                    'vat_codes' => $db->all("SELECT code, name, rate_bp, kind FROM vat_codes WHERE kind IN ('dedutivel','isento') ORDER BY rate_bp DESC, code"),
+                    'accounts' => $db->all("SELECT a.code, a.name FROM accounts a WHERE (a.code LIKE '3%' OR a.code LIKE '4%' OR a.code LIKE '6%') AND NOT EXISTS (SELECT 1 FROM accounts c WHERE c.parent = a.code) ORDER BY a.code")];
+            case 'purchases.list':
+                return Purchases::list($db, $in);
+            case 'purchases.get':
+                return Purchases::get($db, self::int($in, 'id', 0));
+            case 'purchases.save':
+                return Purchases::save($db, $in);
+            case 'purchases.register':
+                return Purchases::register($db, self::int($in, 'id', 0));
+            case 'purchases.cancel':
+                return Purchases::cancel($db, self::int($in, 'id', 0), (string) ($in['reason'] ?? ''));
+            case 'purchases.delete':
+                Purchases::deleteDraft($db, self::int($in, 'id', 0));
+                return true;
+            case 'purchases.credit':
+                return Purchases::creditFrom($db, self::int($in, 'id', 0));
+            case 'purchases.pay':
+                return Purchases::pay($db, $in);
+            case 'purchases.creditors':
+                return Purchases::creditors($db, $in);
+            case 'purchases.schedule':
+                return Purchases::schedule($db, (string) ($in['as_of'] ?? '') ?: null);
+            case 'purchases.supplier':
+                return Purchases::supplier($db, self::int($in, 'id', 0), $year());
+            case 'purchases.summary':
+                return Purchases::summary($db, $year());
+            case 'purchases.last_account':
+                return ['account' => Purchases::lastAccount($db, self::int($in, 'id', 0))];
 
             // ---------------------------------------------------------------- plano, terceiros, exercícios
             case 'accounts.list':

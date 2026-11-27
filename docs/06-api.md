@@ -115,6 +115,25 @@ Cada linha: `account`, `debit` ou `credit` (texto, ex. `"1.234,56"`) **ou** `deb
 
 Linhas: `item_id?`, `description`, `qty` (texto, ex. `"1,5"`) ou `qty_milli`, `price` ou `price_cents`, `discount` (%) ou `discount_bp`, `vat_code`, `exemption?`, `account?`.
 
+## Compras
+
+| Ação | Método | Parâmetros |
+|------|--------|-----------|
+| `purchases.meta` | GET | — tipos (FC, FP, NF, PG), meios de pagamento, códigos de IVA de compras, contas permitidas (classes 3, 4, 6) |
+| `purchases.list` | GET | `type?`, `status?`, `pay?` (aberto, vencido, pago), `party?`, `q?`, `from?`, `to?`, `limit`, `offset` |
+| `purchases.get` | GET | `id` |
+| `purchases.save` | POST | `id?`, `type`, `date`, `due_date?`, `third_party?`, `supplier_doc`, `payment_method?`, `notes?`, `origin_id?` (NF), `lines[]` (com `account`), `settlements[]` (PG), `register?` |
+| `purchases.register` | POST | `id` — número interno e lançamento |
+| `purchases.cancel` | POST | `id`, `reason` |
+| `purchases.delete` | POST | `id` (só rascunhos) |
+| `purchases.credit` | POST | `id` (FC registada) — rascunho de nota de crédito com as mesmas linhas |
+| `purchases.pay` | POST | `invoices[]` ou `id`, `amount?` (só com uma fatura), `date`, `payment_method`, `notes?` |
+| `purchases.creditors` | GET | `q?`, `overdue?`, `as_of?` — dívida por fornecedor com antiguidade |
+| `purchases.schedule` | GET | `as_of?` — mapa de pagamentos |
+| `purchases.supplier` | GET | `id`, `year` — ficha do fornecedor |
+| `purchases.summary` | GET | `year` — compras, por pagar, vencido, próximos 7 dias, rascunhos |
+| `purchases.last_account` | GET | `id` (fornecedor) — última conta usada |
+
 ## Acesso e diagnóstico
 
 | Ação | Método | Parâmetros |

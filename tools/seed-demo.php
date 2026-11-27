@@ -13,6 +13,7 @@ use Ideia\Closing;
 use Ideia\Companies;
 use Ideia\Config;
 use Ideia\Ledger;
+use Ideia\Purchases;
 use Ideia\Sales;
 use Ideia\Stats;
 
@@ -160,5 +161,20 @@ Sales::save($db, ['type' => 'FT', 'date' => '2025-11-14', 'third_party' => $clie
 Sales::save($db, ['type' => 'FR', 'date' => '2025-11-15', 'payment_method' => 'NU', 'issue' => true, 'lines' => [['item_id' => $it[2], 'qty' => '2']]]);
 Sales::save($db, ['type' => 'GE', 'date' => '2025-11-14', 'third_party' => $clients[1], 'issue' => true, 'delivery_place' => 'Armazém Achada Grande', 'lines' => [['item_id' => $it[3], 'qty' => '4']]]);
 Sales::save($db, ['type' => 'PF', 'date' => '2025-11-25', 'third_party' => $clients[3], 'lines' => [['item_id' => $it[0], 'qty' => '8']]]);
+
+// compras de novembro: faturas de fornecedores, pagamento parcial, despesa paga e nota de crédito
+$fc = static fn(int $s, string $no, string $date, string $due, array $lines) => Purchases::save($db, ['type' => 'FC', 'date' => $date, 'due_date' => $due,
+    'third_party' => $suppliers[$s]['id'], 'supplier_doc' => $no, 'register' => true, 'lines' => $lines]);
+$f1 = $fc(0, 'FT 2025/8812', '2025-11-05', '2025-11-30', [['description' => 'Eletricidade outubro', 'price' => '18.400,00', 'account' => '624']]);
+$f2 = $fc(1, 'FAT 55120', '2025-11-06', '2025-11-21', [['description' => 'Internet e telefone outubro', 'price' => '9.800,00', 'account' => '6262']]);
+$f3 = $fc(2, 'FR 2025/11', '2025-11-01', '2025-11-08', [['description' => 'Renda do escritório novembro', 'price' => '60.000,00', 'account' => '6261', 'vat_code' => 'ISE']]);
+$f4 = $fc(4, 'AP-2025-301', '2025-11-18', '2026-01-17', [['description' => 'Seguro multirriscos (anual)', 'price' => '42.000,00', 'account' => '6263', 'vat_code' => 'ISE']]);
+Purchases::pay($db, ['invoices' => [$f2['id']], 'date' => '2025-11-20', 'payment_method' => 'TB']);
+Purchases::pay($db, ['invoices' => [$f3['id']], 'amount' => '30.000,00', 'date' => '2025-11-10', 'payment_method' => 'TB']);
+Purchases::save($db, ['type' => 'FP', 'date' => '2025-11-19', 'third_party' => $suppliers[3]['id'], 'supplier_doc' => 'VD 7781', 'payment_method' => 'NU', 'register' => true,
+    'lines' => [['description' => 'Papel e toner', 'price' => '4.350,00', 'account' => '6268']]]);
+$nf = Purchases::creditFrom($db, (int) $f1['id']);
+Purchases::save($db, ['id' => $nf['id'], 'date' => '2025-11-22', 'supplier_doc' => 'NC 2025/140', 'register' => true,
+    'lines' => [['description' => 'Acerto de leitura', 'price' => '1.400,00', 'account' => '624']]]);
 
 echo "Empresa de demonstração criada: {$c['id']} (" . $db->path . ")\n";

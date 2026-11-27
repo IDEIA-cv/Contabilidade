@@ -13,12 +13,14 @@ import * as imports from './views/imports.js';
 import * as settings from './views/settings.js';
 import * as bank from './views/bank.js';
 import * as sales from './views/sales.js';
+import * as purchases from './views/purchases.js';
 
 export const state = { company: null, info: null, year: null, companies: [] };
 
 const NAV = [
   { group: null, items: [['painel', 'Painel']] },
-  { group: 'Vendas', items: [['vendas', 'Documentos de venda'], ['dividas', 'Dívidas de clientes'], ['artigos', 'Artigos']] },
+  { group: 'Vendas', items: [['vendas', 'Documentos de venda'], ['dividas', 'Dívidas de clientes'], ['artigos', 'Artigos'], ['artigos?tipos=1', 'Tipos de artigo']] },
+  { group: 'Compras', items: [['compras', 'Faturas de fornecedores'], ['dividas-fornecedores', 'Dívidas a fornecedores'], ['pagamentos', 'Mapa de pagamentos']] },
   { group: 'Contabilidade', items: [['lancamentos', 'Lançamentos'], ['contas', 'Plano de contas'], ['terceiros', 'Clientes e fornecedores'], ['reconciliacao', 'Reconciliação bancária']] },
   { group: 'Relatórios', items: [['relatorios/balancete', 'Balancete'], ['relatorios/razao', 'Extrato de conta'], ['relatorios/diario', 'Diário'], ['relatorios/balanco', 'Balanço'], ['relatorios/dr', 'Demonstração de resultados'], ['iva', 'Apuramento do IVA']] },
   { group: 'Estatísticas', items: [['estatisticas/racios', 'Rácios financeiros'], ['estatisticas/gastos', 'Estrutura de gastos'], ['estatisticas/terceiros', 'Clientes e fornecedores'], ['estatisticas/orcamento', 'Orçamento'], ['estatisticas/previsao', 'Previsão'], ['estatisticas/indicadores', 'Indicadores próprios'], ['estatisticas/relatorio', 'Relatório de gestão']] },
@@ -27,7 +29,7 @@ const NAV = [
 
 const ROUTES = {
   painel: dashboard, lancamentos: entries, lancamento: entries, contas: accounts, terceiros: parties,
-  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales, terceiro: sales,
+  relatorios: reports, iva: vat, estatisticas: stats, importar: imports, exercicios: settings, empresa: settings, reconciliacao: bank, vendas: sales, artigos: sales, dividas: sales, cliente: sales, terceiro: sales, compras: purchases, 'dividas-fornecedores': purchases, pagamentos: purchases,
 };
 
 export function go(path) { location.hash = '#/' + path.replace(/^#?\/?/, ''); }

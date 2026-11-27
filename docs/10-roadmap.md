@@ -16,6 +16,11 @@ Núcleo contabilístico SNCRF, relatórios legais, IVA, fecho/abertura, importa�
 - Palavra-passe de acesso opcional, cabeçalhos de segurança, diagnóstico da instalação.
 - [Avaliação de qualidade](13-avaliacao-qualidade.md).
 
+## Feito — versão 0.4
+
+- **Compras e dívidas a fornecedores** (pedido de 27/11/2026): faturas de fornecedores, despesas pagas, notas de crédito, pagamentos de uma ou várias faturas, dívidas por antiguidade, mapa de pagamentos e ficha do fornecedor. Ver [14-compras](14-compras.md).
+- Tipos de artigo criados pelo utilizador, com entrada própria no menu.
+
 ## Próximo — validação (antes de qualquer cliente real)
 
 | Tarefa | Porquê |

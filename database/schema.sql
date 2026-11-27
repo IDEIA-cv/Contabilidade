@@ -278,6 +278,60 @@ CREATE TABLE IF NOT EXISTS sales_settlements (
 );
 CREATE INDEX IF NOT EXISTS ix_settlements_invoice ON sales_settlements(invoice_id);
 
+-- Compras (esquema v7) -------------------------------------------------------------------------------------
+-- Faturas de fornecedores (FC), faturas-recibo / despesas pagas no ato (FP), notas de crédito de fornecedores (NF) e
+-- pagamentos (PG). O número interno (FC 2026/1) ordena o registo; supplier_doc é o número no documento do fornecedor.
+CREATE TABLE IF NOT EXISTS purchase_docs (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    type           TEXT NOT NULL CHECK (type IN ('FC','FP','NF','PG')),
+    series         TEXT,
+    number         INTEGER,
+    doc_no         TEXT,
+    supplier_doc   TEXT,
+    status         TEXT NOT NULL DEFAULT 'rascunho' CHECK (status IN ('rascunho','registado','anulado')),
+    date           TEXT NOT NULL,
+    due_date       TEXT,
+    third_party    INTEGER REFERENCES third_parties(id),
+    origin_id      INTEGER REFERENCES purchase_docs(id),
+    payment_method TEXT,
+    notes          TEXT,
+    net_cents      INTEGER NOT NULL DEFAULT 0,
+    vat_cents      INTEGER NOT NULL DEFAULT 0,
+    total_cents    INTEGER NOT NULL DEFAULT 0,
+    entry_id       INTEGER REFERENCES entries(id),
+    cancel_reason  TEXT,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    registered_at  TEXT,
+    UNIQUE (type, series, number)
+);
+CREATE INDEX IF NOT EXISTS ix_purchase_party ON purchase_docs(third_party, date);
+CREATE INDEX IF NOT EXISTS ix_purchase_origin ON purchase_docs(origin_id);
+
+CREATE TABLE IF NOT EXISTS purchase_doc_lines (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id       INTEGER NOT NULL REFERENCES purchase_docs(id) ON DELETE CASCADE,
+    line_no      INTEGER NOT NULL,
+    item_id      INTEGER REFERENCES items(id),
+    description  TEXT NOT NULL,
+    qty_milli    INTEGER NOT NULL DEFAULT 1000,
+    price_cents  INTEGER NOT NULL DEFAULT 0,
+    discount_bp  INTEGER NOT NULL DEFAULT 0,
+    vat_code     TEXT REFERENCES vat_codes(code),
+    vat_rate_bp  INTEGER NOT NULL DEFAULT 0,
+    account      TEXT NOT NULL REFERENCES accounts(code),   -- gasto (6), compras (31) ou investimento (43/44)
+    net_cents    INTEGER NOT NULL DEFAULT 0,
+    vat_cents    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_purchase_lines_doc ON purchase_doc_lines(doc_id);
+
+CREATE TABLE IF NOT EXISTS purchase_settlements (
+    payment_id   INTEGER NOT NULL REFERENCES purchase_docs(id) ON DELETE CASCADE,
+    invoice_id   INTEGER NOT NULL REFERENCES purchase_docs(id),
+    amount_cents INTEGER NOT NULL,
+    PRIMARY KEY (payment_id, invoice_id)
+);
+CREATE INDEX IF NOT EXISTS ix_purchase_settlements_invoice ON purchase_settlements(invoice_id);
+
 -- Vista de movimentos validados (base de todos os relatórios e estatísticas)
 CREATE VIEW IF NOT EXISTS v_movements AS
 SELECT l.id AS line_id, e.id AS entry_id, e.fiscal_year, e.journal, e.number, e.date,

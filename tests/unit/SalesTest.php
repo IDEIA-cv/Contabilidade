@@ -193,7 +193,7 @@ return [
         $db->run('ALTER TABLE items_old RENAME TO items');
         $db->setMeta('schema_version', '5');
         $db2 = new Ideia\Db($db->path);
-        same('6', $db2->meta('schema_version'));
+        same((string) \Ideia\Db::SCHEMA_VERSION, $db2->meta('schema_version'));
         check(in_array('family_id', array_column($db2->all('PRAGMA table_info(items)'), 'name'), true), 'coluna family_id acrescentada');
         Sales::saveFamily($db2, ['name' => 'Depois da migração']);
     },
